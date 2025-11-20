@@ -1,0 +1,300 @@
+Replit, please modify my TypeScript/Express WhatsApp parser as follows. Create/update the exact files below. After changes, run npm install (no new deps) and npm run dev.
+
+1) Add a persistent Groups DB
+
+Create file: src/services/groupDb.ts
+
+// src/services/groupDb.ts
+import fs from "fs";
+import path from "path";
+
+export type GroupRow = {
+  id: string;                // numeric group id (from 1203...@g.us)
+  name: string;              // real group subject/name
+  instanceNumber?: string;   // e.g., "9821822960"
+  firstSeen: number;         // epoch ms
+  lastSeen: number;          // epoch ms
+};
+
+type GroupsMap = Record<string, GroupRow>;
+
+const DATA_DIR = path.join(process.cwd(), "data");
+const FILE = path.join(DATA_DIR, "groups.json");
+
+function ensureDir() {
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+function load(): GroupsMap {
+  ensureDir();
+  if (!fs.existsSync(FILE)) return {};
+  try {
+    const raw = fs.readFileSync(FILE, "utf8");
+    return JSON.parse(raw || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function save(db: GroupsMap) {
+  ensureDir();
+  fs.writeFileSync(FILE, JSON.stringify(db, null, 2));
+}
+
+function normalizeGroupId(raw?: string): string | null {
+  if (!raw) return null;
+  const id = String(raw).trim();
+  const m = id.match(/(\d{10,})/);
+  return m ? m[1] : null;
+}
+
+function isPlaceholderName(name?: string): boolean {
+  if (!name) return true;
+  const n = name.trim().toLowerCase();
+  if (!n) return true;
+  if (n.startsWith("watch group")) return true; // ignore UI placeholder
+  if (n === "group" || n === "unknown group") return true;
+  return false;
+}
+
+export function getGroups(): GroupRow[] {
+  const db = load();
+  return Object.values(db).sort((a, b) => b.lastSeen - a.lastSeen);
+}
+
+/** Upsert on every inbound group message/webhook */
+export function upsertFromWebhook(opts: {
+  rawGroupId?: string;
+  candidateNames: Array<string | undefined>;
+  instanceNumber?: string; // "+91..." or "9821822960"
+  at?: number;             // timestamp ms
+}): GroupRow | null {
+  const at = opts.at ?? Date.now();
+  const groupId = normalizeGroupId(opts.rawGroupId);
+  if (!groupId) return null;
+
+  const db = load();
+  const existing = db[groupId];
+
+  // choose best non-placeholder name
+  let bestName: string | undefined;
+  for (const c of opts.candidateNames) {
+    if (c && !isPlaceholderName(c)) { bestName = c.trim(); break; }
+  }
+  if (!bestName && existing?.name && !isPlaceholderName(existing.name)) {
+    bestName = existing.name;
+  }
+  if (!bestName) bestName = `Unknown (${groupId})`;
+
+  const row: GroupRow = {
+    id: groupId,
+    name: bestName,
+    instanceNumber: opts.instanceNumber || existing?.instanceNumber,
+    firstSeen: existing?.firstSeen ?? at,
+    lastSeen: at,
+  };
+
+  // keep the better (non-placeholder) name if we already had it
+  if (existing && !isPlaceholderName(existing.name) && isPlaceholderName(bestName)) {
+    row.name = existing.name;
+  }
+
+  db[groupId] = row;
+  save(db);
+  return row;
+}
+
+/** Backfill from All Records (history array posted to /api/groups/rebuild) */
+export function rebuildFromMessages(history: Array<{
+  groupId?: string;
+  group_name?: string;
+  groupSubject?: string;
+  chatName?: string;
+  pushName?: string;
+  instanceNumber?: string;
+  timestamp?: number;
+}>) {
+  const seen: GroupsMap = {};
+  for (const r of history) {
+    const id = normalizeGroupId(r.groupId);
+    if (!id) continue;
+
+    const names = [r.group_name, r.groupSubject, r.chatName, r.pushName];
+    let name: string | undefined;
+    for (const c of names) {
+      if (c && !isPlaceholderName(c)) { name = c.trim(); break; }
+    }
+    if (!name) name = `Unknown (${id})`;
+
+    const at = r.timestamp ?? Date.now();
+    const prev = seen[id];
+
+    seen[id] = {
+      id,
+      name: prev?.name && !isPlaceholderName(prev.name) ? prev.name : name,
+      instanceNumber: r.instanceNumber ?? prev?.instanceNumber,
+      firstSeen: prev ? Math.min(prev.firstSeen, at) : at,
+      lastSeen: prev ? Math.max(prev.lastSeen, at) : at,
+    };
+  }
+  save(seen);
+}
+
+export function displayName(row: GroupRow): string {
+  return `${row.name} (${row.id})`;
+}
+
+2) Update webhook to learn group names + instance numbers automatically
+
+Replace the current WhatsApp webhook route file with this: src/routes/webhook.ts
+(Keep any of your existing message ingestion logic after the upsert call.)
+
+// src/routes/webhook.ts
+import express from "express";
+import { upsertFromWebhook } from "../services/groupDb";
+
+const router = express.Router();
+
+router.post("/api/whatsapp/webhook", async (req, res) => {
+  const body = req.body || {};
+
+  // Detect group id in common shapes
+  const rawGroupId =
+    body.group_id ||
+    body.chatId ||
+    body.remoteJid ||
+    body.chat_id ||
+    body.message?.chatId ||
+    body.message?.key?.remoteJid ||
+    undefined;
+
+  // Ignore non-group messages
+  const isGroup =
+    /@g\.us$/.test(String(rawGroupId ?? "")) ||
+    /^\d{10,}$/.test(String(rawGroupId ?? ""));
+  if (!isGroup) {
+    return res.status(200).json({ ok: true, ignored: "not-a-group" });
+  }
+
+  // Candidate names from provider payloads
+  const candidateNames = [
+    body.group_name,
+    body.groupSubject,
+    body.chatName,
+    body.chat_name,
+    body.pushName,
+    body.senderName,
+    body.message?.pushName,
+  ];
+
+  // Instance number (mobile) – keep only digits
+  const instanceNumber =
+    body.instance_number ||
+    body.phone ||
+    body.instancePhone ||
+    String(body.instanceLabel || body.instance_name || body.instance || "")
+      .replace(/[^\d]/g, "") ||
+    undefined;
+
+  // Timestamp (ms)
+  const at =
+    typeof body.timestamp === "number" ? body.timestamp :
+    typeof body.ts === "number" ? body.ts :
+    typeof body.messageTimestamp === "number" ? body.messageTimestamp * 1000 :
+    Date.now();
+
+  // Upsert into groups DB
+  upsertFromWebhook({
+    rawGroupId,
+    candidateNames,
+    instanceNumber,
+    at,
+  });
+
+  // Continue with your existing ingestion flow (save message, etc.)
+  return res.status(200).json({ ok: true });
+});
+
+export default router;
+
+3) Add Groups API for the UI and a rebuild endpoint
+
+Create file: src/routes/groups.ts
+
+// src/routes/groups.ts
+import express from "express";
+import { getGroups, rebuildFromMessages } from "../services/groupDb";
+
+const router = express.Router();
+
+router.get("/api/groups", (_req, res) => {
+  res.json({ ok: true, data: getGroups() });
+});
+
+/** Optional backfill:
+ * POST body: { history: [{ groupId, group_name, groupSubject, chatName, pushName, instanceNumber, timestamp }, ...] }
+ */
+router.post("/api/groups/rebuild", (req, res) => {
+  const history = Array.isArray(req.body?.history) ? req.body.history : [];
+  rebuildFromMessages(history);
+  res.json({ ok: true, count: history.length });
+});
+
+export default router;
+
+4) Register routes in the server
+
+Edit: server/index.ts (or your main app entry)
+
+// server/index.ts
+import express from "express";
+import webhookRouter from "../src/routes/webhook";
+import groupsRouter from "../src/routes/groups";
+
+const app = express();
+app.use(express.json({ limit: "2mb" }));
+
+// existing routes...
+app.use(webhookRouter);
+app.use(groupsRouter);
+
+// keep your existing server listen code
+export default app;
+
+
+If your project already has an Express app defined elsewhere, import and app.use() the two routers there. Keep all existing routes and middleware intact.
+
+5) What this delivers
+
+Correct group names: learns real names from webhook (groupSubject/group_name/chatName/pushName), ignores placeholders like “Watch Group …”.
+
+Instance column: stores the mobile number (e.g., 9821822960) alongside each group.
+
+Auto-adds new groups: first message from any new @g.us creates a row instantly.
+
+Backfill: call POST /api/groups/rebuild with your “All Records” to fix historical names/instances.
+
+UI feed: GET /api/groups returns { id, name, instanceNumber, firstSeen, lastSeen } sorted by lastSeen.
+
+6) Quick test (optional)
+
+Send a sample group message payload:
+
+curl -X POST http://localhost:5000/api/whatsapp/webhook \
+  -H "Content-Type: application/json" \
+  -d '{
+    "group_id":"12036319227274078@g.us",
+    "groupSubject":"Test3",
+    "instanceLabel":"+91 9821822960",
+    "messageTimestamp": 1723612345
+  }'
+
+
+Then fetch:
+
+curl http://localhost:5000/api/groups
+
+
+You should see Test3 (12036319227274078) with instanceNumber: "9821822960".
+
+Important: Keep storing all incoming messages as you do now. The new code only maintains data/groups.json so the Group Database table can show Real Name (ID) and Instance reliably and auto-populate for new groups.

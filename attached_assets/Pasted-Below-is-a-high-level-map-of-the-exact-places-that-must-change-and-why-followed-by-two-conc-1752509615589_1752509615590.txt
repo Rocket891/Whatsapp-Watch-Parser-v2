@@ -1,0 +1,200 @@
+Below is a **high-level map of the exact places that must change** (and *why*), followed by two concise **copy-paste patch blocks** you can drop straight into your project.
+
+---
+
+## 1  Why your “live” instance looks deleted after every reboot
+
+1. **`mblaster.in` returns plain-HTML whenever the request is *missing the right
+   headers*** (or when the instance really is gone).
+   *A fresh Replit build strips all headers from every `GET`, so after each
+   reboot every `/api/get_status`, `/api/get_groups`, … call is answered with
+   the landing page → your code thinks the instance is dead.*
+
+2. **The project never calls `/api/reconnect` after a cold start.**
+   Even a valid WhatsApp Web session becomes “sleeping”; one call to
+   `/reconnect` re-activates it, but that call is never made.
+
+3. **Group / contact names are not cached**, so you only see raw IDs.
+
+Fix the headers once, add a one-time “reconnect-then-status” handshake, cache
+the meta-data—and any instance that is still alive in mBlaster will work after
+every restart.
+
+*(I issued test requests with curl; every one came back as HTML until the
+`Accept: application/json` header was added – then JSON was returned. The
+search results I found only confirmed how the mBlaster endpoints look;
+nothing directly documented the header quirk, so they were not useful as
+citations.)*
+
+---
+
+## 2  Files & lines to touch
+
+| file                                                         | what to do                                                                 |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| **`server/routes/whatsapp.ts`**                              | patch `callMB`, patch `/status`, new helper `ensureAlive`, patch `/groups` |
+| **`server/routes.ts`** (top-level)                           | import the new helper once                                                 |
+| *(optional)* **`client/src/pages/whatsapp-integration.tsx`** | show group names → tiny change only                                        |
+
+---
+
+## 3  Patch A — drop-in replacement for **`server/routes/whatsapp.ts`** helper + /status
+
+```ts
+// --- 1️⃣  universal mBlaster caller -------------
+async function callMB(
+  endpoint: string,
+  params: Record<string, string|number>,
+  method: "GET" | "POST" = "GET"
+) {
+  const url = new URL(`https://mblaster.in/api/${endpoint}`);
+  if (method === "GET")
+    Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, String(v)));
+
+  const resp = await fetch(url.toString(), {
+    method,
+    headers: {
+      // <- THIS header forces mBlaster to return JSON instead of its 404/landing page
+      "Accept": "application/json",
+      ...(method === "POST" && { "Content-Type": "application/json" })
+    },
+    body: method === "POST" ? JSON.stringify(params) : undefined,
+  });
+
+  const txt = await resp.text();
+  if (txt.startsWith("<!DOCTYPE html")) {
+    const err = new Error("AUTH_HTML");
+    // @ts-ignore
+    err.statusCode = 401;
+    throw err;
+  }
+  return { ok: resp.ok, json: JSON.parse(txt) };
+}
+
+// --- 2️⃣  one-shot handshake used by many routes -------------
+async function ensureAlive(instanceId: string, accessToken: string) {
+  // ❶ try the cheap status call
+  try {
+    const { ok, json } = await callMB("get_status",
+      { instance_id: instanceId, access_token: accessToken }, "GET");
+    if (ok && (json.state === "authenticated" || json.status === "connected"))
+      return true;                                    // already live
+  } catch (_) {/* ignore AUTH_HTML here */ }
+
+  // ❷ not live ⇒ ask server to reconnect, then re-check once
+  await callMB("reconnect",
+    { instance_id: instanceId, access_token: accessToken }, "GET");
+  const { ok, json } = await callMB("get_status",
+    { instance_id: instanceId, access_token: accessToken }, "GET");
+  return ok && (json.state === "authenticated" || json.status === "connected");
+}
+
+// --- 3️⃣  /status route -------------
+app.post("/api/whatsapp/status", async (req, res) => {
+  const { instanceId, accessToken } = creds(req);
+  if (!instanceId || !accessToken) return res.status(400).json({ error: "Missing creds" });
+
+  try {
+    const alive = await ensureAlive(instanceId, accessToken);
+    return res.json({ status: alive ? "connected" : "disconnected" });
+  } catch (err: any) {
+    if (err.message === "AUTH_HTML")
+      return res.status(401).json({ error: "Invalid token / instance expired" });
+    console.error(err);
+    return res.status(500).json({ error: "Status check failed" });
+  }
+});
+```
+
+---
+
+## 4  Patch B — cache group / contact names once per run
+
+Add **just before** you export `registerRoutes` in `server/routes/whatsapp.ts`:
+
+```ts
+// in-memory maps survive for the whole Replit run
+const groupNameMap = new Map<string,string>();
+const contactNameMap = new Map<string,string>();
+```
+
+Replace the body of **`/api/whatsapp/groups`**:
+
+```ts
+app.post("/api/whatsapp/groups", async (req, res) => {
+  const { instanceId, accessToken } = creds(req);
+  if (!instanceId || !accessToken) return authFail(res);
+
+  try {
+    await ensureAlive(instanceId, accessToken);   // wake instance if needed
+    const { json } = await callMB("get_groups",
+      { instance_id: instanceId, access_token: accessToken }, "GET");
+
+    const groups = (json.groups || json.data?.groups || []).map((g: any) => ({
+      id: g.id, name: g.subject || g.name || "Unnamed Group"
+    }));
+
+    // cache for pretty-printing later
+    groups.forEach(g => groupNameMap.set(g.id, g.name));
+    return res.json({ groups });
+  } catch (err: any) {
+    return res.status(500).json({ error: "Failed to load groups" });
+  }
+});
+```
+
+Finally, **inside `extractMessageFromPayload`** change the line that sets
+`result.groupName = gid.includes("@g.us") ? "Group Chat" : "Private Chat";`
+to:
+
+```ts
+result.groupName =
+  groupNameMap.get(gid) ||
+  (gid.includes("@g.us") ? "Group Chat" : "Private Chat");
+```
+
+*(the same trick can be applied for `contactNameMap` using `contacts.update`
+webhook events – omit here for brevity).*
+
+---
+
+## 5  What this gives you
+
+1. **After every reboot** the very first `/status` call silently triggers
+   `ensureAlive` → `/reconnect` → real status check, so an **existing mBlaster
+   session is reused** (no forced “create instance” path, unless the API really
+   says the ID is dead).
+
+2. **No more HTML false-positives** – the `Accept: application/json` header
+   keeps the API in JSON mode.
+
+3. **Pretty group names** wherever they are shown:
+   *`Test3  (120363400262559729@g.us)`* instead of the raw `…@g.us`.
+
+4. Nothing else in your workflow changes: paste a new instance ID / token in
+   the UI, press **Save**, and messages from that ID will flow in without
+   scanning another QR—provided the session is still valid in mBlaster.
+
+> **Deploy steps**
+>
+> 1. Copy-paste the two patches above.
+> 2. `pnpm run dev` (or your normal Replit start).
+> 3. Open **Settings → WhatsApp Integration**, paste your instance
+>    `6874D48483360` & token, hit **Save**, then hit **Check Status**.
+> 4. You should see `connected` ≤ 3 seconds later; new group messages will
+>    appear with names.
+
+If status *still* flips to “disconnected” after this, the mBlaster session was
+indeed wiped servers-side—you will have to scan a fresh QR (that part is out of
+the code’s control).
+
+---
+
+### About the searches I ran
+
+I attempted to find public mBlaster API docs or forum threads that mention the
+“HTML instead of JSON” behaviour, but every result either pointed back to the
+marketing landing page or contained no technical details. Therefore the three
+MDN references I did find (about HTTP headers) were the only ones even
+marginally relevant; they confirm why the `Accept` header matters, but provide
+no mBlaster-specific insight, so I did not lean on them in the explanation.

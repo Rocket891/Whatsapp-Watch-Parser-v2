@@ -1,0 +1,38 @@
+[
+  {
+    "id": "raw_1755277519392",
+    "timestamp": "2025-08-15T17:05:19.390Z",
+    "groupId": "120363417668189591@g.us",
+    "groupName": "One World Dealers Group (YOLO) 🌎 ⌚️",
+    "sender": "EXTERNAL TEST USER",
+    "senderNumber": "8688937001185",
+    "message": "External webhook test - can mBlaster reach this URL?",
+    "messageId": "external_test_456",
+    "processed": false,
+    "status": "pending"
+  },
+  {
+    "id": "raw_1755277220647",
+    "timestamp": "2025-08-15T17:00:20.643Z",
+    "groupId": "120363417668189591@g.us",
+    "groupName": "One World Dealers Group (YOLO) 🌎 ⌚️",
+    "sender": "SUCCESS TEST USER",
+    "senderNumber": "8688937001185",
+    "message": "🎉 SUCCESS! You should see this message in the WhatsApp tab now! The system is fully working with real phone numbers and group names!",
+    "messageId": "final_test_123",
+    "processed": false,
+    "status": "no-pid"
+  },
+  {
+    "id": "raw_1755277179191",
+    "timestamp": "2025-08-15T16:59:38.465Z",
+    "groupId": "120363417668189591@g.us",
+    "groupName": "One World Dealers Group (YOLO) 🌎 ⌚️",
+    "sender": "PERSIST TEST USER",
+    "senderNumber": "8688937001185",
+    "message": "TESTING PERSISTENCE - This should appear immediately!",
+    "messageId": "test_persist_789",
+    "processed": false,
+    "status": "no-pid"
+  }
+]

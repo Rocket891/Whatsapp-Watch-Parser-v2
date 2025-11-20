@@ -1,0 +1,274 @@
+Goal: Make WhatsApp integration work reliably on Replit without relying on mBlaster outbound API calls (which get IP-blocked). Implement a webhook-first mode that:
+
+Receives and processes all messages via webhooks only.
+
+Builds/maintains group list + names from webhook events and user edits (no API required).
+
+Uses last webhook time for connection status (no /get_status polling).
+
+Supports dynamic instance ID switching instantly.
+
+Still allows optional, best-effort calls to mBlaster (behind a feature flag), but the app must fully work when those fail.
+
+1) New config flag + safe defaults
+
+Add to our WhatsApp config model a new field:
+
+// server/config.ts (or wherever WA config is defined)
+export type WaMode = 'webhook_only' | 'full_api';
+// default to webhook_only
+interface WhatsAppConfig {
+  accessToken: string;
+  instanceId: string;
+  whitelistedGroups: string; // comma-separated
+  autoProcess: boolean;
+  paused?: boolean;
+  mode?: WaMode; // NEW
+}
+
+
+If mode is missing, treat it as 'webhook_only'. Add this field to the UI (WhatsApp Setup) with a toggle: Webhook-only (recommended on Replit) vs Full API.
+
+2) Durable caches (no undefined Maps)
+
+Create a tiny persistence layer so we never lose names/groups between restarts and never hit TypeError: Cannot read properties of undefined (reading 'get'|'set').
+
+File: server/wa-cache.ts
+
+import fs from 'fs';
+import path from 'path';
+
+const DATA_DIR = path.join(process.cwd(), 'data');
+const CACHE_FILE = path.join(DATA_DIR, 'wa-cache.json');
+
+type CacheShape = {
+  lastWebhookAt?: number;
+  groups: Record<string, { // key: `${instanceId}:${groupId}`
+    id: string;
+    instanceId: string;
+    name?: string;      // friendly/subject
+    lastSeen: number;
+    size?: number;
+    source?: 'webhook'|'api'|'manual';
+  }>;
+  contacts: Record<string, { // key: waJid like '9198...@s.whatsapp.net'
+    id: string;
+    name?: string;      // pushName/notify
+    lastSeen: number;
+    source?: 'webhook'|'api';
+  }>;
+};
+
+const empty: CacheShape = { groups: {}, contacts: {} };
+
+export function loadCache(): CacheShape {
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    if (!fs.existsSync(CACHE_FILE)) return { ...empty };
+    const raw = fs.readFileSync(CACHE_FILE, 'utf8');
+    const parsed = JSON.parse(raw);
+    return { ...empty, ...parsed };
+  } catch {
+    return { ...empty };
+  }
+}
+
+export function saveCache(cache: CacheShape) {
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  fs.writeFileSync(CACHE_FILE, JSON.stringify(cache, null, 2), 'utf8');
+}
+
+
+In server/routes.ts (or server/routes/whatsapp.ts), import this cache and create module-level helpers:
+
+import { loadCache, saveCache } from './wa-cache';
+const WA_CACHE = loadCache();
+
+function cacheSetLastWebhook() { WA_CACHE.lastWebhookAt = Date.now(); saveCache(WA_CACHE); }
+
+function upsertGroup(instanceId: string, groupId: string, patch: Partial<{name:string; size:number; source:'webhook'|'api'|'manual'}>) {
+  const key = `${instanceId}:${groupId}`;
+  const row = WA_CACHE.groups[key] || { id: groupId, instanceId, lastSeen: 0 };
+  WA_CACHE.groups[key] = { ...row, ...patch, lastSeen: Date.now() };
+  saveCache(WA_CACHE);
+}
+
+function upsertContact(jid: string, patch: Partial<{name:string; source:'webhook'|'api'}>) {
+  const row = WA_CACHE.contacts[jid] || { id: jid, lastSeen: 0 };
+  WA_CACHE.contacts[jid] = { ...row, ...patch, lastSeen: Date.now() };
+  saveCache(WA_CACHE);
+}
+
+function getGroupsForInstance(instanceId: string) {
+  return Object.values(WA_CACHE.groups).filter(g => g.instanceId === instanceId);
+}
+
+function getContactName(jid: string) {
+  return WA_CACHE.contacts[jid]?.name || '';
+}
+
+3) Webhook handler = single source of truth
+
+In the webhook POST handler (/api/whatsapp/webhook):
+
+Immediately validate instance: if payload has instance_id and it doesn’t match saved config instanceId, skip (we already log “Instance ID match”).
+
+Call cacheSetLastWebhook() on every valid webhook.
+
+Discover groups:
+
+If payload has messages.upsert or received_message, extract remoteJid (message_key.remoteJid or messages[0].key.remoteJid).
+If it ends with @g.us, call:
+
+upsertGroup(config.instanceId, remoteJid, { source: 'webhook' });
+
+
+If payload includes group info (some providers send group_metadata / subject / name / size), set it:
+
+upsertGroup(config.instanceId, groupId, { name: subject, size, source: 'webhook' });
+
+
+Cache contacts:
+
+On contacts.update, iterate items → upsertContact(item.id, { name: item.notify, source:'webhook' }).
+
+When processing messages, if you can see pushName + sender JID (participant or ...@s.whatsapp.net), also upsert contact name from webhook.
+
+Use getContactName(senderJid) whenever storing/displaying sender → replaces 9198…@s.whatsapp.net with real WhatsApp name.
+
+Result: group IDs and contact names are learned automatically from real traffic. No API needed.
+
+4) Replace fragile connection checks with webhook heartbeat
+
+Stop calling mBlaster /get_status//reconnect for the UI ping. Those outbound calls flap due to IP blocks and make the UI say “disconnected”.
+
+Change /api/whatsapp/connection-status to:
+
+// connected if a webhook hit within the last 10 minutes (tune threshold)
+const last = WA_CACHE.lastWebhookAt || 0;
+const connected = Date.now() - last < 10 * 60 * 1000;
+res.json({ connected, lastWebhookAt: last, mode: config.mode || 'webhook_only' });
+
+
+Update the frontend status pill:
+
+Show “Connected (webhook)” when connected=true.
+
+If connected=false, show “Waiting for webhooks…” with the exact lastWebhookAt timestamp.
+
+Keep an optional button “Try API ping” that calls the old /ping (only visible when mode = full_api), but never use it to drive the main status.
+
+5) Groups API = cache + manual + (optional) best-effort
+
+Rewrite /api/whatsapp/groups:
+
+Start with groups = getGroupsForInstance(config.instanceId) from cache.
+
+Merge whitelisted IDs from config (comma-sep). If any ID not in cache, add a row { id, name: undefined, source:'manual' }.
+
+If mode==='full_api', you may attempt the mBlaster /get_groups call. On success, merge names/sizes into cache via upsertGroup(..., {name,size,source:'api'}). On failure (HTML/IP_REJECTED), silently ignore and just return the cached list.
+
+Response shape:
+
+[{ "id": "1203634...@g.us", "name": "One World Dealers Group (YOLO) 🌎 ⌚️" }]
+
+
+In the frontend, display as nameOrUnknown + " (" + id + ")".
+
+Add a new endpoint /api/whatsapp/groups/override-name:
+
+// body: { groupId: string, name: string }
+upsertGroup(config.instanceId, groupId, { name, source: 'manual' });
+
+
+Add a small “✏️ Rename” action in the groups dropdown list to set a friendly name.
+
+6) Dynamic instance switching (no outbound dependency)
+
+On saving WhatsApp Setup:
+
+Update config file with new instanceId, accessToken, whitelistedGroups, mode.
+
+Do not auto-create a new instance or call /set_webhook when mode==='webhook_only'.
+Instead, show a banner with the webhook URL to set in mBlaster:
+
+Your webhook URL:
+https://<your-replit-domain>/api/whatsapp/webhook
+
+
+If you keep /configure endpoint, make it a no-op in webhook_only, returning {status:'ok', note:'webhook_only: please set webhook URL in mBlaster manually'}.
+
+Important: The webhook handler already filters by instance_id, so multiple instances hitting the same URL won’t pollute data.
+
+7) Fix the observed webhook errors
+
+You saw:
+
+TypeError: Cannot read properties of undefined (reading 'get' / 'set')
+at routes.ts:1100 / 1134
+
+
+That’s from using a Map that wasn’t initialized. Remove those loose Maps and use the persisted WA_CACHE helpers above. Where we used groupNameCache.get/set or contactNameCache.get/set, replace with upsertGroup, upsertContact, and getters that read from WA_CACHE. This also fixes the crash on busy webhooks.
+
+8) Frontend tweaks (small but important)
+
+Status chip: use /api/whatsapp/connection-status only. Label “Connected (webhook)” vs “Waiting for webhooks…” with last received time.
+
+Groups dropdown:
+
+Load from /api/whatsapp/groups.
+
+Render name || 'Unknown' followed by (${id}).
+
+Add a tiny “Refresh (from cache)” button (just re-hit the same endpoint), and a “Rename” pencil per row calling /groups/override-name.
+
+Remove any “load from API” buttons in webhook_only mode, or grey them out with a tooltip (“Disabled: IP-blocked on Replit. Names auto-learned from webhooks.”).
+
+Sender names: anywhere we show the sender ID, resolve via /contacts cache (or include name in message DTO), so logs look like Nirav Gandhi instead of 919821822960@s.whatsapp.net.
+
+9) Acceptance tests (add a simple route)
+
+Add POST /api/whatsapp/webhook-test that accepts a sample payload (like the ones in our logs) and feeds it into the same processor. Use it to:
+
+Post a messages.upsert payload with remoteJid = 120363400262559729@g.us and pushName = “Test User”.
+
+Call GET /api/whatsapp/connection-status → expect connected:true.
+
+Call POST /api/whatsapp/groups → expect list includes 120363400262559729@g.us with name = Unknown (until a real name shows) and later show the manual rename flow.
+
+Call POST /api/whatsapp/groups/override-name with {groupId:'120363400262559729@g.us', name:'Test3'} → next fetch should show Test3 (120363400262559729@g.us).
+
+Post contacts.update webhook for 919821822960@s.whatsapp.net with notify: "Nirav Gandhi" → ensure new incoming message logs display the name.
+
+10) Keep optional, best-effort API
+
+Leave a small utility (already exists) that can try /get_groups and /get_status only when mode==='full_api'. Wrap all calls in:
+
+3s timeout
+
+HTML detector → treat as IP blocked
+
+Never break UI; just log and continue using cache.
+
+11) Quality of life
+
+On server start, log:
+
+Webhook URL (configure this in mBlaster):
+https://<current-public-domain>/api/whatsapp/webhook
+Mode: webhook_only (no outbound API required)
+
+
+If running in Replit “Run” (not deployed), please still avoid changing the webhook programmatically. The operator will paste the URL in mBlaster once.
+
+Why this works on Replit (no proxy)
+
+Inbound webhooks reach your Replit URL fine; we treat them as the truth.
+
+Outbound calls are flaky due to IP blocks → we don’t rely on them for core features.
+
+Group list + names are learned and persisted from real traffic, with a manual rename where needed.
+
+Connection status is stable because it’s based on last webhook time, not blocked pings.
+
+Switching instanceId works instantly because we filter by instance_id on the webhook and don’t need to call any API to “connect”.

@@ -1,0 +1,96 @@
+Below is the quickest **check-list + fix** to bring an **existing** mBlaster instance back online without creating a new ID.
+Everything can be done with a browser and one terminal / Postman tab – no coding required.
+
+---
+
+## 1  Confirm the instance is still alive in mBlaster
+
+1. Open your browser and hit:
+
+```
+https://mblaster.in/api/get_status?instance_id=YOUR_INSTANCE_ID&access_token=YOUR_TOKEN
+```
+
+* **If you get JSON** that contains something like
+  `{"state":"authenticated"}` **or** `{"status":"connected"}`, the instance is alive – skip to § 3.
+* **If you get JSON** with `state:"unpaired"` / `"not_authenticated"` / `"logout"` – the phone has logged out; continue with § 2.
+* **If the response is the big HTML “Oops-404” page** you posted earlier, the token or ID is wrong (or mBlaster has deleted the instance); create a new one in mBlaster first.
+
+---
+
+## 2  (Re)-pair the phone to that instance
+
+1. Generate a QR **directly from the API** to be 100 % sure it’s coming from the correct instance:
+
+```
+https://mblaster.in/api/get_qrcode?instance_id=YOUR_INSTANCE_ID&access_token=YOUR_TOKEN
+```
+
+The response is JSON.
+If you see a field called `base64` (or `qr_code` / `qrcode_url`), copy the **base64** value, paste it into **[https://codebeautify.org/base64-to-image-converter](https://codebeautify.org/base64-to-image-converter)** and click **“Convert”**.
+Scan that PNG with WhatsApp → Linked Devices.
+
+2. Wait \~10 s, repeat **/get\_status** – it should now say `authenticated` / `connected`.
+
+> **If /get\_qrcode returns `"QR code not ready yet"`** keep calling it every 2–3 s for \~30 s – mBlaster sometimes needs a moment after /reboot.
+
+---
+
+## 3  Point the webhook to your Replit URL
+
+Even if the instance is connected, you won’t receive messages until mBlaster knows where to POST them.
+
+```
+https://mblaster.in/api/set_webhook?webhook_url=YOUR_ENCODED_REPLIT_URL/api/whatsapp/webhook&enable=true&instance_id=YOUR_INSTANCE_ID&access_token=YOUR_TOKEN
+```
+
+Example (encode the URL!):
+
+```
+...set_webhook?webhook_url=https%3A%2F%2F5290e32f-78d9-4ec9-8e7e-2af6d9860a89-00-15cqkrvai7fc0.picard.repl.co%2Fapi%2Fwhatsapp%2Fwebhook&enable=true&instance_id=...
+```
+
+mBlaster will return `{ "message":"Webhook set successfully" }`.
+
+---
+
+## 4  Tell **your Replit server** to use the same ID + token
+
+From the **front-end credential form** (or with Postman) call:
+
+```
+POST  /api/whatsapp/configure
+{
+  "instanceId":   "YOUR_INSTANCE_ID",
+  "accessToken":  "YOUR_TOKEN",
+  "whitelistedGroups": "",          // or CSV of group IDs
+  "autoProcess":  true
+}
+```
+
+The server:
+
+1. Saves those creds to `config.json`.
+2. Sets the same webhook again (harmless if it’s already set).
+3. Resets its in-memory connection monitor.
+
+A `"status":"configured"` JSON confirms it.
+
+---
+
+## 5  Verify from the dashboard
+
+* Click **“Check status”** – it should flash **Connected** within \~2 s (because `/status` now just queries mBlaster).
+* Send any message to the WhatsApp number. Within 1–2 s it should appear in **Incoming Messages**.
+
+---
+
+### Why it “stopped working”
+
+* The instance in mBlaster went to **“unpaired”** after 14 days (standard Baileys timeout) – you hadn’t re-scanned the QR.
+* Webhook URLs were never reset after you switched Instance IDs, so even if you re-paired the phone, mBlaster was posting to an **old URL**.
+* The server kept an old ID/token in memory – the new `/configure` call above fixes that.
+
+Once you complete the five steps you will be back to a stable, **dynamic** setup: whenever you edit the Instance ID / token in the UI and hit **Save**, the server calls `/configure`, updates its config, re-sets the webhook, and the new instance starts flowing immediately.
+
+Good luck – let me know if any step still fails!

@@ -1,0 +1,95 @@
+Below is the **exact, minimal sequence** to put your existing mBlaster instance
+
+```
+Instance ID : 6874D48483360  
+AccessToken : 6823295cdd694
+```
+
+back in service with **your Replit backend** – no new instance required, no code editing beyond one `/configure` call.
+
+---
+
+## 1  Tell your Replit server to use those credentials
+
+Open a terminal, Postman, or the Swagger “Try it out” in your app and run:
+
+```http
+POST  https://<your-replit-host>/api/whatsapp/configure
+Content-Type: application/json
+
+{
+  "instanceId"        : "6874D48483360",
+  "accessToken"       : "6823295cdd694",
+
+  "whitelistedGroups" : "",          // leave blank for ALL groups
+  "autoProcess"       : true
+}
+```
+
+What happens:
+
+* the server writes the creds to `config.json`
+* caches them in memory
+* **automatically** calls mBlaster `/set_webhook` with your Replit URL
+  (`https://<replit-host>/api/whatsapp/webhook`)
+* starts pinging `/get_status` every 30 s
+
+The JSON reply should be
+
+```json
+{ "status": "configured" }
+```
+
+---
+
+## 2  Confirm mBlaster sees the webhook
+
+Copy-paste in a browser (replace the encoded URL only):
+
+```
+https://mblaster.in/api/get_webhook?instance_id=6874D48483360&access_token=6823295cdd694
+```
+
+The response must show your Replit URL and `"enable":true`.
+
+---
+
+## 3  Make sure the instance is still paired
+
+In the same browser / Postman tab:
+
+```
+https://mblaster.in/api/get_status?instance_id=6874D48483360&access_token=6823295cdd694
+```
+
+* If the JSON contains `"state":"authenticated"` **or** `"status":"connected"` → skip to § 4.
+* If you see `"unpaired"` / `"not_authenticated"` → generate a fresh QR:
+
+```
+https://mblaster.in/api/get_qrcode?instance_id=6874D48483360&access_token=6823295cdd694
+```
+
+Convert the `base64` string to an image (e.g. codebeautify.org/base64-to-image-converter) and scan it with WhatsApp → Linked Devices.
+Re-check `/get_status`; it should now be connected.
+
+---
+
+## 4  Live test
+
+1. In your dashboard press **“Check Status”**.
+   It should flip to **Connected** within \~2 s.
+2. Send any message into **any group** – because `whitelistedGroups` is empty every chat is accepted.
+   The line should appear in **Incoming Messages** almost instantly.
+
+---
+
+### FAQ
+
+| Issue                                                     | Cause & Fix                                                                                                                                                                                            |
+| --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Still shows “Disconnected”**                            | `/get_status` in step 3 is not returning `authenticated`. Re-scan QR or verify the ID/token.                                                                                                           |
+| **Messages appear, but group name shows only the raw ID** | The mBlaster `/get_groups` endpoint sometimes returns an empty `name`. Your server will fill it the next time a *profile-update* webhook for that group arrives. (WhatsApp pushes those periodically.) |
+| **Need to switch to another instance later**              | Just repeat **step 1** with the new ID/token – the server overwrites its config, resets the webhook and you’re live.                                                                                   |
+
+That’s all you need – no other code paths are touched.
+Ping me if any step above does **not** give the expected JSON – we’ll dig deeper, but in 95 % of cases the instance is simply **unpaired** or the webhook URL wasn’t set.

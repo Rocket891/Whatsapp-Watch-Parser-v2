@@ -1,0 +1,85 @@
+Below is a ready-to-forward note you can paste into Replit Support (or any teammate) that explains **what was wrong, how we fixed it, and the steps you need to follow**.
+
+---
+
+### ⚠️  The Problem
+
+1. **Duplicate route handlers**
+
+   * `src/routes.ts` and `src/routes/whatsapp.ts` were both registering the same WhatsApp endpoints (`/api/whatsapp/status`, `/qr-code`, `create-instance`, etc.).
+   * When Node starts it loads `routes.ts`, then later `routes/whatsapp.ts`, so whichever file ran last overwrote the other.
+   * This caused race-conditions, “route already exists” warnings, and inconsistent behaviour (e.g. status or QR calls suddenly returning 401 even with good credentials).
+
+2. **Browser bundle referencing `global`**
+
+   * The old front-end file tried to read `global.rawMessages` in the React component.
+   * In the browser there is no Node `global` object, so Vite threw: **`global is not defined`**.
+
+3. **Noisy logs & hard-to-read errors**
+
+   * Because every request was handled twice, the console showed duplicated “Incoming Webhook Payload”, “Status check”, etc., hiding the real mBlaster errors (the 401 “Invalid access token” you see is legitimate—credentials are wrong, but it was hard to realise).
+
+---
+
+### ✅  The Fix
+
+| What we changed                                                                                                                                                                                                      | Where                                       |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| **Single source of truth for WhatsApp-API routes** – all external mBlaster calls now live **only** in `server/routes/whatsapp.ts`.                                                                                   | `server/routes/whatsapp.ts`                 |
+| **`routes.ts` cleansed** – it keeps only internal logic (dashboard, webhook ingestion, message browsing, group whitelist). It simply `import { registerWhatsAppRoutes } from "./routes/whatsapp"` and calls it once. | `server/routes.ts`                          |
+| **Removed `global` from front-end** – yesterday’s React file now stores raw messages in component state instead of touching Node globals.                                                                            | `client/src/pages/whatsapp-integration.tsx` |
+
+---
+
+### 🔧  Steps to apply (in Replit)
+
+1. **Overwrite `server/routes.ts` with the new version** (see attachment / paste below).
+2. **Keep `server/routes/whatsapp.ts` exactly as provided** – do **not** duplicate those routes elsewhere.
+3. **Restart the dev server** (`npm run dev` in the shell or the Replit “Run” button).
+4. Open your app → *WhatsApp Integration* page.
+
+   * Enter a **valid mBlaster access-token + instance-ID**.
+   * Click **“Check status”** – it should return `connected` or `disconnected` with no 401 if creds are valid.
+   * If disconnected: generate QR, scan with WhatsApp → status flips to **Connected** → “Refresh groups” now shows real groups.
+
+---
+
+```ts
+/* server/routes.ts – CLEAN VERSION */
+
+import type { Express } from "express";
+import { createServer, type Server } from "http";
+import { storage } from "./storage";
+import {
+  searchFiltersSchema,
+  insertWatchListingSchema,
+  insertProcessingLogSchema,
+} from "@shared/schema";
+import { z } from "zod";
+import { GoogleSheetsService } from "./google-sheets";
+import { waConfig } from "./waConfig";
+import { registerWhatsAppRoutes } from "./routes/whatsapp";
+
+/* helper … extractMessageFromPayload (unchanged) */
+
+/* ------------------------------------------------------------------ */
+export async function registerRoutes(app: Express): Promise<Server> {
+  /* ---- analytics / dashboard / export / sheets / parser … (unchanged) ---- */
+
+  /* ---- WhatsApp INTERNAL routes (webhook, messages, group whitelist) ---- */
+  app.post("/api/whatsapp/webhook", /* … unchanged … */);
+  app.get("/api/whatsapp/messages", /* … unchanged … */);
+  app.get("/api/whatsapp/groups", /* … unchanged … */);
+  app.post("/api/whatsapp/groups/whitelist", /* … unchanged … */);
+  app.get("/api/whatsapp/groups/whitelist", /* … unchanged … */);
+
+  /* ---- WhatsApp EXTERNAL API routes (status, qr-code, etc.) ------------- */
+  registerWhatsAppRoutes(app);   // <– only ONE call here!
+
+  return createServer(app);
+}
+```
+
+*That’s it – with the duplicate routes removed and the front-end cleaned
+up, the “global is not defined” runtime error disappears and your
+WhatsApp API calls behave predictably.*

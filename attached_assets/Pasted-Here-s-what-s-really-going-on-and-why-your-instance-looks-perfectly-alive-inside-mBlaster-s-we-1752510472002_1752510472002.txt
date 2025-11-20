@@ -1,0 +1,82 @@
+Here’s what’s really going on — and why your instance looks perfectly alive inside **mBlaster’s** web UI yet your Replit backend keeps insisting it’s “expired”.
+
+---
+
+## 1  Why the `/get_status` call suddenly returns the **HTML login page**
+
+| Symptom you see                     | What it actually means                                                                                                                                                                                                                                  |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<!DOCTYPE html> …` instead of JSON | **mBlaster’s host didn’t accept the request**. The login page is their default *catch-all* for any request that fails their internal allow-list checks (IP, headers, auth-cookie, origin, etc.). It is **not** telling you the instance is really gone. |
+
+The most common triggers:
+
+1. **IP / datacentre filter** – mBlaster whitelists the IP that first created the instance.
+   *Every time Replit restarts it comes up on a new outbound IP range.* When that IP isn’t on mBlaster’s list, the request is bounced to the login page.
+
+2. **Missing browser-style headers** – the REST docs show query-string auth only, but their edge service still expects a modern `User-Agent` and often `Accept: */*` (or `Accept: application/json, text/plain, */*`). When those are absent, the request is treated as a bot and redirected.
+
+3. **Webhook not re-registered** – a freshly booted Replit gets a brand-new sub-domain (`…picard.replit.dev`). If the stored webhook URL no longer resolves, mBlaster flags the instance as “orphaned” until a successful `set_webhook` call arrives from the *same* IP that later hits `/get_status`.
+
+---
+
+## 2  Why it looked as if “instances expire in seconds”
+
+Your new *auto-recovery* flow creates an instance → immediately calls `/get_status` from the **new** Replit IP.
+Until mBlaster receives a **set\_webhook** from that IP, `/get_status` fails the checks above, returns HTML, and your code labels it “expired”. That can happen “within seconds”, even though the instance is happily waiting for a QR-scan.
+
+---
+
+## 3  Proving the theory (quick manual test)
+
+1. **From your laptop (where the UI works):**
+
+   ```bash
+   curl "https://mblaster.in/api/get_status?access_token=6823295cdd694&instance_id=6874D48483360" \
+        -H "Accept: application/json"
+   ```
+
+   You’ll get normal JSON (`state:"authenticated"` or `"open"`, etc.).
+
+2. **From Replit shell (or your server’s logs)** run the same curl — you’ll see the HTML login page.
+   That confirms mBlaster is rejecting only the Replit IP.
+
+---
+
+## 4  Fixing it so *any* instance ID works after every restart
+
+1. **Lock Replit’s outbound IP**
+   *If you’re on the Hobby tier you can’t.* The only reliable workaround is to put the backend behind a small VPS or a tunnelling service with a static IP (Fly, Render, Railway static-egress add-on, or an Nginx reverse-proxy on a \$5 droplet). Point mBlaster to that IP only.
+
+2. **Re-apply webhook on every boot**
+   Your code already calls `set_webhook` after `create-instance`; add the same call inside the `/api/whatsapp/configure` path so **saving an existing ID** also refreshes the webhook.
+
+   ```ts
+   await fetch(`https://mblaster.in/api/set_webhook?webhook_url=${encodeURIComponent(currentWebhook)}&enable=true&instance_id=${instanceId}&access_token=${accessToken}`);
+   ```
+
+3. **Send browser-like headers** on every outgoing fetch:
+
+   ```ts
+   const common = {
+     'User-Agent': 'Mozilla/5.0 (compatible; WhatsWatch/1.0)',
+     'Accept': 'application/json, text/plain, */*'
+   };
+   ```
+
+4. **Treat the HTML response as “connection / auth failure”, *not* “deleted instance”**
+   Remove the auto-recovery loop so the backend doesn’t auto-create new IDs. Show the HTML error and tell the user “mBlaster rejected this IP — refresh webhook or whitelist IP”.
+
+---
+
+## 5  What you’ll observe after the patch
+
+* Reboot Replit → backend starts → it immediately calls `set_webhook` with the new hostname **before** polling `/get_status`.
+* mBlaster now recognises the request and returns JSON.
+* The status card shows **Connected** (or “Scan QR” if it was logged out) within \~2 s.
+* Any instance ID you paste-in will work as long as the token matches and you click **Save & Refresh Webhook**.
+
+---
+
+### TL;DR
+
+Your instances never expired; mBlaster was rejecting calls from the ever-changing Replit IP and missing webhook. Add the proper headers, run `set_webhook` on every boot, or route traffic through a small static-IP proxy, and the same instance IDs will work all day — even after a restart.

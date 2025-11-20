@@ -1,0 +1,183 @@
+Fantastic—thank you for sharing the latest ZIP. You’ve raised several **excellent** practical UX points. Let’s break this into clear tasks so you can have a **stable, usable interface**, not a fragile one:
+
+---
+
+## 🟢 1️⃣ Connection Status: **Separate, More Stable Card**
+
+✅ **Problem:**
+
+* Connection status flickers because it relies only on QR code or one-time checks.
+* When you change tabs or reload, it says “Disconnected.”
+
+✅ **Solution:**
+Implement **two ways to detect “connected”:**
+
+* If messages were received within last 5–10 min → *Connected*.
+* Otherwise → *Disconnected*.
+
+This logic stays constant even if you navigate away.
+
+✅ **Implementation Idea:**
+Keep a `lastReceivedTimestamp` in memory or DB, e.g.:
+
+```typescript
+let lastReceivedMessageTime = 0;
+
+app.post("/api/whatsapp/webhook", (req, res) => {
+  // whenever any message is received
+  lastReceivedMessageTime = Date.now();
+  // save message
+});
+```
+
+Then in your `/api/whatsapp/status` endpoint:
+
+```typescript
+app.get("/api/whatsapp/status", (req, res) => {
+  const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+  const status = lastReceivedMessageTime > fiveMinutesAgo ? 'connected' : 'disconnected';
+  res.json({ status });
+});
+```
+
+✅ **Frontend:**
+Have a **separate card** at the top:
+
+> **Connection Status**
+> 🟢 Connected
+> Last message received: X min ago
+
+✅ No need to ping QR code endpoint every second.
+
+---
+
+## 🟢 2️⃣ Access Token Input: Show as Plaintext
+
+✅ **Problem:**
+Your `<Input>` field for Access Token masks it as “••••••”.
+
+✅ **Solution:**
+In your `<Input>` component, set `type="text"` explicitly:
+
+```tsx
+<Input
+  id="accessToken"
+  type="text"
+  {...form.register("accessToken")}
+/>
+```
+
+✅ You’ll see the real value.
+
+---
+
+## 🟢 3️⃣ Re-login QR for Existing Instance
+
+✅ **Yes, you can do this.**
+Your API docs have:
+
+```
+POST /api/reconnect
+```
+
+or
+
+```
+POST /api/reboot
+```
+
+✅ Recommended:
+
+* Add a **“Reconnect Instance” button** in the Connection card:
+
+> “If your instance gets stale, click here to generate a new QR.”
+
+✅ API Call Example:
+
+```typescript
+await fetch("/api/whatsapp/reconnect", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    accessToken,
+    instanceId
+  })
+});
+```
+
+✅ After reconnect, call QR code endpoint again to get a fresh QR.
+
+---
+
+## 🟢 4️⃣ Group Management: Load & Manually Add Group IDs
+
+✅ **Problem:**
+
+* Your API call for `/api/whatsapp/groups` fails or returns empty.
+* You have no manual field to enter group IDs.
+
+✅ **Solution:**
+
+* Show **two options** in “WhatsApp Groups” card:
+
+  * **Loaded Groups (dropdown):** from API.
+  * **Manual Group IDs (text input):** comma-separated.
+
+✅ Example UI snippet:
+
+```tsx
+<div className="space-y-2">
+  <Label htmlFor="whitelistedGroups">Whitelist Groups (Manual IDs)</Label>
+  <Textarea
+    id="whitelistedGroups"
+    {...form.register("whitelistedGroups")}
+    placeholder="Enter group IDs separated by commas"
+  />
+  <p className="text-xs text-gray-600">
+    You can enter group IDs manually if auto-loading fails.
+  </p>
+</div>
+```
+
+✅ You store this string in your config and **filter messages server-side**.
+
+✅ When messages arrive:
+
+```typescript
+const whitelistedGroups = config.whitelistedGroups.split(",").map(s => s.trim());
+if (!whitelistedGroups.includes(messageGroupId)) {
+  console.log("Message skipped: group not whitelisted");
+  return res.json({ ok: true });
+}
+```
+
+---
+
+## 🟢 5️⃣ Summary of What To Fix
+
+### ✅ **Server**
+
+* Add `lastReceivedMessageTime`.
+* New `/api/whatsapp/status` endpoint.
+* Allow reconnect (`/api/whatsapp/reconnect`).
+
+### ✅ **Frontend**
+
+* Separate Connection Status card.
+* Access Token input as plaintext.
+* Reconnect button.
+* Always show Group Management card:
+
+  * Dropdown + Manual input.
+* Show “Connected” if recent messages received.
+
+---
+
+If you want, **I’ll help you edit the server and React code step by step.**
+
+**Just confirm:**
+1️⃣ Do you use a database or just memory for messages/config?
+2️⃣ Would you like me to write the exact new `server/index.ts` snippet for `lastReceivedMessageTime`?
+3️⃣ Should I help you adjust your React page structure for the new cards?
+
+**Paste any code you want to update, and I’ll customize it.**

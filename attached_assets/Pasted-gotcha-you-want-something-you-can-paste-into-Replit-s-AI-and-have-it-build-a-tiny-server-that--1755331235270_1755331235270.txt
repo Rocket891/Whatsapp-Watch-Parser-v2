@@ -1,0 +1,238 @@
+gotcha — you want something you can paste into Replit’s AI and have it build a tiny server that:
+
+* captures **full webhook payloads** from mblaster (so you can see everything that’s actually sent),
+* stores them, dedupes them, and shows them in a table,
+* **pulls group lists** via mblaster’s API,
+* lets you **import/export participants** (so you can “resolve” senders from `@lid` to a best-guess phone number),
+* extracts message text/captions from all common message types,
+* and clearly shows when the sender is only a **LID** (because the number simply isn’t in the webhook).
+
+below is a “copy-paste prompt” for Replit. Paste it into Replit’s AI (or Ghostwriter “Generate project”) and it should scaffold everything.
+
+---
+
+# paste this into Replit AI
+
+Build a Node.js (v20) + Express app called **wh-capture** that does the following. Use **better-sqlite3** for storage, **TypeScript** if easy; otherwise plain JS is fine. Keep it simple—no heavy frontend build tools. Use server-rendered HTML (EJS) and Tailwind CDN.
+
+## ENV
+
+* `PORT` default 3000
+* `AUTH_TOKEN` (simple bearer token to protect admin endpoints)
+* `MBLASTER_BASE` = `https://mblaster.in/api`
+* `MBLASTER_ACCESS_TOKEN` (string)
+* `MBLASTER_INSTANCE_ID` (string)
+* `GROUP_WHITELIST` (comma separated `…@g.us`; empty = accept all)
+
+## DB (SQLite, file `data.db`)
+
+Tables:
+
+* `messages`:
+
+  * `id` INTEGER PK AUTOINCREMENT
+  * `event_type` TEXT  -- e.g., messages.upsert, received\_message, contacts.update
+  * `msg_id` TEXT      -- from payload key.id (nullable)
+  * `group_jid` TEXT   -- e.g., 12036…@g.us
+  * `group_name` TEXT  -- best effort
+  * `sender_push_name` TEXT
+  * `sender_display` TEXT  -- “+<phone>” if we have it; else “LID:<id>”
+  * `sender_phone` TEXT    -- normalized +cc number if known
+  * `sender_lid` TEXT      -- if participant ends with @lid
+  * `sender_waid` TEXT     -- …@s.whatsapp.net if present
+  * `message_type` TEXT    -- text, image, video, document, etc.
+  * `text` TEXT            -- extracted message text/caption
+  * `media_url` TEXT       -- if available
+  * `ts_ms` INTEGER        -- timestamp in ms
+  * `raw` TEXT             -- full JSON payload stringified
+  * `dedup_key` TEXT UNIQUE -- e.g., `${msg_id}|${group_jid}`
+  * `created_at` INTEGER
+
+* `contacts`:
+
+  * `wa_id` TEXT PRIMARY KEY  -- e.g., 9199…@s.whatsapp.net
+  * `phone` TEXT              -- +cc…
+  * `name` TEXT
+  * `updated_at` INTEGER
+
+* `group_participants`:
+
+  * `group_jid` TEXT
+  * `wa_id` TEXT
+  * `phone` TEXT
+  * `name` TEXT
+  * `is_admin` INTEGER
+  * PRIMARY KEY (`group_jid`,`wa_id`)
+
+Add helpful indexes on `messages(dedup_key)`, `messages(ts_ms)`, `messages(group_jid)`.
+
+## CORE IDEA (sender resolution)
+
+* If payload has `message_key.participant` or `key.participant` **ending with `@s.whatsapp.net`**, normalize to `+<cc><number>` → this is `sender_phone`.
+* If it ends with **`@lid`**, store `sender_lid` and show `sender_display = "LID:<id>"`. You **must not** claim a phone number here.
+* Maintain a **best-effort resolver**:
+
+  * When we receive `contacts.update`/`contacts.upsert` events that include ids like `9199…@s.whatsapp.net` and a `notify`/`name`, store/update `contacts` (`wa_id`, inferred plus phone, name).
+  * Allow uploading a **participants CSV** (exported from mblaster’s “Export participants” page). Parse into `group_participants`.
+  * When rendering a message with only LID, try a **soft match**:
+
+    * If `sender_push_name` matches *exactly one* participant name in `group_participants` for that `group_jid` (case-insensitive), show `sender_display = “≈ +<phone> (by name)”` and `confidence="low"`.
+    * Otherwise leave the LID visible. Never claim 100% certainty unless the phone JID is in the payload.
+
+## ROUTES
+
+* `POST /api/whatsapp/webhook`
+
+  * Auth: none (mblaster will call it)
+
+  * Accept any of the mblaster webhook shapes. Store the **entire payload** in `messages.raw`.
+
+  * Extract:
+
+    * `event_type` from `data.event` if present, else null.
+    * Try both shapes you’ve seen:
+
+      * Shape A: `messages.upsert` → array at `data.data.messages[0]`
+      * Shape B: `received_message` → object at `data.message`
+      * Contact events: `contacts.update` / `contacts.upsert`
+    * Set `ts_ms` using explicit timestamp if present, else `Date.now()`.
+    * `group_jid` from `message_key.remoteJid` or `key.remoteJid`.
+    * `group_name` unknown; we’ll display the `group_jid` and later join with `get_groups` map.
+    * `sender_push_name` from `pushName` if present.
+    * `participant` from `message_key.participant` or `key.participant`.
+
+      * if ends with `@s.whatsapp.net`, set `sender_waid` and `sender_phone`.
+      * if ends with `@lid`, set `sender_lid`.
+    * Extract **message text**:
+
+      * If `extendedTextMessage.text` → text
+      * Else if `conversation` → text
+      * Else if media type, use `caption`.
+    * `media_url` if present.
+
+  * Build `dedup_key = msg_id + "|" + group_jid` (if `msg_id` missing, hash the raw JSON). Ignore duplicates gracefully.
+
+  * If `data.event` is `contacts.update` or `contacts.upsert`, loop entries:
+
+    * For each `id` like `9199…@s.whatsapp.net`, derive `+<phone>`, store/update `contacts` with `notify`/`name`.
+
+  * Respect `GROUP_WHITELIST`: if set and `group_jid` not in it, store row but mark (boolean) `ignored=1` and don’t show in default list.
+
+* `GET /messages` (HTML)
+
+  * Table columns: Time, Group, Sender (pushName), Sender Number/Display (phone or LID), Message, Status (e.g., “from webhook”, “ignored”), link “JSON”.
+  * Add filters: `?q=`, `?group=`, `?since=`.
+
+* `GET /api/messages` (JSON) same data.
+
+* `GET /message/:id` (HTML) show full parsed fields and the raw JSON in a `<pre>`.
+
+* `GET /api/raw/:id` returns the raw JSON.
+
+* `GET /api/groups` (proxy mblaster):
+
+  * Calls `POST ${MBLASTER_BASE}/get_groups?instance_id=…&access_token=…`
+  * Cache the name↔jid map (in memory + a small `groups` table if you want).
+  * Return JSON list; also show on `/admin/groups` page.
+
+* `POST /api/participants/upload` (auth: `Authorization: Bearer ${AUTH_TOKEN}`)
+
+  * Accept CSV (columns can be flexible; try `group_jid,wa_id,phone,name,is_admin`).
+  * Upsert rows into `group_participants`.
+
+* `GET /admin` (HTML, auth via bearer in query or simple password page)
+
+  * Buttons:
+
+    * “Set webhook to this Replit URL” → calls mblaster `set_webhook` with `webhook_url` set to `https://<your-repl>.repl.co/api/whatsapp/webhook&enable=true&instance_id=…&access_token=…`
+    * “Get groups” (lists current groups)
+    * Upload participants CSV
+
+* `POST /api/dev/simulate` (auth)
+
+  * Accepts raw JSON (body), stores as if it came from webhook. This lets you paste payloads to test without waiting for a live message.
+
+## UTILITIES
+
+* `normalizePhone(wa_id)`: `"919920439545@s.whatsapp.net"` → `+919920439545`
+* `extractText(payload)`: tries extendedTextMessage.text, conversation, caption for media, else empty.
+* `extractType(payload)`: “text”, “image”, “video”, “document”, etc.
+* `resolveSenderDisplay({participant,pushName,group_jid})`:
+
+  * If `@s.whatsapp.net` → return `+<phone>`
+  * If `@lid` → try name match in `group_participants` for that group (exact, case-insensitive). If one match → return `≈ +<phone> (by name)`; else return `LID:<id>`
+
+## MIDDLEWARE & ERRORS
+
+* Log every request to `/api/whatsapp/webhook` (size, event type).
+* Always store **raw JSON** even if parsing fails, so you can inspect.
+* Handle unknown shapes safely.
+
+## VIEWS
+
+* Use EJS with Tailwind CDN. Make the messages table readable and include a badge:
+
+  * **LID only** (gray)
+  * **Phone (exact)** (green)
+  * **Phone (by name, low confidence)** (yellow)
+
+## SCRIPTS
+
+Add npm scripts:
+
+* `start` → `node index.js`
+* `dev` → `nodemon index.js`
+
+## TEST HELPERS
+
+Provide sample `curl` commands in README:
+
+```bash
+# 1) point mblaster webhook to your repl:
+curl -X POST \
+  "$MBLASTER_BASE/set_webhook?webhook_url=https%3A%2F%2F<YOUR-REPL-URL>%2Fapi%2Fwhatsapp%2Fwebhook&enable=true&instance_id=$MBLASTER_INSTANCE_ID&access_token=$MBLASTER_ACCESS_TOKEN"
+
+# 2) simulate (auth):
+curl -H "Authorization: Bearer $AUTH_TOKEN" -H "Content-Type: application/json" \
+  -X POST https://<YOUR-REPL-URL>/api/dev/simulate \
+  --data-binary @sample-payload.json
+```
+
+Create `sample-payload.json` with a real payload you captured (for example the one containing `participant: "101864309841949@lid"`).
+
+## IMPORTANT NOTES TO SURFACE IN README
+
+* In multi-device mode, many **group messages** arrive with `participant` ending in `@lid`. This **does not include** a phone number. That is expected and cannot be “fixed” by code.
+* You *can* still fetch:
+
+  * **Group list** via mblaster’s `get_groups`.
+  * **Participants** from the dashboard export and upload to this app. We only use that to **guess** numbers by matching `pushName` to a participant’s name. This is **best-effort**, never guaranteed.
+* If a message comes with a proper phone JID (`…@s.whatsapp.net`), we display the exact phone.
+
+---
+
+## what to do after Replit generates it
+
+1. Set env vars in the Replit Secrets panel:
+
+   * `MBLASTER_ACCESS_TOKEN=6823295cdd694`
+   * `MBLASTER_INSTANCE_ID=685ADB8BEC061`
+   * `AUTH_TOKEN` to something random.
+
+2. Open `/admin` and click **“Set webhook to this URL”** (or run the curl shown in the README).
+
+3. In mblaster UI, go to **Export participants**, download a CSV for your group, then upload it on `/admin` → “Upload participants”.
+
+4. Watch `/messages` update as payloads come in.
+
+   * If you see `Sender Number: LID:…` that’s expected (number not in webhook).
+   * If you uploaded participants and the pushName matches **uniquely**, you’ll see `≈ +<number> (by name)`.
+
+---
+
+### super quick why this is needed (plain english)
+
+* Your webhook payload shows `participant: "101864309841949@lid"`. That **isn’t a phone**; it’s a “local id” used by WhatsApp MD. The webhook simply doesn’t include the phone number.
+* mblaster can show and export group participants because it asks **group metadata** separately. That’s why this project adds group list & participant upload and marks number guesses clearly.
+
+If you want, I can also give you a ready CSV header template for the participant upload (`group_jid,wa_id,phone,name,is_admin`).

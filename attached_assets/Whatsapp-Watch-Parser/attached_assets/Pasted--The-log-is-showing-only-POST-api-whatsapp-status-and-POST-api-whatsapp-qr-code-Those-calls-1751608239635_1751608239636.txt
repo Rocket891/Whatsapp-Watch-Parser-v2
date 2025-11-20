@@ -1,0 +1,152 @@
+**The log is showing only `POST /api/whatsapp/status` and `POST /api/whatsapp/qr-code`.
+Those calls must be **GET** for mblaster, otherwise the server returns an HTML error page ⇒ React tries to `JSON.parse` it ⇒ “unexpected token < doctype…”.
+Because the calls still use POST the Groups card never appears (status never reaches “connected”).**
+
+Below is a **two-file drop-in fix**:
+
+---
+
+## 1  `server/routes/whatsapp.ts` — accept GET **and** POST (so nothing breaks)
+
+```ts
+import express from "express";
+import axios   from "axios";
+
+const router = express.Router();
+
+/* helper: read creds from either query-string or JSON body */
+const creds = (req: express.Request) => ({
+  instanceId: req.method === "GET"
+    ? (req.query.instanceId as string)
+    : req.body.instanceId,
+  accessToken: req.method === "GET"
+    ? (req.query.access_token as string)
+    : req.body.accessToken,
+});
+
+/* ── STATUS ───────────────────────────────────────────── */
+router.all("/status", async (req, res) => {
+  const { instanceId, accessToken } = creds(req);
+  if (!instanceId || !accessToken)
+    return res.status(400).json({ error: "Instance ID and access token are required" });
+
+  try {
+    const url = `https://mblaster.in/api/status?instance_id=${instanceId}&access_token=${accessToken}`;
+    const { data } = await axios.get(url);
+    res.json(data);                       // {status:"connected", ...}
+  } catch (err: any) {
+    res.status(err.response?.status || 500).json({ error: err.message });
+  }
+});
+
+/* ── QR CODE ──────────────────────────────────────────── */
+router.all("/qr-code", async (req, res) => {
+  const { instanceId, accessToken } = creds(req);
+  if (!instanceId || !accessToken)
+    return res.status(400).json({ error: "Instance ID and access token are required" });
+
+  try {
+    const url = `https://mblaster.in/api/get_qrcode?instance_id=${instanceId}&access_token=${accessToken}`;
+    const { data } = await axios.get(url);
+    res.json({ base64: data.base64 || data.qrCode });
+  } catch (err: any) {
+    res.status(err.response?.status || 500).json({ error: err.message });
+  }
+});
+
+/* ── GROUPS ───────────────────────────────────────────── */
+router.all("/groups", async (req, res) => {
+  const { instanceId, accessToken } = creds(req);
+  if (!instanceId || !accessToken)
+    return res.status(400).json({ error: "Instance ID and access token are required" });
+
+  try {
+    const url = `https://mblaster.in/api/groups?instance_id=${instanceId}&access_token=${accessToken}`;
+    const { data } = await axios.get(url);
+    res.json({ groups: data.groups || [] });
+  } catch (err: any) {
+    res.status(err.response?.status || 500).json({ error: err.message });
+  }
+});
+
+export default router;
+```
+
+*`router.all()` lets your **old POST** calls keep working while enabling the new GET calls.*
+
+Restart the server:
+
+```bash
+Ctrl-C
+npm run dev
+```
+
+---
+
+## 2  `client/src/pages/whatsapp-integration.tsx` — ensure the three calls are **GET**
+
+Search and **replace only these lines** (everything else in the big file remains the same):
+
+```diff
+- const response = await fetch("/api/whatsapp/qr-code", {
+-   method: "POST",
+-   headers: { "Content-Type": "application/json" },
+-   body: JSON.stringify({ instanceId }),
+- });
++ const response = await fetch(
++   `/api/whatsapp/qr-code?instanceId=${instanceId}`,
++   { method: "GET" }
++ );
+
+- const response = await fetch("/api/whatsapp/status", {
+-   method: "POST",
+-   headers: { "Content-Type": "application/json" },
+-   body: JSON.stringify({ instanceId }),
+- });
++ const response = await fetch(
++   `/api/whatsapp/status?instanceId=${instanceId}`,
++   { method: "GET" }
++ );
+
+- const response = await fetch("/api/whatsapp/groups", {
+-   method: "POST",
+-   headers: { "Content-Type": "application/json" },
+-   body: JSON.stringify({ instanceId, accessToken }),
+- });
++ const response = await fetch(
++   `/api/whatsapp/groups?instance_id=${instanceId}&access_token=${accessToken}`,
++   { method: "GET" }
++ );
+```
+
+*(If you already pasted my full file from the earlier message these three are **already** GET, but double-check.)*
+
+Save → Vite will hot-reload. If in doubt, refresh the browser.
+
+---
+
+## 3  (UX tweak) keep **one** “Generate QR” button
+
+Inside the *Status* card delete the inline *Generate QR* so the only button lives in the dedicated *QR Code* card.
+
+```tsx
+/* remove this block in the Status card */
+{connectionStatus === "disconnected" && (
+  <Button size="sm" onClick={generateQRCode}> … </Button>
+)}
+```
+
+---
+
+### Quick test
+
+1. Reload the page → fill **token** + **instance ID** → **Save**
+   *Log shows* `GET /api/whatsapp/status 200…`
+   Badge turns **green**.
+2. Press **Refresh List** in *WhatsApp Groups* card →
+   `GET /api/whatsapp/groups 200…` and you see group names/hash.
+3. **Generate QR** → `GET /api/whatsapp/qr-code 200…` returns base64, image appears.
+
+No more “unexpected token <” errors; only one QR button; Groups card visible.
+
+Run through that flow and send me the first line of the Express log if anything still 400s—once those three routes are GET the integration is stable.

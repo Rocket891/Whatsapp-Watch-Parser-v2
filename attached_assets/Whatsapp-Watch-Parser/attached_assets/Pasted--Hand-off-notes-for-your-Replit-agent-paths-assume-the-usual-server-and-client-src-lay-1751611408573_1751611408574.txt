@@ -1,0 +1,160 @@
+### Hand-off notes for your Replit agent
+
+*(paths assume the usual `/server` and `/client/src` layout — adjust if yours differ)*
+
+---
+
+## 1 Add an in-memory config store
+
+`server/waConfig.ts`
+
+```ts
+export interface WAConfig {
+  accessToken?: string;
+  instanceId?: string;
+  whitelistedGroups?: string;   // "id1,id2,…"
+  autoProcess?: boolean;
+}
+export const waConfig: WAConfig = {};     // mutable singleton
+```
+
+---
+
+## 2 Patch the WhatsApp routes
+
+`server/routes/whatsapp.ts`
+
+### a) imports
+
+```diff
+-import express from "express";
+-import axios   from "axios";
++import express from "express";
++import axios   from "axios";
++import { waConfig } from "../waConfig";
+```
+
+### b) helper to pull creds from query, body **or** saved config
+
+```ts
+const creds = (req: express.Request) => {
+  const q = req.query, b = req.body;
+  return {
+    instanceId:
+      (q.instanceId as string)  ?? (q.instance_id as string) ??
+      b.instanceId              ?? b.instance_id            ??
+      waConfig.instanceId       ?? process.env.INSTANCE_ID,
+
+    accessToken:
+      (q.access_token as string) ?? b.accessToken            ??
+      waConfig.accessToken       ?? process.env.ACCESS_TOKEN,
+  };
+};
+```
+
+### c) `/configure` — save the form to `waConfig`
+
+```diff
+-router.post("/configure", async (req, res) => { … });
++router.post("/configure", (req, res) => {
++  const { accessToken, instanceId, whitelistedGroups, autoProcess } = req.body;
++  Object.assign(waConfig, { accessToken, instanceId, whitelistedGroups, autoProcess });
++  return res.json({ message: "WhatsApp configuration saved" });
++});
+```
+
+### d) Make **all** other routes use the helper and allow **GET or POST**
+
+Example for `/status` (do exactly the same for `/qr-code` and `/groups`):
+
+```diff
+-router.post("/status", async (req, res) => {
+-  const { instanceId, accessToken } = req.body;
++router.all("/status", async (req, res) => {
++  const { instanceId, accessToken } = creds(req);
+   if (!instanceId || !accessToken)
+     return res.status(400).json({ error: "Instance ID and access token are required" });
+   …
+});
+```
+
+*(leave the axios call body unchanged)*
+
+---
+
+## 3 Remove the legacy hard-coded whitelist
+
+Find where you parse incoming messages (usually `server/parser.ts` or inside the webhook).
+Replace any constant like
+
+```js
+const DEMO_GROUP = "91999…-123@g.us";
+const allowed = DEMO_GROUP.split(",");
+```
+
+with
+
+```js
+import { waConfig } from "../waConfig";   // adjust path
+const allowed = (waConfig.whitelistedGroups || "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+```
+
+---
+
+## 4 Front-end tweaks (single file)
+
+`client/src/pages/whatsapp-integration.tsx`
+
+### a) Ensure the three fetches are **GET** and look like this
+
+```ts
+/* status */
+await fetch(`/api/whatsapp/status?instanceId=${instanceId}`, { method:"GET" });
+
+/* qr-code */
+await fetch(`/api/whatsapp/qr-code?instanceId=${instanceId}`, { method:"GET" });
+
+/* groups */
+await fetch(
+  `/api/whatsapp/groups?instance_id=${instanceId}&access_token=${accessToken}`,
+  { method:"GET" }
+);
+```
+
+*(If they’re already GET, nothing to do.)*
+
+### b) Kill the duplicate “Generate QR” button in the Status card
+
+Delete the block:
+
+```tsx
+{connectionStatus === "disconnected" && (
+  <Button …>Generate QR</Button>
+)}
+```
+
+You keep the big button in the dedicated **QR Code** card.
+
+---
+
+## 5 Restart everything
+
+```bash
+# in the Replit shell
+pkill -f nodemon   # or however your dev server runs
+npm run dev
+```
+
+---
+
+### Expected behaviour after these patches
+
+1. **Save Configuration** → server stores token/ID → client immediately calls `/status` → badge flips **green**.
+2. **WhatsApp Groups** card appears; *Refresh List* shows your groups.
+3. Whitelist now honours whatever you pick in that card (no more hidden constant).
+4. Dashboard keeps parsing messages exactly as before; only non-whitelisted chats are skipped.
+
+Pass these concise diffs to the Replit agent and you’re done. Let me know when the badge finally goes green!

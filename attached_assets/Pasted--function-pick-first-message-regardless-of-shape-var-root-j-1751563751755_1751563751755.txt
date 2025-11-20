@@ -1,0 +1,56 @@
+{{
+(function () {
+  // ---------- pick first message, regardless of shape ----------
+  var root = $json.body && $json.body.data;
+  var m = null;
+  if (root) {
+    if (root.message)                    m = root.message;              // m-Blaster “received_message”
+    else if (root.data && root.data.messages && root.data.messages[0])
+                                         m = root.data.messages[0];     // Baileys “messages.upsert”
+  }
+
+  // ---------- fallback if unknown payload ----------
+  if (!m) {
+    return {
+      Timestamp      : new Date().toISOString(),
+      "Group ID"     : "UNPARSED",
+      Sender         : "UNPARSED",
+      "Sender Number": "UNPARSED",
+      Message        : "Invalid payload"
+    };
+  }
+
+  // ---------- extract text ----------
+  var txt = "";
+  if      (m.body_message && m.body_message.content)                       txt = m.body_message.content;
+  else if (m.message && m.message.conversation)                            txt = m.message.conversation;
+  else if (m.message &&
+           m.message.extendedTextMessage &&
+           m.message.extendedTextMessage.text)                             txt = m.message.extendedTextMessage.text;
+  else if (m.message && m.message.imageMessage)                            txt = "Image/Media";
+
+  // ---------- timestamp ----------
+  var ts = (m.messageTimestamp) ? new Date(m.messageTimestamp * 1000)
+                                : new Date();
+
+  // ---------- group id ----------
+  var gid = (m.message_key && m.message_key.remoteJid) ? m.message_key.remoteJid
+           : (m.key && m.key.remoteJid)                ? m.key.remoteJid
+                                                        : "";
+
+  // ---------- sender number ----------
+  var sn = (m.message_key && m.message_key.participant) ? m.message_key.participant
+          : (m.key && m.key.participant)                ? m.key.participant
+                                                         : "";
+  sn = sn.replace(/@.+$/, "");      // strip “@s.whatsapp.net”
+
+  // ---------- build final object ----------
+  return {
+    Timestamp      : ts.toISOString(),
+    "Group ID"     : gid,
+    Sender         : m.push_name || m.pushName || "",
+    "Sender Number": sn,
+    Message        : txt.trim()
+  };
+})()
+}}

@@ -1,0 +1,320 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Excel-style scrollbars */
+.excel-scroll::-webkit-scrollbar {
+  width: 16px;
+  height: 16px;
+}
+
+.excel-scroll::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 0;
+}
+
+.excel-scroll::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 0;
+  border: 1px solid #a0a0a0;
+}
+
+.excel-scroll::-webkit-scrollbar-thumb:hover {
+  background: #a0a0a0;
+}
+
+.excel-scroll::-webkit-scrollbar-corner {
+  background: #f1f1f1;
+}
+
+:root {
+  /* Default theme - will be overridden by theme context */
+  --background: #ffffff;
+  --foreground: #1e293b;
+  --muted: #f8fafc;
+  --muted-foreground: #64748b;
+  --popover: #ffffff;
+  --popover-foreground: #1e293b;
+  --card: #ffffff;
+  --card-foreground: #1e293b;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --ring: #2563eb;
+  --radius: 0.5rem;
+  --chart-1: #2563eb;
+  --chart-2: #10b981;
+  --chart-3: #f59e0b;
+  --chart-4: #ef4444;
+  --chart-5: #8b5cf6;
+}
+
+.dark {
+  /* Dark theme defaults - will be overridden by theme context */
+  --background: #0f172a;
+  --foreground: #f1f5f9;
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --popover: #0f172a;
+  --popover-foreground: #f1f5f9;
+  --card: #0f172a;
+  --card-foreground: #f1f5f9;
+  --border: #334155;
+  --input: #334155;
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+  --secondary: #1e293b;
+  --secondary-foreground: #f1f5f9;
+  --accent: #1e293b;
+  --accent-foreground: #f1f5f9;
+  --destructive: #ef4444;
+  --destructive-foreground: hsl(0, 0%, 98%);
+  --ring: hsl(215, 20%, 65%);
+  --chart-1: hsl(207, 90%, 54%);
+  --chart-2: hsl(142, 76%, 36%);
+  --chart-3: hsl(38, 92%, 50%);
+  --chart-4: hsl(6, 78%, 57%);
+  --chart-5: hsl(261, 83%, 58%);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased;
+    background: var(--gradient-background);
+    color: var(--foreground);
+    font-family: var(--font-primary);
+  }
+
+  /* Enhanced Theme Variables with Animations */
+  .theme-card {
+    background: var(--gradient-secondary);
+    border-radius: var(--effect-borderRadius);
+    box-shadow: var(--shadow-md);
+    backdrop-filter: var(--effect-backdropBlur);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .theme-card:hover {
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: var(--shadow-xl);
+  }
+
+  .theme-button {
+    background: var(--gradient-primary);
+    border-radius: var(--effect-borderRadius);
+    box-shadow: var(--shadow-sm);
+    backdrop-filter: var(--effect-backdropBlur);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .theme-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+  }
+
+  .theme-button:hover::before {
+    left: 100%;
+  }
+
+  .theme-button:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .theme-button:active {
+    transform: translateY(0);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Custom scrollbar with theme colors */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--muted);
+    border-radius: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--gradient-primary);
+    border-radius: 10px;
+    border: 2px solid var(--background);
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--gradient-secondary);
+  }
+
+  /* Theme-aware input styles */
+  .theme-input {
+    background: var(--gradient-secondary);
+    border: 1px solid var(--border);
+    border-radius: var(--effect-borderRadius);
+    backdrop-filter: var(--effect-backdropBlur);
+    transition: all 0.3s ease;
+  }
+
+  .theme-input:focus {
+    box-shadow: 0 0 0 3px var(--primary), var(--shadow-md);
+    border-color: var(--primary);
+  }
+
+  /* Animated gradients for cards */
+  .animated-gradient {
+    background: var(--gradient-background);
+    background-size: 400% 400%;
+    animation: gradientShift 8s ease infinite;
+  }
+
+  @keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  /* Glass morphism effect */
+  .glass-effect {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: var(--effect-backdropBlur);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: var(--shadow-lg);
+  }
+
+  /* Floating animation */
+  .floating {
+    animation: floating 3s ease-in-out infinite;
+  }
+
+  @keyframes floating {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+
+  /* Pulse effect for active elements */
+  .pulse-effect {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+  
+  /* Enhanced Professional Card Styling */
+  .standout-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.06);
+    transition: all 0.2s ease-in-out;
+    margin-bottom: 1.5rem;
+  }
+  
+  .standout-card:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.08);
+    transform: translateY(-2px);
+    border-color: #d1d5db;
+  }
+  
+  .enhanced-spacing {
+    padding: 1.5rem;
+  }
+  
+  .section-spacing {
+    margin-bottom: 2rem;
+  }
+  
+  /* Apply enhanced styling to ALL Card components globally */
+  [class*="card"], .card, [data-radix-collection-item], 
+  [class*="Card"], [class*="Card"] > div, 
+  .bg-white.shadow-sm, .bg-white.border {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 4px rgba(0, 0, 0, 0.06) !important;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important;
+    border-radius: 8px !important;
+    transition: all 0.2s ease-in-out !important;
+    background: white !important;
+  }
+  
+  [class*="card"]:hover, .card:hover, [data-radix-collection-item]:hover,
+  [class*="Card"]:hover, [class*="Card"] > div:hover, 
+  .bg-white.shadow-sm:hover, .bg-white.border:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.08) !important;
+    transform: translateY(-2px) !important;
+    border-color: rgba(0, 0, 0, 0.12) !important;
+  }
+  
+  /* Dark mode enhanced cards */
+  .dark .card {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.4) !important;
+  }
+  
+  .dark .card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+  }
+  
+  .dark .standout-card {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 1px 4px rgba(0, 0, 0, 0.4) !important;
+  }
+  
+  .dark .standout-card:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), 0 4px 8px rgba(0, 0, 0, 0.3) !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+  }
+}
+
+/* Custom scrollbar styles for Excel-like experience */
+.excel-scroll::-webkit-scrollbar {
+  width: 16px;
+  height: 16px;
+}
+
+.excel-scroll::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 8px;
+}
+
+.excel-scroll::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 8px;
+  border: 2px solid #f1f1f1;
+}
+
+.excel-scroll::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+.excel-scroll::-webkit-scrollbar-corner {
+  background: #f1f1f1;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}

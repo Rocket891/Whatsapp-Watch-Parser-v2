@@ -1,0 +1,111 @@
+Below is a concise, **Replit-friendly** message you can forward to your teammate or to Replit Support.
+It explains **what is still broken, why, and the concrete fixes we now need**.
+
+---
+
+## 1 — TLS / “Hostname/IP does not match certificate”
+
+**Symptom:** every external call (`status`, `qr-code`, `create-instance`, `groups`, `reconnect`) now throws
+
+```
+Hostname/IP does not match certificate's altnames:
+Host: api.mblaster.in. is not in the cert's altnames: DNS:asarkari.com
+```
+
+**Root cause:** somewhere in the codebase we still hit `https://**api**.mblaster.in/…`.
+Only `https://mblaster.in/api/...` has a valid cert.
+
+**Fix:**
+
+```diff
+- const BASE = "https://api.mblaster.in";   // <-- bad
++ const BASE = "https://mblaster.in/api";   // <-- good
+```
+
+Do a project-wide search for `api.mblaster.in` and replace with the new base-URL (or drive it from an `MBLASTER_BASE_URL` env var).
+
+---
+
+## 2 — QR-code endpoint returns “No QR code received”
+
+This is the *same* TLS failure: the POST never reaches mBlaster, so the handler sees an empty JSON and we emit “No QR code received”.
+Once #1 is fixed, the QR code will be returned as `base64`.
+
+---
+
+## 3 — Parser misses the year (`2024Y` → year not recognised)
+
+Regex currently expects plain `2024`, `24`, `’24`, etc.
+Many sellers append a “Y” (e.g. `2024Y`, `24Y`). Solution:
+
+```ts
+// watch-parser.ts
+// old
+const YEAR = /\b(20\d{2}|19\d{2})\b/;
+// new – allow optional “Y” or “y”
+const YEAR = /\b(20\d{2}|19\d{2})(?:y\b|\b)/i;
+```
+
+---
+
+## 4 — Message stays in **pending** instead of “NO\_PID”
+
+In `server/routes.ts` we mark:
+
+```ts
+status: parsedListings.length > 0 ? "success" : "partial",
+```
+
+Add a branch:
+
+```ts
+const status =
+  parsedListings.length === 0 ? "no_pid"
+  : parsedListings.every(p => !!p.pid) ? "success"
+  : "partial";
+```
+
+…and store that in both the raw message and the processing-log entry.
+
+---
+
+## 5 — Tables are suddenly empty
+
+Nothing is wrong with `storage.ts`; the DB was just wiped when we re-deployed.
+Run the built-in seed:
+
+```
+POST /api/load-test-data
+```
+
+or re-process your Google Sheet / past chat dump.  Data will repopulate.
+
+---
+
+### Quick checklist for the next commit
+
+1. **Replace all `api.mblaster.in` with `mblaster.in/api`.**
+2. Patch the **year regex** to accept the trailing “Y”.
+3. Add `"no_pid"` status branch.
+4. Seed DB again (optional).
+5. Redeploy / restart (`npm run dev`).
+
+After step 1 you shouldn’t see any more TLS errors, QR code will display, and group fetch will work again. After step 2/3 the sample line
+
+```
+🇭🇰🇭🇰Pp 5712/1A-001 Like new 2024Y 133000USD 955K HKD
+```
+
+parses to
+
+```
+PID: 5712/1A-001
+Year: 2024
+Condition: Like new
+Price: 133000
+Currency: USD
+```
+
+and is stored in `watch_listings`.
+
+Hope that helps—feel free to forward as-is!

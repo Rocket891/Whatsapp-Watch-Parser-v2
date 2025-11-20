@@ -1,0 +1,109 @@
+**Why you’re still seeing “connection error” even though messages arrive**
+
+1. **`/status` is called without `access_token`**
+   Your new GET call is only sending `instanceId`.
+   The server route we added looks for `access_token` in the query-string (or DB).
+   Result: the call goes out to mblaster like
+
+   ```
+   …/status?instance_id=6867512FEF726&access_token=
+   ```
+
+   ⇒ mblaster replies **401 “Invalid access token”** ⇒ front-end shows error.
+
+2. **When status stays in “error”, the Groups card never renders**, so it looks blank/disabled even though messages keep flowing via the webhook.
+
+---
+
+## 1 Two-line patch on the **front-end**
+
+Open `client/src/pages/whatsapp-integration.tsx` and change the two GET calls so they *always* send the token:
+
+```diff
+// ── status ───────────────────────────────
+- const response = await fetch(
+-   `/api/whatsapp/status?instanceId=${instanceId}`,
+-   { method: "GET" }
+- );
++ const response = await fetch(
++   `/api/whatsapp/status?instanceId=${instanceId}&access_token=${form.getValues(
++     "accessToken"
++   )}`,
++   { method: "GET" }
++ );
+
+// ── qr-code (token needed too) ────────────
+- const response = await fetch(
+-   `/api/whatsapp/qr-code?instanceId=${instanceId}`,
+-   { method: "GET" }
+- );
++ const response = await fetch(
++   `/api/whatsapp/qr-code?instanceId=${instanceId}&access_token=${form.getValues(
++     "accessToken"
++   )}`,
++   { method: "GET" }
++ );
+```
+
+*(The `/groups` call we added already passes both parameters, so leave that one as-is.)*
+
+Save → Vite hot-reloads. If in doubt, refresh the browser.
+
+---
+
+## 2 Optional fallback on the **server**
+
+If you prefer not to expose the token in the query-string you can keep the URL clean and let the server fetch it from Replit DB / `.env`.
+Replace the helper at the top of `routes/whatsapp.ts`:
+
+```ts
+import { Database } from "@replit/database";
+const db = new Database();
+
+/* unified creds */
+async function creds(req: express.Request) {
+  const q = req.query, b = req.body;
+  return {
+    instanceId:
+      (q.instanceId as string) ??
+      (q.instance_id as string) ??
+      b.instanceId ??
+      b.instance_id ??
+      (await db.get("INSTANCE_ID")) ??
+      process.env.INSTANCE_ID,
+
+    accessToken:
+      (q.access_token as string) ??
+      b.accessToken ??
+      (await db.get("ACCESS_TOKEN")) ??
+      process.env.ACCESS_TOKEN,
+  };
+}
+```
+
+Now the token only has to be supplied **once** when you hit *Save Configuration*; every GET route re-uses the stored value.
+
+---
+
+## 3 Smoke-test
+
+1. **Save Configuration** with the real token and instance ID.
+2. Click **Check Status** → badge should flip to **green Connected** (no 401 in log).
+3. The **WhatsApp Groups** card pops in; hit **Refresh List** and you’ll see all groups returned by the `/groups` endpoint (or derived from recent messages).
+4. **Generate QR** (if you ever reset the instance) now works without the “unexpected \<doctype” JSON error.
+
+---
+
+### FAQ
+
+* **Why do messages still arrive when status returns 401?**
+  Webhooks are already registered on mblaster’s side; the credentials problem only affects the extra polling calls from your dashboard.
+
+* **Why do only certain groups come through?**
+  Your parser honours the old `whitelistedGroups` string you saved months ago. Once the Groups card is visible you can clear the whitelist (“All Groups”) or pick new ones and hit Save.
+
+* **Two “Generate QR” buttons?**
+  Remove the tiny one in the *Status* card—keep only the big button inside the *QR Code* card to avoid confusion.
+
+Apply the front-end 2-line fix (or the server fallback) and the “connection error” + blank Groups card issues disappear for good.
+If the badge still doesn’t go green, copy the very next `/api/whatsapp/status …` line from the Express log and we’ll dig deeper—but this usually resolves it.

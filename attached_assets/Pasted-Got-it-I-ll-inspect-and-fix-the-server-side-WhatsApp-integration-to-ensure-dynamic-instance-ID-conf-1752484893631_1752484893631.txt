@@ -1,0 +1,213 @@
+Got it. I’ll inspect and fix the server-side WhatsApp integration to ensure dynamic instance ID configuration, reliable QR generation, proper connection status checks, and working webhook reception. I’ll make sure it works with your provided mBlaster API documentation and integrates dynamically with Replit.
+
+I’ll get back to you shortly with the corrected implementation and steps to validate everything works as expected.
+
+
+# Fixing WhatsApp Connection & Instance Switching Issues
+
+## Problem Overview
+
+From the logs and code, the WhatsApp integration was not maintaining a live connection or updating when switching instances. Specifically:
+
+* **Instance ID/Token not updating on server:** The app’s UI allowed entering a new Instance ID and Access Token, but this did not update the server’s config. The server continued using the old credentials, so status remained “disconnected” and no messages were received.
+* **Webhook not configured for new instance:** When using an existing instance (rather than creating a new one), the webhook URL was not being re-registered, so incoming messages never reached the server.
+* **Status endpoint logic:** The `/status` endpoint only checked `r.data.state === "authenticated"`. If the API returned a different key (e.g. `status: "connected"` or a boolean), it would log `undefined` and report disconnected even if the instance was actually connected. This incomplete logic led to false “disconnected” status reports.
+
+Additionally, ensure your Replit instance’s web server is accessible at the webhook URL (for a **paid** Replit, use the provided `.replit.dev` URL or set `PUBLIC_URL` accordingly).
+
+## Solution Summary
+
+We need to update the server code to properly handle instance configuration changes and connection status:
+
+1. **Save config on instance creation:** After successfully creating a new instance via `/create-instance`, save the returned `instanceId` and `accessToken` to the server config (e.g. `config.json`). This ensures subsequent calls use the correct credentials. The original code only saved config in a fallback error scenario, not on success. We will add a `saveConfig` call on success.
+
+2. **Add a “configure” route for existing instances:** Introduce a new API endpoint (e.g. `/api/whatsapp/configure`) to accept `instanceId`, `accessToken`, etc., and update the server’s config. This will allow the app to **dynamically switch to a different WhatsApp instance**. The route will also auto-configure the webhook for the given instance (similar to what is done on instance creation) so that incoming messages go to the correct URL. We will update the in-memory connection monitor with the new credentials as well. (In a previous version, a similar route existed and we’ll reintroduce that functionality.)
+
+3. **Improve the `/status` endpoint:** Make the status check more robust by considering multiple possible fields from the mBlast API response (e.g. `state`, `status`, or `connected` flags). We’ll mark the instance as **“connected”** if **any** of the known indicators is positive (such as `state: "authenticated"`, `status: "connected"/"open"/"success"`, or `connected: true`). Everything else will be treated as “disconnected.” This way, if the API returns a slightly different response, we still interpret it correctly.
+
+4. **Ensure webhook integration is pointed to the current instance:** The new configure route (and updated create-instance) will call the `set_webhook` API for the given instance ID. This ensures that incoming messages for that WhatsApp instance are delivered to your Replit server’s `/api/whatsapp/webhook` endpoint. (Double-check that `PUBLIC_URL` or the fallback domain is correct for your deployment – it should match the domain shown in your Replit logs.)
+
+Below are the code changes to implement these fixes. These would typically be made in the server’s Express route definitions (likely in **`server/routes/whatsapp.ts`** for the WhatsApp API routes, and possibly updating the front-end to call the new route):
+
+### 1. Update `/status` Endpoint
+
+We modify the `/api/whatsapp/status` route to interpret the API response more flexibly. Instead of only checking `state === "authenticated"`, we consider other indicators of an active connection:
+
+```ts
+// 1. Check WhatsApp status (updated logic)
+router.post("/status", async (req, res) => {
+  try {
+    const { instanceId, accessToken } = await creds(req);
+    if (!instanceId || !accessToken) {
+      return res.status(400).json({ error: "Missing credentials" });
+    }
+    const r = await axios.get(`${BASE}/get_status?instance_id=${instanceId}&access_token=${accessToken}`);
+    const data = r.data;
+    // Determine connected status from any known field
+    let connected = false;
+    if (typeof data === 'object') {
+      if (data.state && ["authenticated", "open", "connected"].includes(data.state.toLowerCase())) {
+        connected = true;
+      } else if (data.status && ["authenticated", "open", "connected", "success"].includes(data.status.toLowerCase())) {
+        connected = true;
+      } else if (data.connected === true) {
+        connected = true;
+      }
+    }
+    console.log(`📱 Status check: ${instanceId} -> ${connected ? "connected" : "disconnected"}`);
+    res.json({ status: connected ? "connected" : "disconnected" });
+  } catch (e: any) {
+    console.error("❌ Status error:", e.message);
+    res.status(500).json({ error: e.message });
+  }
+});
+```
+
+Now the status route will log and return `"connected"` if the API indicates any form of connection (authenticated/open), not just exactly `"authenticated"`. This should eliminate the `"-> undefined"` logs and reflect the real status.
+
+### 2. Update `/create-instance` Endpoint
+
+On successfully creating a new instance, we save the credentials to the config and auto-set the webhook. The highlighted addition is the `saveConfig` call on success:
+
+```ts
+// 2. Create new instance (save config on success)
+router.post("/create-instance", async (req, res) => {
+  try {
+    const { accessToken } = req.body;
+    if (!accessToken) {
+      return res.status(400).json({ error: "Access token is required" });
+    }
+    // Try the API call
+    const r = await axios.get(`${BASE}/create_instance?access_token=${accessToken}`);
+    if (typeof r.data === 'object' && r.data.instance_id) {
+      console.log("✅ Instance created:", r.data);
+      const newInstanceId = r.data.instance_id;
+      // Auto-set webhook for the new instance
+      try {
+        const publicUrl = process.env.PUBLIC_URL 
+          || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
+        await axios.get(`${BASE}/set_webhook?webhook_url=${encodeURIComponent(publicUrl + "/api/whatsapp/webhook")}`
+          + `&enable=true&instance_id=${newInstanceId}&access_token=${accessToken}`);
+        console.log("✅ Webhook auto-configured");
+      } catch (webhookError) {
+        console.log("⚠️ Webhook setup failed:", webhookError);
+      }
+      // **Save the new instance credentials to config** 🔴
+      await import('../waConfig').then(m => m.saveConfig({ instanceId: newInstanceId, accessToken }));
+      console.log("💾 Configuration saved to file for new instance:", { instanceId: newInstanceId });
+      // (Optional) update in-memory config or connection monitor if needed
+      try {
+        const { getConnectionMonitor } = await import('../connection-monitor');
+        const monitor = getConnectionMonitor();
+        monitor.status.instanceId = newInstanceId;
+        monitor.status.accessToken = accessToken;
+        monitor.status.connected = false;
+        monitor.status.reconnectAttempts = 0;
+        console.log("🔄 Connection monitor updated for new instance");
+      } catch (err) {
+        console.log("⚠️ Could not update connection monitor:", err);
+      }
+      // Return the new instance ID to client
+      return res.json({ instanceId: newInstanceId, message: "Instance created" });
+    }
+    // ... (fallback generation code remains as is)
+```
+
+Now the server’s `config.json` will immediately reflect the new instance and token【105†】, so subsequent calls (like `/status` or `/qr-code`) use the correct values. This prevents a scenario where the UI shows one instance ID but the server is still using an old one. The connection monitor is also updated so it knows about the new instance (preventing it from trying to reconnect a defunct instance).
+
+### 3. Add `/configure` (or `/use-instance`) Endpoint for Dynamic Switching
+
+We introduce a new route to handle updating the WhatsApp credentials on the fly. This is similar to what was present in an earlier version of the code (the old `configure` route):
+
+```ts
+// NEW 3. Configure existing instance credentials
+router.post("/configure", async (req, res) => {
+  try {
+    const { accessToken, instanceId, whitelistedGroups, autoProcess } = req.body;
+    if (!accessToken || !instanceId) {
+      return res.status(400).json({ error: "Instance ID and Access Token are required" });
+    }
+    // Persist the new configuration to file
+    await import('../waConfig').then(m => m.saveConfig({
+      accessToken,
+      instanceId,
+      whitelistedGroups: whitelistedGroups || "",
+      autoProcess: autoProcess !== undefined ? autoProcess : true
+    }));
+    console.log("📋 Configuration saved:", {
+      instanceId,
+      accessToken: accessToken.slice(0, 6) + "...",
+      whitelistedGroups,
+      autoProcess
+    });
+    // Set webhook for the provided instance
+    try {
+      const publicUrl = process.env.PUBLIC_URL 
+        || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
+      const webhookUrl = encodeURIComponent(publicUrl + "/api/whatsapp/webhook");
+      await axios.get(`${BASE}/set_webhook?webhook_url=${webhookUrl}&enable=true&instance_id=${instanceId}&access_token=${accessToken}`);
+      console.log(`✅ Webhook configured for instance ${instanceId}`);
+    } catch (err) {
+      console.log("⚠️ Webhook setup failed:", err);
+    }
+    // Update in-memory connection monitor with new creds
+    try {
+      const { getConnectionMonitor } = await import('../connection-monitor');
+      const monitor = getConnectionMonitor();
+      monitor.status.instanceId = instanceId;
+      monitor.status.accessToken = accessToken;
+      monitor.status.connected = false;
+      monitor.status.reconnectAttempts = 0;
+      console.log("🔄 Connection monitor updated with new instance credentials");
+    } catch (err) {
+      console.log("⚠️ Connection monitor update failed:", err);
+    }
+    return res.json({ message: "WhatsApp instance configured successfully", instanceId, status: "configured" });
+  } catch (error) {
+    console.error("❌ Failed to configure instance:", error);
+    res.status(500).json({ error: "Failed to configure WhatsApp instance" });
+  }
+});
+```
+
+**What this does:** When you provide an existing `instanceId` and `accessToken` (for example, one you obtained by logging into mBlast’s dashboard and scanning the QR there), this route will update the server’s `config.json` with those credentials, set up the webhook URL for that instance, and adjust the connection monitor. In effect, the server “switches” to use that WhatsApp instance.
+
+After calling this, you can immediately call `/api/whatsapp/status` or `/api/whatsapp/qr-code`:
+
+* If the instance is already authenticated (the QR was scanned via the dashboard), the next status check should return `"connected"` and any incoming WhatsApp messages will start hitting the `/webhook` endpoint (and show up in the dashboard’s messages list).
+* If the instance is not yet authenticated (e.g. a fresh instance ID), you can then call the `/qr-code` endpoint to retrieve a QR code and scan it. The webhook is already configured, so once you scan and the phone connects, messages will flow in.
+
+**Front-end update:** To make this seamless for the user, you should have the client call this new endpoint when the config form is submitted. For example, in the React component where the user enters the Instance ID/Token, replace or augment the current `onSubmit` handler to send a request to `/api/whatsapp/configure` with the form data. Currently, it only saves to localStorage and calls `checkStatus()`, which isn’t enough. For instance:
+
+```tsx
+// Pseudo-code for updating onSubmit in WhatsAppIntegration component
+const onSubmit = async (data: WhatsAppConfig) => {
+  // Save to local storage as before
+  saveConfig(data);
+  // Send to server to update config and webhook
+  await fetch("/api/whatsapp/configure", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  toast({ title: "Configuration saved", description: "Instance updated on server." });
+  await checkStatus();  // then check status as before to update UI
+};
+```
+
+By doing this, whenever the user enters a new Instance ID and Token and hits “Save”, the server will be configured to use that instance. This addresses the “dynamic” switching requirement – no manual code changes or server restarts needed for a new WhatsApp number.
+
+### 4. Verify Webhook & Connectivity
+
+With the above changes, your app should properly reflect the connection status and receive messages for the active instance. A few final things to double-check:
+
+* **Replit Webhook URL:** Ensure the webhook URL being set is correct. The logs show a Replit URL with a UUID subdomain (which Replit sometimes uses for running projects). The code uses either `PUBLIC_URL` env or the default `https://<project>.<user>.repl.co`. If your actual domain is the long `.replit.dev` one, consider setting `PUBLIC_URL` to that in your Replit environment, or update the code to use the provided domain. The goal is that the URL in the `set_webhook` call exactly matches your server’s accessible URL. If this is misconfigured, mBlast’s callbacks won’t reach your app.
+
+* **Always-on server:** Since you have a paid Replit, the instance should stay running. If it ever goes to sleep or restarts, you may need to re-run the configure or create-instance step, as the instance session with WhatsApp could expire if the server was down for a while. The connection-monitor in the code will try to auto-reconnect or create a new instance if the connection is lost for too long, but having the server always on is the best case for persistent WhatsApp connectivity.
+
+* **Testing the setup:** You can test quickly by:
+
+  1. Using an existing WhatsApp instance: Call the new `/configure` endpoint (via the front-end or a tool like Postman) with a known good `instanceId` and `accessToken`. Then use the dashboard UI to send a test message from another number to that WhatsApp. The message should appear in your app’s “Incoming Messages” list (via `global.rawMessages`).
+  2. Or, creating a fresh instance: Use the UI’s “Create Instance” (which now saves config on success) and scan the QR. After scanning, call `/status` (the UI likely does this every 30s) – it should turn to "connected". Send a WhatsApp message to the phone, and verify it shows up in the app logs/UI.
+
+By implementing these changes, your WhatsApp integration will be more robust: the **connection status** will be accurate, switching **instance IDs** will properly reconfigure the server, and the **webhook** will always point to the correct instance so incoming messages are received. This should resolve the “still not connected” issues you were seeing. Good luck!

@@ -1,0 +1,145 @@
+ API
+API WhatApp REST
+
+
+Nirav Gandhi
+Your Access Token: 6823295cdd694
+Instance Api
+POST Create Instance
+https://mblaster.in/api/create_instance?access_token=6823295cdd694
+Create a new Instance ID
+Params
+access_token	6823295cdd694
+POST Send Pedido
+https://mblaster.in/api/send_pedido?instance_id=685ADB8BEC061&access_token=6823295cdd694
+Envie notificações de status de pedido
+Params
+instance_id	685ADB8BEC061
+access_token	6823295cdd694
+POST Get QR Code
+https://mblaster.in/api/get_qrcode?instance_id=685ADB8BEC061&access_token=6823295cdd694
+Display QR code to login to Whatsapp web. You can get the results returned via Webhook
+Params
+instance_id	685ADB8BEC061
+access_token	6823295cdd694
+POST Set Receving Webhook
+https://mblaster.in/api/set_webhook?webhook_url=https%3A%2F%2Fwebhook.site%2F1b25464d6833784f96eef4xxxxxxxxxx&enable=true&instance_id=685ADB8BEC061&access_token=6823295cdd694
+Get all return values from Whatsapp. Like connection status, Incoming message, Outgoing message, Disconnected, Change Battery,...
+Params
+webhook_url	https://webhook.site/1b25464d6833784f96eef4xxxxxxxxxx
+enable	true
+instance_id	685ADB8BEC061
+access_token	6823295cdd694
+POST Reboot Instance
+https://mblaster.in/api/reboot?instance_id=685ADB8BEC061&access_token=6823295cdd694
+Logout Whatsapp web and do a fresh scan
+Params
+instance_id	685ADB8BEC061
+access_token	6823295cdd694
+POST Reset Instance
+https://mblaster.in/api/reset_instance?instance_id=685ADB8BEC061&access_token=6823295cdd694
+This will logout Whatsapp web, Change Instance ID, Delete all old instance data
+Params
+instance_id	685ADB8BEC061
+access_token	6823295cdd694
+POST Reconnect
+https://mblaster.in/api/reconnect?instance_id=685ADB8BEC061&access_token=6823295cdd694
+Re-initiate connection from app to Whatsapp web when lost connection
+Params
+instance_id	685ADB8BEC061
+access_token	6823295cdd694
+Send Direct Message Api
+POST Send Text
+Resource URL:
+https://mblaster.in/api/send?number=84933313xxx&type=text&message=test+message&instance_id=685ADB8BEC061&access_token=6823295cdd694
+Resource URL:
+https://mblaster.in/api/send
+Structure of the POST request body:
+Content-Type: application/json
+{
+"number": "{int}",
+"type": "text",
+"message": "{string}",
+"instance_id": "685ADB8BEC061",
+"access_token": "6823295cdd694"
+}
+Send a text message to a phone number through the app
+Params
+number	84933313xxx
+type	text
+message	test message
+instance_id	685ADB8BEC061
+access_token	6823295cdd694
+POST Send Media & File
+Resource URL:
+https://mblaster.in/api/send?number=84933313xxx&type=media&message=test+message&media_url=https%3A%2F%2Fi.pravatar.cc&filename=file_test.jpg&instance_id=685ADB8BEC061&access_token=6823295cdd694
+Resource URL:
+https://mblaster.in/api/send
+Structure of the POST request body:
+Content-Type: application/json
+{
+"number": "{int}",
+"type": "media",
+"message": "{string}",
+"media_url": "{string}",
+"instance_id": "685ADB8BEC061",
+"access_token": "6823295cdd694"
+}
+Send a media or file with message to a phone number through the app
+Params
+number	84933313xxx
+type	media
+message	test message
+media_url	https://i.pravatar.cc
+filename (Just use for send document)	file_test.pdf
+instance_id	685ADB8BEC061
+access_token	6823295cdd694
+Group Api
+POST Get Groups from Instance
+Resource URL:
+https://mblaster.in/api/get_groups?instance_id=685ADB8BEC061&access_token=6823295cdd694
+POST Send Text Message Group
+Resource URL:
+https://mblaster.in/api/send_group?group_id=84987694574-1618740914%40g.us&type=text&message=test+message&instance_id=685ADB8BEC061&access_token=6823295cdd694
+Resource URL:
+https://mblaster.in/api/send_group
+Structure of the POST request body:
+Content-Type: application/json
+{
+"group_id": "8498761xxxxxxxx@g.us",
+"type": "text",
+"message": "{string}",
+"instance_id": "685ADB8BEC061",
+"access_token": "6823295cdd694"
+}
+Send a text message to a group through the app
+Params
+group_id	84987694574-1618740914@g.us
+type	text
+message	test message
+instance_id	685ADB8BEC061
+access_token	6823295cdd694
+POST Send Media & File Message Group
+Resource URL:
+https://mblaster.in/api/send_group?group_id=84987694574-1618740914%40g.us&type=media&message=test+message&media_url=https%3A%2F%2Fi.pravatar.cc&filename=file_test.jpg&instance_id=685ADB8BEC061&access_token=6823295cdd694
+Resource URL:
+https://mblaster.in/api/send_group
+Structure of the POST request body:
+Content-Type: application/json
+{
+"group_id": "8498761xxxxxxxx@g.us",
+"type": "media",
+"message": "{string}",
+"media_url": "{string}",
+"instance_id": "685ADB8BEC061",
+"access_token": "6823295cdd694"
+}
+Send a media or file with message to a group through the app
+Params
+group_id	8498761xxxxxxxx@g.us
+type	media
+message	test message
+media_url	https://i.pravatar.cc
+filename (Just use for send document)	file_test.pdf
+instance_id	685ADB8BEC061
+access_token	6823295cdd694

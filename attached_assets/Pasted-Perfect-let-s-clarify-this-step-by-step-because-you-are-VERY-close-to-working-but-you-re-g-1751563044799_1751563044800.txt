@@ -1,0 +1,202 @@
+Perfect—let’s clarify this **step by step**, because you are **VERY close to working**, but you’re getting tripped up by how **mblaster formats different types of events**:
+
+---
+
+## ✅ WHY THIS IS HAPPENING
+
+You are *seeing the payload* every time something happens in WhatsApp:
+
+* `contacts.update`: contact name or photo changed
+* `messages.upsert`: new message **in private chat**
+* `received_message`: new message **in private chat**
+
+**BUT!**
+
+When you send a message to a **group chat**, it might look different:
+
+```
+"remoteJid": "919833424588-1618740914@g.us"
+```
+
+When you send a message to a **personal chat**, it looks like:
+
+```
+"remoteJid": "919821822960@s.whatsapp.net"
+```
+
+This is why **sometimes you only see system events**, and sometimes you see actual text.
+
+---
+
+## ✅ HOW TO VERIFY THIS
+
+**Before** you change any code, do this:
+
+1️⃣ Send a test message from your phone **to yourself** in WhatsApp (personal chat).
+2️⃣ Send a test message **in the group** you connected.
+
+Look at your Replit console.
+Search for `extendedTextMessage` or `conversation`.
+
+If you **never** see those fields inside `message`, that means mblaster is not emitting text events to webhook. (This happens if you forgot to enable `message` events in the mblaster dashboard or your subscription plan doesn’t support it.)
+
+---
+
+## ✅ HOW TO LOG EVERYTHING PROPERLY
+
+You want to store **all payloads** no matter what.
+
+If you followed my example and saved this field:
+
+```typescript
+raw: JSON.stringify(rawPayload)
+```
+
+Then you can look in your Replit database or in-memory store and see them later.
+
+If you are only seeing:
+
+```
+{
+  event: "contacts.update",
+  ...
+}
+```
+
+or
+
+```
+{
+  event: "messages.upsert",
+  ...
+}
+```
+
+with no `extendedTextMessage` or `conversation`, it means **your webhook is only receiving metadata** (like contact updates), not actual chat messages.
+
+---
+
+## ✅ NEXT STEPS
+
+**Please do this carefully:**
+
+✅ **Step 1 – Confirm Payloads**
+Look in the Replit logs:
+
+* Do you see `"message": { "conversation": ... }` anywhere?
+* Do you see `"message": { "extendedTextMessage": ... }`?
+
+✅ **Step 2 – Check Your mblaster Dashboard**
+You *must* make sure:
+
+* The webhook is enabled for **incoming messages**
+* The subscription allows receiving message contents
+
+**Note:**
+Some cheaper mblaster plans **only allow sending messages**, not receiving them via webhook.
+
+✅ **Step 3 – Send messages in the group**
+Copy-paste a line like:
+
+```
+♨️ 126234 2024 Blue Full Set HKD 850K
+```
+
+and watch your logs.
+
+---
+
+## ✅ Why You Only See “System Messages”
+
+If you *never* see `extendedTextMessage` with your actual message text, the problem is **not your code**.
+
+**It means the webhook is not sending you the real message body.**
+
+This happens if:
+
+* The webhook is not fully enabled.
+* You only have “contacts.update” or “status.update” permissions.
+
+---
+
+## ✅ How to Prove It’s Not Your Code
+
+Run this super simple webhook handler:
+
+```typescript
+app.post("/api/whatsapp/webhook", (req, res) => {
+  console.log("🟢 RAW PAYLOAD:");
+  console.dir(req.body, { depth: null });
+  res.json({ ok: true });
+});
+```
+
+Then look at the logs.
+If you **never** see text content inside:
+
+```json
+"message": {
+  "conversation": "..."
+}
+```
+
+or
+
+```json
+"message": {
+  "extendedTextMessage": {
+    "text": "..."
+  }
+}
+```
+
+…it’s **not your code.**
+It’s mblaster not sending real messages.
+
+---
+
+## ✅ What If You *Do* See `extendedTextMessage.text`?
+
+Great—then we can parse it properly.
+
+**Example:**
+If you get:
+
+```json
+{
+  "message": {
+    "extendedTextMessage": {
+      "text": "♨️ 126234 2024 Blue Full Set HKD 850K"
+    }
+  }
+}
+```
+
+Then we can write this:
+
+```typescript
+const text = req.body.data?.message?.body_message?.content
+   || req.body.data?.message?.extendedTextMessage?.text
+   || req.body.data?.data?.messages?.[0]?.message?.conversation
+   || '';
+```
+
+…and save `text` as your `message` field.
+
+---
+
+✅ **Summary**
+**Your webhook works fine.**
+**Your message parsing code is fine.**
+**The issue is probably mblaster webhook not delivering actual messages.**
+
+---
+
+👉 **What I recommend now:**
+1️⃣ Send me a fresh payload log when you send a test message in the group.
+2️⃣ Confirm whether `extendedTextMessage` or `conversation` appear.
+3️⃣ If they don’t—contact mblaster support and ask:
+
+> “Why is my webhook not receiving full message content? I am only getting metadata events.”
+
+Once you get a sample payload with the text, I’ll help you parse it in 2 minutes.

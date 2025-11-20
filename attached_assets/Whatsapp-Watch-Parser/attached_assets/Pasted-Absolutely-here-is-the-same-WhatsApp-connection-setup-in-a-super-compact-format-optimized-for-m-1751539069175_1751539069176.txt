@@ -1,0 +1,115 @@
+Absolutely—here is the **same WhatsApp connection setup in a super compact format**, optimized for minimal tokens but still clear:
+
+---
+
+✅ **.env**
+
+```
+ACCESS_TOKEN=6823295cdd694
+INSTANCE_ID=686652F179B22
+BASE_URL=https://mblaster.in/api
+PORT=3000
+```
+
+---
+
+✅ **Install**
+
+```
+npm i express axios body-parser ejs
+```
+
+---
+
+✅ **server.js**
+
+```javascript
+require('dotenv').config();
+const express = require('express');
+const axios = require('axios');
+const app = express();
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+app.set('view engine','ejs');
+app.set('views','./views');
+
+const { BASE_URL, ACCESS_TOKEN, INSTANCE_ID, PORT } = process.env;
+
+app.get('/', async (req,res)=>{
+  let qr=null, status=null;
+  try {
+    qr=(await axios.post(`${BASE_URL}/get_qrcode`,{instance_id:INSTANCE_ID,access_token:ACCESS_TOKEN})).data;
+  }catch(e){console.error('QR error:',e.response?.data||e.message);}
+  try {
+    status=(await axios.post(`${BASE_URL}/status`,{instance_id:INSTANCE_ID,access_token:ACCESS_TOKEN})).data;
+  }catch(e){console.error('Status error:',e.response?.data||e.message);}
+  res.render('index',{qr,status});
+});
+
+app.post('/set-webhook', async (req,res)=>{
+  try {
+    const r=await axios.post(`${BASE_URL}/set_webhook`,null,{params:{
+      webhook_url:req.body.webhook_url,
+      enable:true,
+      instance_id:INSTANCE_ID,
+      access_token:ACCESS_TOKEN
+    }});
+    res.json(r.data);
+  }catch(e){console.error(e.response?.data||e.message);res.status(500).json({error:'Failed'});}
+});
+
+app.listen(PORT||3000,()=>console.log(`Running on ${PORT||3000}`));
+```
+
+---
+
+✅ **views/index.ejs**
+
+```html
+<!DOCTYPE html><html><body>
+<h1>WhatsApp Dashboard</h1>
+<% if (qr?.qrcode_url) { %>
+<h2>Scan QR</h2><img src="<%=qr.qrcode_url%>">
+<% } else { %><p>No QR code (maybe connected)</p><% } %>
+<h3>Status</h3><pre><%=JSON.stringify(status,null,2)%></pre>
+<h3>Set Webhook</h3>
+<form method="post" action="/set-webhook">
+<input name="webhook_url" style="width:300px;">
+<button>Set</button>
+</form>
+</body></html>
+```
+
+---
+
+✅ **Run**
+
+```
+node server.js
+```
+
+---
+
+✅ **How to test**
+
+* Open `/` in browser
+* Scan QR
+* See status JSON
+* Set webhook (e.g., [webhook.site](https://webhook.site))
+
+---
+
+✅ **Create new instance (if needed)**
+
+```bash
+curl -X POST "https://mblaster.in/api/create_instance?access_token=6823295cdd694"
+```
+
+Update `.env` `INSTANCE_ID=...`
+
+---
+
+✅ **Done.**
+This is the **smallest working setup** to connect your WhatsApp API on Replit.
+
+Let me know if you want me to compact further or add sending logic.

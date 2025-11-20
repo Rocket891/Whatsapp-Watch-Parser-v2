@@ -1,0 +1,150 @@
+What’s happening (using your JSON)
+
+It’s a group message: remoteJid: "120363417668189591@g.us".
+
+The sender is participant: "101864309841949@lid".
+
+Anything ending with @lid is a Long ID (privacy-preserving identifier). WhatsApp does not include the phone number in group message envelopes when the sender is represented by a LID. So there’s nothing you can “pull” from this JSON to get a phone number.
+
+You can show a name: you have push_name: "小杨" (and sometimes verifiedBizName).
+
+So your table should read something like:
+
+Sender: 小杨
+
+Sender Number: — (unavailable; LID: 101864309841949)
+
+Trying to invent a +… number from a LID (like LID:11309353558254 → +105420559491311) is guaranteed to be wrong.
+
+What you can do to get a phone number (best-effort)
+
+There are only three legitimate routes. None involves decoding the LID yourself (you can’t).
+
+Direct phone JIDs when they exist
+If the JID ends with @s.whatsapp.net (or @c.us) the left part is the E.164 digits. That’s your number:
+
+function e164FromJid(jid: string | undefined) {
+  if (!jid) return null;
+  const [user, server] = jid.split("@");
+  if ((server === "s.whatsapp.net" || server === "c.us") && /^\d+$/.test(user)) {
+    return `+${user}`;
+  }
+  return null;
+}
+
+
+Build and use a LID→phone mapping when your client learns it
+Depending on your library/session, you may occasionally receive contact or roster events that include both a phone JID and a LID for the same person. If/when that happens, cache it.
+
+// in-memory map
+const lidToPhone = new Map<string, string>(); // '1018...@lid' -> '919925210000@s.whatsapp.net'
+
+// Example handler – adapt to your lib events
+sock.ev.on('contacts.upsert', (contacts) => {
+  for (const c of contacts) {
+    // Some libs expose c.id (phone jid) and c.lid (lid jid)
+    if (c.id?.endsWith('@s.whatsapp.net') && c.lid?.endsWith('@lid')) {
+      lidToPhone.set(c.lid, c.id);
+    }
+  }
+});
+
+export function resolveNumber(jid: string | undefined) {
+  if (!jid) return { number: null, source: 'none' as const };
+  const [user, server] = jid.split('@');
+  if (server === 's.whatsapp.net' || server === 'c.us') {
+    return { number: `+${user}`, source: 'phoneJid' as const };
+  }
+  if (server === 'lid') {
+    const phoneJid = lidToPhone.get(jid);
+    if (phoneJid) return { number: e164FromJid(phoneJid), source: 'lidMap' as const };
+    return { number: null, source: 'lidOnly' as const };
+  }
+  return { number: null, source: 'unknown' as const };
+}
+
+
+Group roster lookup (sometimes helps)
+In some client stacks, fetching group metadata can give you more detail for participants. If your library exposes both forms (phone JID and LID) in groupMetadata.participants, you can populate lidToPhone:
+
+async function harvestGroupMap(sock: any, groupJid: string) {
+  const md = await sock.groupMetadata(groupJid);
+  for (const p of md.participants ?? []) {
+    // Different libs shape this differently — guard it.
+    const lid = p.lid?.endsWith('@lid') ? p.lid : (p.id?.endsWith('@lid') ? p.id : null);
+    const phone = p.id?.endsWith('@s.whatsapp.net') ? p.id : null;
+    if (lid && phone) lidToPhone.set(lid, phone);
+  }
+}
+// call this opportunistically when you join/start processing a group
+
+
+If none of those surfaces provide a mapping, you cannot recover the phone number for that sender—by design.
+
+Drop-in normalizer (fixes your table)
+
+Use this to produce the right value for “Sender” and “Sender Number”:
+
+type SenderView = {
+  senderDisplay: string;   // name or short id for UI
+  senderNumber: string | null; // +E164 or null
+  senderKind: 'phone' | 'lid';
+  rawJid: string;
+};
+
+function splitJid(jid?: string) {
+  if (!jid) return { user: '', server: '' };
+  const [user, server] = jid.split('@', 2);
+  return { user, server };
+}
+
+function formatSender(participantJid: string | undefined, pushName?: string, verifiedBizName?: string): SenderView {
+  const { user, server } = splitJid(participantJid);
+  const name = verifiedBizName || pushName || undefined;
+
+  if (server === 's.whatsapp.net' || server === 'c.us') {
+    return {
+      senderDisplay: name ?? `+${user}`,
+      senderNumber: `+${user}`,
+      senderKind: 'phone',
+      rawJid: participantJid!,
+    };
+  }
+
+  // LID: do NOT fabricate a number
+  const number = resolveNumber(participantJid).number; // from the mapping code above
+  return {
+    senderDisplay: name ?? `LID:${user}`,
+    senderNumber: number, // may still be null if we don't have a mapping
+    senderKind: 'lid',
+    rawJid: participantJid!,
+  };
+}
+
+
+Then in your table renderer:
+
+const s = formatSender(message_key.participant, push_name, verifiedBizName);
+
+// Display
+row.sender = s.senderDisplay; // e.g., "小杨"
+row.senderNumber = s.senderNumber ?? '—'; // show em dash when unavailable
+row.senderMeta = s.senderKind === 'lid' ? `(LID ${s.rawJid.split('@')[0]})` : '';
+
+Quick checklist to stop the bad “numbers”
+
+✅ Detect @lid and never turn it into +….
+
+✅ Prefer verifiedBizName → push_name → LID:xxxx for the sender label.
+
+✅ Keep a LID→phone cache filled from any contacts/group roster events that include both.
+
+✅ If you later learn the phone JID for that LID, backfill historical rows in your DB with the real +E164.
+
+Bottom line for your exact payload
+
+participant: "101864309841949@lid" → no number in the JSON (by design).
+
+The only “right” thing you can show now is the name (小杨) and the LID.
+
+A real number will only appear if your client learns a mapping from some other event/API later; until then, leave the number blank.

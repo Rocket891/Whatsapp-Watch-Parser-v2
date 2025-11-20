@@ -1,0 +1,361 @@
+Project type: Node.js + TypeScript (Express) WhatsApp webhook processor using Baileys-style payloads (and our own received_message wrapper).
+
+High-level goals:
+
+Add a message normalizer that returns a single consistent shape for all inbound events (text, media captions, media-only, group, status, broadcast).
+
+Fix “sender number”: only compute E.164 for @s.whatsapp.net / @c.us. For @lid, never fabricate a number—use names and store the raw JID.
+
+Handle captions on images/videos/documents as text.
+
+Treat media-only messages (no caption) as valid, not errors.
+
+Skip status (status@broadcast) by default, or store as media-only with isStatus=true.
+
+Deduplicate reliably by (key.id, remoteJid, participant?).
+
+Improve logs: no “No message content found” when the message is media-only; log clearly what happened.
+
+Provide a tiny offer text parser (optional but nice): parse lines like RM72-01 White … HKD 3.12m and 5712/1R … HKD 1.79m into {ref, color?, date?, currency, price, unit}.
+
+Deliverables:
+
+src/normalize.ts — robust normalizer + helpers.
+
+src/parser/offers.ts — tiny parser for dealer lists (k/m handling).
+
+src/webhook.ts — Express route updated to use the normalizer, dedupe, and improved logging.
+
+src/types.ts — shared types for normalized messages.
+
+Unit tests for normalizer, sender identity, and offer parsing.
+
+Update README with behavior decisions.
+
+Constraints & behavior requirements:
+
+Sender identity rules
+
+Always store sender_jid (full JID string).
+
+Compute sender_e164 only if server in { "s.whatsapp.net", "c.us" } → +${user}.
+
+If server === "lid": set sender_e164 = null. Expose sender_lid = user. Use sender_name = verifiedBizName || pushName || null.
+
+Never prepend country codes. Never guess numbers from LID.
+
+Group vs DM vs Status
+
+remoteJid.endsWith("@g.us") → group. Sender lives in key.participant (can be @lid).
+
+remoteJid === "status@broadcast" → status; set isStatus=true. Default: skip storing (config flag PROCESS_STATUS=false).
+
+Broadcast list messages may have broadcast: true → set isBroadcast=true.
+
+Text extraction precedence
+
+message.conversation
+
+message.extendedTextMessage.text
+
+caption from imageMessage | videoMessage | documentMessage | audioMessage
+
+interactive replies (buttonsResponseMessage.selectedButtonId, templateButtonReplyMessage.selectedId, listResponseMessage.singleSelectReply.selectedRowId)
+
+If still empty and media exists → treat as media-only with text=undefined.
+
+Kind detection
+
+Map to: "text" | "image" | "video" | "document" | "audio" | "sticker" | "reaction" | "unknown".
+
+Media object
+
+Include url, mimetype, bytes, sha256, seconds?, width?, height?, caption?.
+
+Deduplication
+
+Key: ${key.id}::${remoteJid}::${key.participant ?? ""}.
+
+Keep a short-lived LRU cache (e.g., size 10k, TTL 24h). Skip if seen.
+
+Logging
+
+Replace ❌ No message content found with:
+
+ℹ️ Media-only <kind> (no caption) — stored, or
+
+↷ Skipped status@broadcast (PROCESS_STATUS=false), or
+
+↷ Ignored non-user envelope (senderKeyDistributionMessage/protocolMessage).
+
+When sender is LID: 👤 sender=LID:${user} name="<verifiedBizName||pushName||?>"
+
+When phone JID: 👤 sender=+<user>
+
+Offer parser (optional)
+
+Recognize currency tokens like HKD, handle k and m suffixes (e.g., 908k = 908000, 1.205m = 1205000).
+
+Extract reference codes like 5712/1R, 5990/1R, colors if present (blue, white, green, etc.), dates like 7/2025.
+
+Output array of {ref, color?, yearMonth?, currency?, priceRaw, priceValue} per line that looks like an offer.
+
+Types (add to src/types.ts):
+
+export type NormalizedMsg = {
+  id: string;
+  remoteJid: string;
+  participant?: string;
+  isGroup: boolean;
+  isStatus: boolean;
+  isBroadcast: boolean;
+  timestamp?: number;
+  senderName?: string;
+  senderJid: string;       // canonical JID (remote for DMs; participant for groups)
+  senderE164?: string|null;// "+<digits>" or null if not resolvable (LID)
+  senderLid?: string|null; // "<digits>" when server === 'lid'
+  text?: string;
+  kind: "text" | "image" | "video" | "document" | "audio" | "sticker" | "reaction" | "unknown";
+  media?: {
+    url?: string;
+    mimetype?: string;
+    bytes?: number;
+    sha256?: string;
+    seconds?: number;
+    width?: number;
+    height?: number;
+    caption?: string;
+  };
+};
+
+
+Normalizer (create src/normalize.ts):
+
+export function splitJid(jid?: string) {
+  if (!jid || !jid.includes("@")) return { user: "", server: "" as const };
+  const [user, server] = jid.split("@", 2);
+  return { user, server: server as "s.whatsapp.net" | "c.us" | "g.us" | "lid" | string };
+}
+
+function extractTextFromMessage(m: any): string | undefined {
+  if (m?.conversation?.trim()) return m.conversation.trim();
+  const ext = m?.extendedTextMessage?.text;
+  if (ext && ext.trim()) return ext.trim();
+  const cap = m?.imageMessage?.caption ?? m?.videoMessage?.caption ?? m?.documentMessage?.caption ?? m?.audioMessage?.caption;
+  if (cap && cap.trim()) return cap.trim();
+  const btn = m?.buttonsResponseMessage?.selectedButtonId || m?.templateButtonReplyMessage?.selectedId;
+  if (btn && btn.trim()) return btn.trim();
+  const list = m?.listResponseMessage?.singleSelectReply?.selectedRowId;
+  if (list && list.trim()) return list.trim();
+  return undefined;
+}
+
+function inferKind(m: any) {
+  if (m?.imageMessage) return "image";
+  if (m?.videoMessage) return "video";
+  if (m?.documentMessage) return "document";
+  if (m?.audioMessage) return "audio";
+  if (m?.stickerMessage) return "sticker";
+  if (m?.reactionMessage) return "reaction";
+  if (m?.conversation || m?.extendedTextMessage) return "text";
+  return "unknown";
+}
+
+function extractMedia(m: any) {
+  const media = m?.imageMessage || m?.videoMessage || m?.documentMessage || m?.audioMessage;
+  if (!media) return undefined;
+  return {
+    url: media.url,
+    mimetype: media.mimetype,
+    bytes: media.fileLength ? Number(media.fileLength) : undefined,
+    sha256: media.fileSha256,
+    seconds: media.seconds,
+    width: media.width,
+    height: media.height,
+    caption: media.caption,
+  };
+}
+
+export function normalizeBaileys(raw: any) {
+  const key = raw?.key ?? {};
+  const m = raw?.message ?? {};
+  const remoteJid = key.remoteJid as string;
+  const isStatus = remoteJid === "status@broadcast";
+  const isGroup = remoteJid?.endsWith("@g.us") || false;
+  const isBroadcast = !!raw?.broadcast;
+
+  const text = extractTextFromMessage(m);
+  const kind = inferKind(m);
+  const media = extractMedia(m);
+
+  // Who actually sent it:
+  const senderJid = isGroup ? key.participant : key.remoteJid;
+  const { user, server } = splitJid(senderJid);
+  const senderE164 = (server === "s.whatsapp.net" || server === "c.us") && /^\d+$/.test(user) ? `+${user}` : null;
+  const senderLid = server === "lid" ? user : null;
+
+  const senderName = raw?.verifiedBizName || raw?.pushName || undefined;
+
+  return {
+    id: key.id,
+    remoteJid,
+    participant: key.participant,
+    isGroup,
+    isStatus,
+    isBroadcast,
+    timestamp: raw?.messageTimestamp ? Number(raw.messageTimestamp) : undefined,
+    senderName,
+    senderJid,
+    senderE164,
+    senderLid,
+    text,
+    kind,
+    media,
+  } as const;
+}
+
+
+Wrapper normalizer (for your received_message shape)
+
+export function normalizeReceivedWrapper(ev: any) {
+  const m = ev?.message;
+  if (!m) return null;
+
+  const key = m.message_key ?? {};
+  const bm = m.body_message ?? {};
+  const content = typeof bm.content === "string" ? bm.content.trim() : undefined;
+
+  const remoteJid = key.remoteJid as string;
+  const isGroup = remoteJid?.endsWith("@g.us") || false;
+  const isStatus = remoteJid === "status@broadcast";
+
+  const senderJid = isGroup ? key.participant : key.remoteJid;
+  const { user, server } = splitJid(senderJid);
+  const senderE164 = (server === "s.whatsapp.net" || server === "c.us") && /^\d+$/.test(user) ? `+${user}` : null;
+  const senderLid = server === "lid" ? user : null;
+
+  const kind =
+    bm.type === "textMessage" ? "text" :
+    bm.type === "imageMessage" ? "image" :
+    bm.type === "videoMessage" ? "video" : "unknown";
+
+  return {
+    id: key.id,
+    remoteJid,
+    participant: key.participant,
+    isGroup,
+    isStatus,
+    isBroadcast: false,
+    timestamp: Date.now(),
+    senderName: m?.push_name,
+    senderJid,
+    senderE164,
+    senderLid,
+    text: content || undefined,
+    kind,
+    media: kind !== "text" ? { caption: content } : undefined,
+  };
+}
+
+
+Offer parser (src/parser/offers.ts)
+
+const CURRENCY = /\b([A-Z]{3})\b/;           // e.g., HKD
+const PRICE = /\b(\d{1,3}(?:[\d.,]*\d)?)(\s*[km])?\b/i; // 908k, 1.205m
+const REF = /\b(\d{3,4}\/?\d*[A-Z]?)\b/i;    // 5712/1R, 5990/1R
+const YM  = /\b(\d{1,2})\/(20\d{2})\b/;      // 7/2025
+const COLOR = /\b(blue|white|green|black|salmon|grey|choco|coffee)\b/i;
+
+export function parseOfferLine(line: string) {
+  const ref = line.match(REF)?.[1] || null;
+  const color = line.match(COLOR)?.[1]?.toLowerCase() || null;
+  const ym = line.match(YM);
+  const currency = line.match(CURRENCY)?.[1] || null;
+  const price = line.match(PRICE);
+  let priceValue: number | null = null;
+  let priceRaw: string | null = null;
+  if (price) {
+    priceRaw = price[0];
+    const n = parseFloat(price[1].replace(/,/g, ""));
+    const unit = (price[2] || "").trim().toLowerCase();
+    priceValue = unit === "k" ? n * 1_000 : unit === "m" ? n * 1_000_000 : n;
+  }
+  return {
+    ref,
+    color,
+    yearMonth: ym ? `${ym[2]}-${ym[1].padStart(2,"0")}` : null,
+    currency,
+    priceRaw,
+    priceValue,
+  };
+}
+
+export function parseOffers(text: string) {
+  return text.split(/\r?\n/).map(s => s.trim()).filter(Boolean).map(parseOfferLine)
+    .filter(r => r.ref && (r.priceValue || r.currency)); // keep likely offers
+}
+
+
+Webhook integration (src/webhook.ts)
+
+Import the normalizer(s).
+
+For each incoming event:
+
+If it’s messages.upsert, map messages[].forEach(normalizeBaileys).
+
+If it’s received_message, call normalizeReceivedWrapper.
+
+Dedupe by the composite key.
+
+If normalized.isStatus && !PROCESS_STATUS → log ↷ Skipped status@broadcast and return.
+
+If normalized.kind === "unknown" && !normalized.text → ignore with a light log.
+
+Else store: include sender_jid, sender_e164, sender_lid, sender_name, kind, text, media.
+
+Tests to add:
+
+Baileys image with caption → kind=image, text=caption, media present.
+
+Media-only video (no caption) → kind=video, text=undefined (no error).
+
+Group with participant=@lid → senderE164=null, senderLid=<digits>.
+
+DM senderJid=@s.whatsapp.net → senderE164="+<digits>".
+
+Status image (no caption) → skipped (when PROCESS_STATUS=false).
+
+Offer parsing:
+
+"RM72-01 White 6/2025 HKD 3.12m" → {ref:"RM72-01", yearMonth:"2025-06", currency:"HKD", priceValue:3120000}
+
+"5712/1R 7/2025 new HKD 1.79m" → correctly parsed.
+
+Nice-to-have env flags:
+
+PROCESS_STATUS=false (default).
+
+OFFER_PARSE_MIN_LINES=3 (only parse when a text block has ≥3 lines).
+
+Coding style:
+
+TypeScript strict mode, no any in exported types.
+
+Small pure helpers, unit tests with Vitest or Jest.
+
+LRU cache (e.g., lru-cache) for dedupe.
+
+Acceptance criteria:
+
+No more bogus senderNumber—LID contacts never show a fake +… number.
+
+Media with/without captions are stored cleanly.
+
+Status messages are skipped by default.
+
+Duplicates are eliminated by (id, remoteJid, participant).
+
+Logs are clear and action-oriented.
+
+Offer lines parse into structured rows for downstream DB work.

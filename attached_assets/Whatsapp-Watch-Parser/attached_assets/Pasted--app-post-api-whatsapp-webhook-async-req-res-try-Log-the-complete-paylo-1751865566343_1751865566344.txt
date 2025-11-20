@@ -1,0 +1,96 @@
+
+  app.post("/api/whatsapp/webhook", async (req, res) => {
+    try {
+      // Log the complete payload to understand mblaster's format
+      console.log("🔔 Incoming Webhook Payload:", JSON.stringify(req.body, null, 2));
+      
+      // Handle mblaster webhook format - check for messages.upsert events
+      let messageData = "";
+      let senderData = "unknown";
+      let groupData = "unknown";
+      let timestampData = new Date().toISOString();
+      let messageIdData = `msg_${Date.now()}`;
+      let senderNumberData = "";
+      
+      // Check if this is a mblaster message event
+      if (req.body?.data?.event === "messages.upsert" && req.body?.data?.data?.length > 0) {
+        const msgEvent = req.body.data.data[0];
+        if (msgEvent?.message) {
+          messageData = msgEvent.message.conversation || 
+                       msgEvent.message.extendedTextMessage?.text || 
+                       msgEvent.message.imageMessage?.caption ||
+                       "";
+          senderData = msgEvent.key?.participant || msgEvent.key?.remoteJid || "unknown";
+          groupData = msgEvent.key?.remoteJid || "unknown";
+          timestampData = msgEvent.messageTimestamp ? new Date(msgEvent.messageTimestamp * 1000).toISOString() : new Date().toISOString();
+          messageIdData = msgEvent.key?.id || `msg_${Date.now()}`;
+          
+          // Extract phone number from participant
+          if (senderData.includes("@")) {
+            senderNumberData = senderData.split("@")[0];
+          }
+        }
+      } else {
+        // Fallback to simple format (for testing)
+        messageData = req.body?.message || req.body?.data?.body || req.body?.body || req.body?.text || "";
+        senderData = req.body?.sender || req.body?.data?.from || req.body?.from || req.body?.author || "unknown";
+        groupData = req.body?.groupId || req.body?.data?.chatId || req.body?.chat || req.body?.group_id || "unknown";
+        timestampData = req.body?.timestamp || req.body?.data?.timestamp || req.body?.time || new Date().toISOString();
+        messageIdData = req.body?.messageId || req.body?.data?.id || req.body?.id || `msg_${Date.now()}`;
+        senderNumberData = req.body?.senderNumber || req.body?.data?.phone || req.body?.phone || "";
+      }
+      
+      console.log("📋 Extracted Data:", {
+        message: messageData,
+        sender: senderData,
+        group: groupData,
+        timestamp: timestampData,
+        messageId: messageIdData,
+        senderNumber: senderNumberData
+      });
+      
+      if (!messageData) {
+        console.log("❌ No message content found in payload");
+        return res.status(200).json({ error: "No message content in payload", received: Object.keys(req.body) });
+      }
+
+      // Parse the message using our watch parser
+      const { WatchMessageParser } = await import('./watch-parser');
+      const parser = new WatchMessageParser();
+      const parsedListings = parser.parseMessage(messageData);
+      
+      console.log("🔍 Parser Results:", {
+        messageData,
+        parsedCount: parsedListings.length,
+        listings: parsedListings
+      });
+
+      const results = [];
+      for (const listing of parsedListings) {
+        try {
+          const listingData = insertWatchListingSchema.parse({
+            chat: groupData,
+            date: timestampData ? new Date(timestampData).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            time: timestampData ? new Date(timestampData).toTimeString().split(' ')[0] : new Date().toTimeString().split(' ')[0],
+            sender: senderData,
+            senderNumber: senderNumberData,
+            pid: listing.pid,
+            year: listing.year,
+            variant: listing.variant,
+            condition: listing.condition,
+            price: listing.price,
+            currency: listing.currency,
+            rawLine: listing.rawLine,
+            messageId: messageIdData
+          });
+          
+          const savedListing = await storage.createWatchListing(listingData);
+          results.push({ success: true, id: savedListing.id });
+          
+          // Log successful processing
+          console.log("✅ Successfully processed listing:", listing.pid);
+        } catch (error) {
+          results.push({ success: false, error: (error as Error).message });
+          console.log("❌ Error processing listing:", (error as Error).message);
+        }
+      }

@@ -1,0 +1,197 @@
+/**
+ * WhatsApp Multi-Watch Regex Parser - FINAL CLEAN VERSION with PMID fallback chunk
+ * Mode: Run for Each Item (Execute Once = OFF)
+ */
+
+const RAW = $json.Message?.toString() || '';
+if (!RAW) return [];
+
+// Quick "is it a watch?" gate
+const HARD = /RM|AP|PATEK|ROLEX|OMEGA|CARTIER|VACHERON|LANGE|NAUTILUS|ROYAL OAK|F\.?P\.?J/i;
+const SOFT = /(BNIB|LNIB|UNWORN|FULL\s?SET|PRICE|GMT|DAYTONA|SPEEDMASTER|SUBMARINER)/i;
+if (!HARD.test(RAW) && !(SOFT.test(RAW) && /\d{4,6}/.test(RAW))) {
+  return [];
+}
+
+// Split into individual watch chunks
+function splitChunks(txt) {
+  txt = txt.replace(/\r/g, '').replace(/[•▪■]+/g, ' ');
+  
+  // Method 1: Split by bullet symbols
+  const bulletRE = /[♨★⭐◆●▼⚡💎🔥✅→]/;
+  let parts = txt.split(bulletRE)
+                 .map(s => s.trim())
+                 .filter(s => s.length > 10);
+  if (parts.length > 1) return parts;
+
+  // Method 2: Split by newlines before uppercase/numeric patterns
+  parts = txt.split(/\n(?=[A-Z0-9]{3,}[^a-z\n]{0,12}\b)/)
+             .map(s => s.trim())
+             .filter(s => s.length > 10);
+  if (parts.length > 1) return parts;
+
+  // Method 3: Line-by-line PID detection
+  const pidHint = /\b(?:\d{4}[A-Z]?\/|\bRM\d|AP\d|[A-Z]{2,3}\d{4,}|\d{5,6}[A-Z])/;
+  const lines = txt.split('\n')
+                   .map(l => l.trim())
+                   .filter(l => l.length > 5);
+  let buf = '', out = [];
+  for (const line of lines) {
+    if (pidHint.test(line) && buf) {
+      out.push(buf.trim());
+      buf = line;
+    } else {
+      buf += (buf ? ' ' : '') + line;
+    }
+  }
+  if (buf) out.push(buf.trim());
+
+  return out.length ? out : [];
+}
+
+// Split message
+let chunks = splitChunks(RAW);
+
+// ✅ Ensure at least 1 chunk if message is non-empty
+if (chunks.length === 0 && RAW.trim().length > 0) {
+  chunks = [RAW.trim()];
+}
+
+function extractPid(t) {
+  const patterns = [
+    /\d{4}[A-Z]?\/\d{3}[A-Z]-[A-Z]\d{3}/i,
+    /\d{4}\/\d[A-Z]-\d{3}/i,
+    /RM\s*\d{2,3}(?:-\d{2,3})?/i,
+    /AP\s*\d{5}[A-Z]{0,2}/i,
+    /[A-Z0-9]{4,}-[A-Z0-9]{3,}/i,
+    /\d{5}[A-Z]{1,3}(?!\d)/i,
+    /\d{6}(?![0-9])/i,
+    /\d{4,6}[A-Z]{1,3}(?!\d)/i,
+    /[A-Z]{2,4}\d{4,6}[A-Z]*/i,
+    /[A-Z]{2,4}\d{5,6}/i
+  ];
+  
+  const currencyPatterns = [
+    /(?:HKD|USD|EUR|CHF|GBP|USDT)\d+/i,
+    /\d+(?:HKD|USD|EUR|CHF|GBP|USDT)/i,
+    /\$\d+/,
+    /\d+k\b/i,
+    /\d+m\b/i
+  ];
+  
+  for (const rx of patterns) {
+    const matches = t.matchAll(new RegExp(rx.source, 'gi'));
+    for (const match of matches) {
+      const candidate = match[0].replace(/\s+/g, '').toUpperCase();
+      let isCurrency = false;
+      for (const cp of currencyPatterns) {
+        if (cp.test(candidate)) {
+          isCurrency = true;
+          break;
+        }
+      }
+      if (!isCurrency) {
+        return candidate;
+      }
+    }
+  }
+  return null;
+}
+
+function parsePrice(t) {
+  const s = t.replace(/[, ]/g, '').toLowerCase();
+  if (/(\d+\.?\d*)\s*m(?:il)?(?:lion)?\b/i.test(s))
+    return Math.round(+RegExp.$1 * 1_000_000);
+  if (/(\d+\.?\d*)\s*k\b/i.test(s))
+    return Math.round(+RegExp.$1 * 1_000);
+  let m = s.match(/(?:hkd|usd|eur|chf|gbp|usdt)[:\s]*(\d{5,})/i);
+  if (m) return +m[1];
+  m = s.match(/(\d{5,})\s*(?:hkd|usd|eur|chf|gbp|usdt)/i);
+  if (m) return +m[1];
+  m = s.match(/\b(\d{6,})\b/);
+  return m ? +m[1] : null;
+}
+
+function parseYear(t) {
+  let m = t.match(/\b(20\d{2})\b/);
+  if (m) return m[1];
+  m = t.match(/\b(20\d{2})\/\d{1,2}\b/);
+  if (m) return m[1];
+  m = t.match(/\b(\d{1,2})y\b/i);
+  if (m) {
+    const yy = +m[1];
+    return yy < 50 ? `20${String(yy).padStart(2,'0')}` : `19${String(yy).padStart(2,'0')}`;
+  }
+  return '';
+}
+
+function parseCurrency(t) {
+  const u = t.toUpperCase();
+  if (/USDT/.test(u)) return 'USDT';
+  if (/USD/.test(u))  return 'USD';
+  if (/EUR/.test(u))  return 'EUR';
+  if (/CHF/.test(u))  return 'CHF';
+  if (/GBP/.test(u))  return 'GBP';
+  return 'HKD';
+}
+
+function parseCondition(t) {
+  const l = t.toLowerCase();
+  if (/brand\s*new\s*in\s*box|bnib/.test(l)) return 'Brand New';
+  if (/like\s*new\s*in\s*box|lnib/.test(l)) return 'Like New';
+  if (/brand\s*new|new/.test(l)) return 'Brand New';
+  if (/\b(unworn|unused)\b/.test(l)) return 'Unworn';
+  if (/like\s*new/.test(l)) return 'Like New';
+  if (/full\s*set|fullset/.test(l)) return 'Full Set';
+  if (/only\s*watch/.test(l)) return 'Only Watch';
+  if (/mint/.test(l)) return 'Mint';
+  if (/excellent/.test(l)) return 'Excellent';
+  if (/very\s*good/.test(l)) return 'Very Good';
+  if (/good/.test(l)) return 'Good';
+  if (/used/.test(l)) return 'Used';
+  if (/fair/.test(l)) return 'Fair';
+  return '';
+}
+
+function parseVariant(t) {
+  const variants = [];
+  const metals = t.match(/\b(steel|stainless|ss|gold|rose\s*gold|yellow\s*gold|white\s*gold|platinum|titanium|ceramic)\b/gi);
+  if (metals) variants.push(...metals.map(m => m.toLowerCase().replace(/\s+/g, ' ')));
+  const colors = t.match(/\b(black|white|blue|green|red|silver|champagne|slate|panda|pepsi|batman|hulk|kermit|brown|pink)\b/gi);
+  if (colors) variants.push(...colors.map(c => c.toLowerCase()));
+  const bracelets = t.match(/\b(oyster|jubilee|president|nato|leather|rubber|milanese|mesh)\b/gi);
+  if (bracelets) variants.push(...bracelets.map(b => b.toLowerCase()));
+  return [...new Set(variants)].join(', ');
+}
+
+// Build and return output items
+return chunks.map((chunk, idx) => {
+  const rx_pid       = extractPid(chunk);
+  const rx_price     = parsePrice(chunk);
+  const rx_year      = parseYear(chunk);
+  const rx_currency  = parseCurrency(chunk);
+  const rx_condition = parseCondition(chunk);
+  const rx_variant   = parseVariant(chunk);
+
+  // ✅ No filtering—always emit the chunk
+  return {
+    json: {
+      PMID            : $json.PMID || '',
+      Chat            : $json['Group ID'] || '',
+      Date            : ($json.Timestamp||'').split('T')[0] || '',
+      Time            : ($json.Timestamp||'').split('T')[1]?.replace('Z','') || '',
+      Sender          : $json.Sender || '',
+      'Sender Number' : $json['Sender Number'] || '',
+      rx_pid          : rx_pid || '',
+      rx_year         : rx_year || '',
+      rx_variant      : rx_variant || '',
+      rx_condition    : rx_condition || '',
+      rx_price        : rx_price ?? '',
+      rx_currency     : rx_currency || '',
+      listing_index   : idx + 1,
+      total_listings  : chunks.length,
+      'Raw Line'      : chunk
+    }
+  };
+});
+

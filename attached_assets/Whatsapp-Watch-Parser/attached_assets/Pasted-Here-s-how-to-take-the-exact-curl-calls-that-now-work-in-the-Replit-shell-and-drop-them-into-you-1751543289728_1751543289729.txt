@@ -1,0 +1,140 @@
+Here’s how to take the **exact curl calls that now work in the Replit shell** and drop them into your Express project so the QR code shows up and you never see the *“401 Invalid access token / HTML response”* again.
+
+---
+
+## 1 – Fix the two routes that were still using `POST`
+
+`create_instance` and `get_qrcode` **must be GET requests**; the SendApp/Mblaster servers reject `POST` with a generic 401 page.([sendapp.live][1])
+Update your routes (example `routes/whatsapp.js`):
+
+```js
+import express from "express";
+import axios   from "axios";
+import { Database } from "@replit/database";   // ⬅ to persist settings in Replit
+
+const router = express.Router();
+const db = new Database();
+
+// Helpers ───────────────────────────────────────────────────────────
+const getCredentials = async () => {
+  const ACCESS_TOKEN = (await db.get("ACCESS_TOKEN")) || process.env.ACCESS_TOKEN;
+  const INSTANCE_ID  = (await db.get("INSTANCE_ID"))  || process.env.INSTANCE_ID;
+  return { ACCESS_TOKEN, INSTANCE_ID };
+};
+
+// 1️⃣  GET /api/whatsapp/create-instance
+router.get("/create-instance", async (_, res) => {
+  const { ACCESS_TOKEN } = await getCredentials();
+  try {
+    const url = `https://mblaster.in/api/create_instance?access_token=${ACCESS_TOKEN}`;
+    const { data } = await axios.get(url);
+    // persist the new instance for future calls
+    await db.set("INSTANCE_ID", data.instance_id);
+    res.json(data);           // {status,message,instance_id}
+  } catch (err) {
+    res.status(err.response?.status || 500).json({ error: err.message });
+  }
+});
+
+// 2️⃣  GET /api/whatsapp/qr-code           (was POST ❌)
+router.get("/qr-code", async (_, res) => {
+  const { ACCESS_TOKEN, INSTANCE_ID } = await getCredentials();
+  try {
+    const url = `https://mblaster.in/api/get_qrcode?instance_id=${INSTANCE_ID}&access_token=${ACCESS_TOKEN}`;
+    const { data } = await axios.get(url);
+    res.json(data);           // {status,message,base64}
+  } catch (err) {
+    res.status(err.response?.status || 500).json({ error: err.message });
+  }
+});
+
+// 3️⃣  GET /api/whatsapp/status
+router.get("/status", async (_, res) => {
+  const { ACCESS_TOKEN, INSTANCE_ID } = await getCredentials();
+  try {
+    const url = `https://mblaster.in/api/status?instance_id=${INSTANCE_ID}&access_token=${ACCESS_TOKEN}`;
+    const { data } = await axios.get(url);
+    res.json(data);
+  } catch (err) {
+    res.status(err.response?.status || 500).json({ error: err.message });
+  }
+});
+
+// 4️⃣  POST /api/whatsapp/send   (this one really IS POST)
+router.post("/send", async (req, res) => {
+  const { ACCESS_TOKEN, INSTANCE_ID } = await getCredentials();
+  const { number, message } = req.body;
+  try {
+    const payload = {
+      number,
+      type: "text",
+      message,
+      instance_id: INSTANCE_ID,
+      access_token: ACCESS_TOKEN,
+    };
+    const { data } = await axios.post("https://mblaster.in/api/send", payload);
+    res.json(data);
+  } catch (err) {
+    res.status(err.response?.status || 500).json({ error: err.message });
+  }
+});
+
+export default router;
+```
+
+### Why Replit DB instead of writing `.env`
+
+`.env` files vanish whenever the workspace restarts; Replit DB survives container rebuilds, so the *Save Configuration* button will finally “stick”.
+
+---
+
+## 2 – Show the QR in the browser
+
+Add a one-liner EJS page (`views/qr.ejs`):
+
+```ejs
+<!DOCTYPE html>
+<html>
+  <head><title>Scan QR</title></head>
+  <body style="display:flex;flex-direction:column;align-items:center;font-family:sans-serif">
+    <h2>Scan to link WhatsApp</h2>
+    <img src="<%= base64 %>" style="width:300px;height:300px;border:1px solid #ccc" />
+    <p>After scanning, <a href="/status">check status</a>.</p>
+  </body>
+</html>
+```
+
+And a simple page route:
+
+```js
+router.get("/show-qr", async (_, res) => {
+  const r = await axios.get("http://localhost:5000/api/whatsapp/qr-code");
+  res.render("qr", { base64: r.data.base64 });
+});
+```
+
+Open `/show-qr` in Replit’s preview pane, scan, and you’re done.
+
+---
+
+## 3 – Replace the polling spam
+
+If the log noise from `/messages` still bothers you, cache the `ETag` and return **204** on *“no new messages”* exactly as shown in the previous reply. That eliminates the wall of `304`.
+
+---
+
+## 4 – Quick checklist to confirm everything
+
+| Step            | Endpoint                        | Expect                                   |
+| --------------- | ------------------------------- | ---------------------------------------- |
+| Create instance | `/api/whatsapp/create-instance` | JSON with new **instance\_id**           |
+| Show QR         | `/show-qr`                      | Image visible                            |
+| Scan QR         | WhatsApp app                    | Phone links                              |
+| Status          | `/api/whatsapp/status`          | `{ status:"connected", wid:"91…@c.us" }` |
+| Send            | `POST /api/whatsapp/send`       | `"sent"` or `"queued"`                   |
+
+You already verified the raw curl calls; wiring them into Express exactly like this keeps the behaviour 1-for-1.
+
+Give the updated routes a whirl and let me know if any step still misbehaves—once the GET/POST mismatch is gone, the 401s disappear and the QR page works every time.
+
+[1]: https://sendapp.live/en/whatsapp-api/?utm_source=chatgpt.com "SendApp Cloud API Documentation - Whatsapp Marketing Software."

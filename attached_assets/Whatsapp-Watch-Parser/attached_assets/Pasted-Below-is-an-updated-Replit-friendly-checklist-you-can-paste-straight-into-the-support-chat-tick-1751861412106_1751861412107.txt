@@ -1,0 +1,113 @@
+Below is an updated, “Replit-friendly” checklist you can paste straight into the support chat / ticket.
+It incorporates everything we learned from the **new log** you just sent.
+
+---
+
+## 0 — The **single, blocking** root-cause
+
+**Every HTTPS call is still hitting `https://api.mblaster.in/...`**.
+That hostname’s certificate is for `asarkari.com`, so Node’s TLS layer rejects the
+connection and you see
+
+```
+Hostname/IP does not match certificate's altnames: Host: api.mblaster.in …
+```
+
+Because those requests fail, *all* of the follow-on symptoms appear (no QR,
+no groups, “connected” only when a webhook arrives, etc.).
+
+### ✅ Fix
+
+1. **Search the whole repo** for **`api.mblaster.in`**
+2. Replace with **`mblaster.in/api`** (so the final URL is
+   `https://mblaster.in/api/get_status`, `…/get_qrcode`, etc.)
+3. **Redeploy / `npm run dev`**
+
+That is literally the only change required to restore organic connectivity:
+
+* QR-code will come back (base64 or png url)
+* `get_status` will return real state, so the UI badge will be correct
+* `get_groups` will return the list, so the dropdown will populate
+* `reconnect`, `create_instance`, etc. will all work again
+
+*(If you want to be 100 % future-proof, read the base-URL from an env var; but a
+straight search-and-replace will unblock us today.)*
+
+---
+
+## 1 — Create-instance still shows an HTML 404 page
+
+Same reason as above. Once the base URL is fixed you’ll get proper JSON
+(`{ instance_id: "6867…", api_key: … }`) instead of the marketing site’s 404.
+
+---
+
+## 2 — QR-code endpoint returns “No QR code received”
+
+Same TLS failure; will disappear after **step 0**.
+
+---
+
+## 3 — Only the *first* group in the whitelist is honoured
+
+### (newline vs comma)
+
+`waConfig.whitelistedGroups` is stored exactly as pasted, including new-lines:
+
+```
+919821822960-1609692489@g.us\n120363400088469625@g.us
+```
+
+Our splitter used **`,` only**, so the string is treated as *one* entry.
+Solution:
+
+```ts
+// routes/whatsapp.ts  (helper getAllowedGroups)
+const allowed = (waConfig.whitelistedGroups || "")
+  .split(/[\s,]+/)      // ← split on commas *or* whitespace/new-lines
+  .filter(Boolean);
+```
+
+Now both IDs are recognised, and if the whitelist is empty *all* groups pass
+(the fallback already works).
+
+---
+
+## 4 — Parser should recognise “2024Y”, “23Y”, …
+
+```diff
+- const YEAR = /\b(20\d{2}|19\d{2})\b/;
++ const YEAR = /\b(20\d{2}|19\d{2})(?:y\b|\b)/i;
+```
+
+---
+
+## 5 — “Pending” vs “NO\_PID” status
+
+Add:
+
+```ts
+const status =
+  parsedListings.length === 0        ? "no_pid"   :
+  parsedListings.every(l => l.pid)   ? "success"  :
+                                        "partial";
+```
+
+and write that into both the raw-message and the processing-log row.
+
+---
+
+### TL;DR you can forward
+
+```
+(1) Replace every  'https://api.mblaster.in'  with  'https://mblaster.in/api'
+    → TLS error gone → QR, groups, status all start working.
+
+(2) Split   waConfig.whitelistedGroups   on  /[\s,]+/  instead of just ','.
+
+(3) Year regex:  /\b(20\d{2}|19\d{2})(?:y\b|\b)/i
+
+(4) Status mapping:  success / partial / no_pid
+```
+
+Do those four patches, redeploy, and the app behaves like before.

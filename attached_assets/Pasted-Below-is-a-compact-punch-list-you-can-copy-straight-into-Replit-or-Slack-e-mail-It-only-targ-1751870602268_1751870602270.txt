@@ -1,0 +1,114 @@
+Below is a compact “punch-list” you can copy straight into Replit (or Slack / e-mail).
+It only targets the **WhatsApp connection layer**; the rest of the app will start working again once these six items are done.
+
+---
+
+## 1  Kill every last **`api.mblaster.in`**
+
+```sh
+grep -R "api\.mblaster\.in" src/ | wc -l   # should print 0
+```
+
+If you still see hits, replace with:
+
+```ts
+const BASE = "https://mblaster.in/api";
+```
+
+> All TLS / “certificate altnames” errors vanish after this — the API
+> certificate is valid for `mblaster.in`, not `api.mblaster.in`.
+
+---
+
+## 2  Use **GET + query-string** for the seven read-only endpoints
+
+The official docs say:
+
+| feature          | verb | sample URL                                                            |
+| ---------------- | ---- | --------------------------------------------------------------------- |
+| create\_instance | GET  | `/create_instance?access_token=…`                                     |
+| get\_qrcode      | GET  | `/get_qrcode?instance_id=…&access_token=…`                            |
+| get\_status      | GET  | `/get_status?instance_id=…&access_token=…`                            |
+| get\_groups      | GET  | `/get_groups?instance_id=…&access_token=…`                            |
+| reconnect        | GET  | `/reconnect?instance_id=…&access_token=…`                             |
+| reboot / reset   | GET  | same pattern                                                          |
+| set\_webhook     | GET  | `/set_webhook?webhook_url=…&enable=true&instance_id=…&access_token=…` |
+
+### Quick patch
+
+```diff
+- await fetch(`${BASE}/get_status`, { method:"POST", body: JSON.stringify({instance_id, access_token})});
++ await fetch(`${BASE}/get_status?instance_id=${instanceId}&access_token=${accessToken}`);
+```
+
+Do that for *createInstance*, *generateQR*, *checkStatus*, *fetchGroups*, *reconnect*, *disconnect*.
+
+*(The send / send\_group endpoints remain POST with JSON body — leave them.)*
+
+---
+
+## 3  Auto-set the webhook right after a successful login
+
+```ts
+await fetch(
+  `${BASE}/set_webhook?webhook_url=${encodeURIComponent(process.env.PUBLIC_URL + "/api/whatsapp/webhook")}&enable=true&instance_id=${instanceId}&access_token=${accessToken}`
+);
+```
+
+Without that call no incoming messages will reach Replit, so the UI looks dead even when the instance is online.
+
+---
+
+## 4  Whitelist handling: split on commas **or** new-lines
+
+```ts
+const allowed = (waConfig.whitelistedGroups || "")
+  .split(/[\s,]+/)        // ← this replaces “.split(',')”
+  .filter(Boolean);
+```
+
+Now both lines
+
+```
+919821822960-1609692489@g.us
+120363400088469625@g.us
+```
+
+are honoured, and if the string is empty every group will pass.
+
+---
+
+## 5  QR loop: keep polling until API returns a `base64` or `qrcode_url`
+
+```ts
+for (let i = 0; i < 15; i++) {
+  const r = await fetch(`${BASE}/get_qrcode?instance_id=${id}&access_token=${tok}`);
+  const j = await r.json();
+  if (j.base64 || j.qrcode_url) return j.base64 ?? j.qrcode_url;
+  await new Promise(res => setTimeout(res, 2000));   // wait 2 s
+}
+throw new Error("QR code not ready yet");
+```
+
+No more “No QR code received”.
+
+---
+
+## 6  Parser adjustments (optional but requested)
+
+* Year like **“2024Y”**:
+  `const YEAR = /\b(20\d{2}|19\d{2})(?:y\b|\b)/i;`
+* Raw-message status: `"no_pid"` when nothing parsed, `"partial"` when
+  some listings miss a PID; otherwise `"success"`.
+
+---
+
+### After these six steps
+
+* **Connection badge** flips green immediately after `/get_status`
+* **QR code** shows up, phone links, `/get_status` becomes `"connected"`
+* **Groups dropdown** is populated from `/get_groups`
+* Webhook delivers messages from *all* whitelisted groups
+* Logs no longer show TLS or 404-HTML mishaps
+
+Paste this list to Replit; once they deploy the patches the app will feel like the original working version again.

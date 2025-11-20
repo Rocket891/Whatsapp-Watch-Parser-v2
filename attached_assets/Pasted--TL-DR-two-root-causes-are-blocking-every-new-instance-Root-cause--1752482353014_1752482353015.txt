@@ -1,0 +1,82 @@
+### TL;DR – two root causes are blocking **every new instance**
+
+| Root cause                                                                                                                                                                                                                                                         | Symptom in your logs                                                                                                       | Direct, one-line fix                                                     |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| **1. You are still calling `https://api.mblaster.in/…`** (wrong host) in two spots. That host’s TLS certificate is for **`asarkari.com`** → Node aborts with the “Hostname/IP does not match certificate’s altnames” error and the request never reaches mBlaster. | `❌ … Host: api.mblaster.in. is not in the cert's altnames: DNS:asarkari.com`                                               | Change those URLs to **`https://mblaster.in/api/…`** (no *api.* prefix). |
+| **2. After the QR is scanned you never call `set_webhook` for the new instance**, so mBlaster has nowhere to push the real-time events.                                                                                                                            | “QR scanned” is the last thing that happens; later the server shows *no* incoming events for the freshly created instance. | Once status === `connected`, hit `set_webhook` with a POST/GET to:  \\   |
+| `https://mblaster.in/api/set_webhook?webhook_url=${encodeURIComponent(<your-public-URL>/api/whatsapp/webhook)}&enable=true&instance_id=${instanceId}&access_token=${accessToken}`                                                                                  |                                                                                                                            |                                                                          |
+
+---
+
+## Where to patch
+
+### 1 📄 `src/server/routes/whatsapp.ts`
+
+```diff
+- const BASE = 'https://api.mblaster.in/api/';
++ const BASE = 'https://mblaster.in/api/';   // single source of truth
+
+// callMB helper
+const resp = await fetch(`${BASE}${endpoint}`, { … });
+```
+
+Search the file for `api.mblaster.in` and replace every occurrence with `mblaster.in`.
+
+### 2 📄 same file – auto-hook the webhook right after a successful QR scan
+
+```ts
+app.post("/api/whatsapp/qr-code", async (req, res) => {
+  …
+  if (ok && qr) {
+    // <- already existing success block
++   // -----------------------------------------------------------------
++   // NEW: tell mBlaster where to POST messages for *this* instance
++   try {
++     await fetch(
++       `${BASE}set_webhook?` +
++       `webhook_url=${encodeURIComponent(process.env.PUBLIC_URL + "/api/whatsapp/webhook")}` +
++       `&enable=true&instance_id=${instanceId}&access_token=${accessToken}`
++     );
++     console.log("✅ webhook set for", instanceId);
++   } catch(e) {
++     console.error("❌ failed to set webhook", e);
++   }
++   // -----------------------------------------------------------------
+    return res.json({ qrCode: qr });
+  }
+  …
+});
+```
+
+(`PUBLIC_URL` is whatever you expose publicly – Replit gives you one; hard-code if you must.)
+
+### 3 📄 `src/pages/whatsapp-integration.tsx`
+
+After you detect that `status === "connected"` add one call to trigger the server-side route above:
+
+```ts
+useEffect(() => {
+  if (conn === "connected") {
+    fetch("/api/whatsapp/set-webhook", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        instanceId: form.getValues("instanceId"),
+        accessToken: form.getValues("accessToken"),
+        webhookUrl: window.location.origin + "/api/whatsapp/webhook",
+      }),
+    });
+  }
+}, [conn]);
+```
+
+---
+
+## What will work once those two issues are gone
+
+* **QR generation** – `/get_qrcode` comes from the right host, so you actually receive the base64/PNG.
+* **Live connection status** – `/get_status` answers and you’ll see `connected`.
+* **Groups list** – after `set_webhook`, mBlaster begins to POST *contacts.update* and *groups* payloads; your existing `/api/whatsapp/groups` route will now return real data, including friendly group names.
+* **Incoming messages** – they flow through the webhook immediately; whitelisting is applied dynamically because `waConfig.whitelistedGroups` is updated every time you save the settings card.
+
+*No database schemas or parsing logic have to change; the failure was purely transport-level.*

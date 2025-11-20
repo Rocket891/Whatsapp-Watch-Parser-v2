@@ -1,0 +1,167 @@
+Great—**thank you for sharing the latest ZIP.**
+Let’s address your points **systematically** so you get a robust solution.
+
+---
+
+## 🟢 1️⃣ **Loading WhatsApp Groups Not Working**
+
+✅ **Root cause:**
+Your `/api/get_groups` endpoint from the *mblaster* API might:
+
+* Return empty if your instance is not fully connected.
+* Return error if you call it before scanning QR or reconnecting.
+
+✅ **Recommended Fix:**
+
+* Always **try** to load groups (and show error if failed).
+* Allow **manual group IDs** regardless.
+* Show **both loaded groups and manual IDs** in UI.
+
+---
+
+## 🟢 2️⃣ **Manually Added Group IDs Not Persisting**
+
+✅ **Solution:**
+Store manually added group IDs in your database (`settings` table or `config.json`) and reload them on startup.
+
+✅ **Implementation Steps:**
+
+* In `server/index.ts`, keep a `config` object that loads once:
+
+  ```ts
+  let config = {
+    accessToken: '',
+    instanceId: '',
+    whitelistedGroups: ''
+  };
+  ```
+* On POST `/api/whatsapp/configure`, **save** to `config.json`:
+
+  ```ts
+  fs.writeFileSync('./config.json', JSON.stringify(config, null, 2));
+  ```
+* On server start:
+
+  ```ts
+  if (fs.existsSync('./config.json')) {
+    config = JSON.parse(fs.readFileSync('./config.json', 'utf8'));
+  }
+  ```
+
+✅ Now your manual group IDs **stay saved**.
+
+---
+
+## 🟢 3️⃣ **Reconnect Instance Not Showing QR Code**
+
+✅ **Cause:**
+After calling `/api/reconnect`, you **must** re-fetch QR code (same as with `/create-instance`).
+
+✅ **Solution:**
+When you click *Reconnect*:
+
+1. Call `/api/reconnect` → success.
+2. Call `/api/whatsapp/qr-code` → get new QR.
+3. Show QR in UI.
+
+✅ **Tip:**
+If the instance was already connected, `qr-code` returns:
+
+```json
+{"error":"Instance ID has been used"}
+```
+
+That’s fine—just show “Connected.”
+
+---
+
+## 🟢 4️⃣ **Create New Instance Not Giving New ID**
+
+✅ **Cause:**
+If you call `/api/create-instance` *while an old instance is active*, it may reuse it.
+✅ **Solution:**
+First call `/api/reset_instance` or `/api/reboot`, **then** `/create-instance`.
+
+✅ **Sequence:**
+
+1. Reboot/reset old instance:
+
+   ```http
+   POST /api/reset_instance
+   ```
+2. Create new instance:
+
+   ```http
+   POST /api/create-instance
+   ```
+3. Save new `instance_id`.
+
+✅ **Frontend:**
+After “Create New,” automatically trigger “Generate QR Code.”
+
+---
+
+## 🟢 5️⃣ **Restrict to Whitelisted Groups**
+
+✅ **Problem:**
+Your webhook **does not check group ID** before saving the message.
+✅ **Fix in `/api/whatsapp/webhook`:**
+
+```ts
+if (config.whitelistedGroups) {
+  const allowedGroups = config.whitelistedGroups.split(',').map(x => x.trim());
+  if (!allowedGroups.includes(groupId)) {
+    console.log('Ignored: group not whitelisted');
+    return res.json({ ok: true });
+  }
+}
+```
+
+✅ Now, only messages from specified groups are stored.
+
+---
+
+## 🟢 6️⃣ **Database Columns**
+
+✅ Your storage table should have:
+
+| Column        | Type    |
+| ------------- | ------- |
+| PID           | TEXT    |
+| Year          | TEXT    |
+| Variant       | TEXT    |
+| Condition     | TEXT    |
+| Price         | INTEGER |
+| Chat ID       | TEXT    |
+| Sender        | TEXT    |
+| Sender Number | TEXT    |
+| Date          | TEXT    |
+| Time          | TEXT    |
+| Raw Line      | TEXT    |
+
+✅ **Tip:**
+Store raw JSON too:
+\| raw\_payload | JSON |
+
+---
+
+## 🟢 Next Steps
+
+If you’d like, I’ll:
+✅ Write you **the exact server code** for:
+
+* Persisting config with group IDs
+* Creating/resetting/reconnecting instance
+* Saving messages only from whitelisted groups
+  ✅ Give you **frontend changes**:
+* Separate group selector + manual input
+* Save manual group IDs to config
+* Reconnect logic + QR refresh
+
+---
+
+**Just confirm:**
+✅ Are you using SQLite or JSON for storing messages?
+✅ Should I prepare **full updated files** (`server/index.ts` + UI snippets) for you to paste?
+
+**Send me the answer, and I’ll build you the clean, working solution.**

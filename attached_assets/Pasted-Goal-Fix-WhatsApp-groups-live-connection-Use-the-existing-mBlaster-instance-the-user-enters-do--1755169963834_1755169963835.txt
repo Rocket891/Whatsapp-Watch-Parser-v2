@@ -1,0 +1,128 @@
+Goal: Fix WhatsApp groups + live connection. Use the existing mBlaster instance the user enters; do not create new instances. Make group names load reliably and show as Name (id). Make instance / group changes take effect immediately.
+
+1) Harden mBlaster calls (GET + headers + retry)
+
+Files to edit: server/routes/whatsapp.ts (or wherever WhatsApp endpoints live).
+
+For all calls to mBlaster (get_status, get_qrcode, set_webhook, get_groups, reconnect), ensure:
+
+Method: GET with query params (per the user’s API sheet).
+
+Headers:
+Accept: application/json
+User-Agent: Mozilla/5.0 (use a browsery UA to avoid HTML marketing pages)
+
+If response is not JSON (contains <!DOCTYPE html> or cannot JSON.parse), treat as IP-blocked/HTML fallback.
+
+For get_groups: run reconnect once, wait 500–800ms, retry once. If still HTML, return a structured response { source: "cache", groups: [...] }.
+
+Normalize host: never use a trailing dot in hostname (it causes TLS CN mismatch). If a trailing dot sneaks in, strip it before fetch. (This prevents “hostname mismatch” errors.)
+
+2) Real group names + dynamic loading
+
+File(s): server/routes/whatsapp.ts webhook handler + groups route; optionally server/state.ts.
+
+Maintain two in-memory caches:
+
+groupNameCache: Map<string, string> — id → subject/name
+
+contactNameCache: Map<string, string> — JID (e.g., xxx@s.whatsapp.net) → display name
+
+On incoming webhook:
+
+When messages.upsert/received_message includes a group JID (...@g.us) and any subject/name field, update groupNameCache[id] = subject.
+If not present, leave as is; we’ll fill via /get_groups.
+
+When payload has pushName/push_name, set contactNameCache[jid] = pushName.
+
+/api/whatsapp/groups route:
+
+Try GET https://mblaster.in/api/get_groups?instance_id=...&access_token=... (GET + headers + retry as above).
+
+If JSON, merge results into groupNameCache and respond { source: "api", groups: [...] }.
+
+If HTML or error, fallback to { source: "cache", groups: [...] } built from:
+
+groupNameCache entries
+
+any group IDs observed in raw webhook messages (dedupe + sort)
+
+Response format should be:
+
+{ "source": "api|cache", "groups": [ { "id": "1203...@g.us", "name": "Test3" }, ... ] }
+
+
+Important: No DB fallback for groups (unless you explicitly store them); use caches + webhook-seen groups for correctness per-instance.
+
+3) Show Name (id) and resolve sender names
+
+File: client/src/pages/whatsapp-integration.tsx
+
+In the group dropdown and in tables, render each group as:
+(${name || "Unknown"}) (${id}) → e.g., Test3 (120363400262559729@g.us).
+
+For the incoming messages list, resolve sender like:
+
+If contactNameCache[senderJid] exists, display that.
+
+Else if payload has pushName/push_name, use that and cache it.
+
+Else show the raw JID.
+
+Update the backend /api/whatsapp/messages to include:
+
+{ 
+  "groupId": "...@g.us",
+  "groupName": groupNameCache[groupId] || "WhatsApp Group",
+  "senderJid": "...@s.whatsapp.net",
+  "senderName": contactNameCache[senderJid] || extractedPushName || "Unknown"
+}
+
+
+In the UI, display senderName not the raw JID.
+
+4) Make instance changes apply instantly (no restart)
+
+Files: server/routes/whatsapp.ts (configure route), server/state.ts.
+
+On /api/whatsapp/configure:
+
+Persist instanceId, accessToken, whitelistedGroups in memory.
+
+Immediately call set_webhook for the current public URL (pass from client).
+
+Immediately call reconnect (GET + headers).
+
+Clear caches: groupNameCache.clear() and contactNameCache.clear() so the next /groups fetch pulls fresh data.
+
+Return { ok: true, refreshed: true }.
+
+Ensure all subsequent API calls read from the current in-memory config (not from a stale module import).
+
+5) Simple health check that doesn’t lie
+
+File: server/routes/whatsapp.ts
+
+Implement /api/whatsapp/connection-status to aggregate:
+
+Last webhook time seen (if < 2–3 min, counts as “live”)
+
+get_status JSON (if reachable)
+
+reconnect result (if we tried)
+
+Return a small object:
+
+{
+  "connected": true|false,
+  "lastWebhookAt": "...",
+  "statusApi": "ok|html|error",
+  "notes": "from webhook activity"
+}
+
+
+This stops “false disconnected” states when the status API is IP-blocked but webhooks are flowing.
+
+6) Optional: stable outbound IP (production)
+
+If mBlaster enforces IP allowlisting, outbound IP from a dev host can change. A production-grade way to stabilize this is run the backend on a VPS/NAT with a static egress IP (e.g., EC2 + Elastic IP / NAT). That guarantees a fixed source IP for mBlaster.

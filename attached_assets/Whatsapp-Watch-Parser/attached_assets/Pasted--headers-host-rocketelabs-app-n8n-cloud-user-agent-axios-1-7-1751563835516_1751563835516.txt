@@ -1,0 +1,145 @@
+[
+  {
+    "headers": {
+      "host": "rocketelabs.app.n8n.cloud",
+      "user-agent": "axios/1.7.7",
+      "content-length": "136",
+      "accept": "application/json, text/plain, */*",
+      "accept-encoding": "gzip, br",
+      "cdn-loop": "cloudflare; loops=1; subreqs=1",
+      "cf-connecting-ip": "209.209.9.232",
+      "cf-ew-via": "15",
+      "cf-ipcountry": "CA",
+      "cf-ray": "955399b7768fa2f6-YUL",
+      "cf-visitor": "{\"scheme\":\"https\"}",
+      "cf-worker": "n8n.cloud",
+      "content-type": "application/json",
+      "x-forwarded-for": "209.209.9.232, 162.158.126.47",
+      "x-forwarded-host": "rocketelabs.app.n8n.cloud",
+      "x-forwarded-port": "443",
+      "x-forwarded-proto": "https",
+      "x-forwarded-server": "traefik-prod-users-gwc-37-d47f5fc8c-8lfhb",
+      "x-is-trusted": "yes",
+      "x-real-ip": "209.209.9.232"
+    },
+    "params": {},
+    "query": {},
+    "body": {
+      "instance_id": "685ADB8BEC061",
+      "data": {
+        "event": "contacts.update",
+        "data": [
+          {
+            "id": "917021542840@s.whatsapp.net",
+            "notify": "Nirav gandhi"
+          }
+        ]
+      }
+    },
+    "webhookUrl": "https://rocketelabs.app.n8n.cloud/webhook/Whatsapp_watch",
+    "executionMode": "production"
+  }
+]
+
+
+
+{{
+(() => {
+
+  const ALLOWED = [
+    '120363400088469625@g.us',     // Test-2
+    '919821822960-1609692489@g.us' // Test-1
+  ];
+
+  const root = $json.body?.data;
+  if (!root) return false;
+
+  /* 1) m-Blaster */
+  if (root.event === 'received_message') {
+    const m = root.message;
+    return Boolean(
+      m &&
+      !m.message_key.fromMe &&
+      m.message_key.remoteJid !== 'status@broadcast' &&
+      ALLOWED.includes(m.message_key.remoteJid) &&
+      m.body_message?.content
+    );
+  }
+
+  /* 2) Baileys / messages.upsert */
+  if (root.event === 'messages.upsert') {
+    const m = root.data?.messages?.[0];
+    return Boolean(
+      m &&
+      !m.key.fromMe &&
+      m.key.remoteJid !== 'status@broadcast' &&
+      !m.broadcast &&
+      ALLOWED.includes(m.key.remoteJid) &&
+      (m.message?.conversation || m.message?.imageMessage)
+    );
+  }
+
+  return false;              // every other event
+})()
+.toBoolean()                 // <-- guarantees Boolean
+}}
+
+
+{{
+(function () {
+  // ---------- pick first message, regardless of shape ----------
+  var root = $json.body && $json.body.data;
+  var m = null;
+  if (root) {
+    if (root.message)                    m = root.message;              // m-Blaster “received_message”
+    else if (root.data && root.data.messages && root.data.messages[0])
+                                         m = root.data.messages[0];     // Baileys “messages.upsert”
+  }
+
+  // ---------- fallback if unknown payload ----------
+  if (!m) {
+    return {
+      Timestamp      : new Date().toISOString(),
+      "Group ID"     : "UNPARSED",
+      Sender         : "UNPARSED",
+      "Sender Number": "UNPARSED",
+      Message        : "Invalid payload"
+    };
+  }
+
+  // ---------- extract text ----------
+  var txt = "";
+  if      (m.body_message && m.body_message.content)                       txt = m.body_message.content;
+  else if (m.message && m.message.conversation)                            txt = m.message.conversation;
+  else if (m.message &&
+           m.message.extendedTextMessage &&
+           m.message.extendedTextMessage.text)                             txt = m.message.extendedTextMessage.text;
+  else if (m.message && m.message.imageMessage)                            txt = "Image/Media";
+
+  // ---------- timestamp ----------
+  var ts = (m.messageTimestamp) ? new Date(m.messageTimestamp * 1000)
+                                : new Date();
+
+  // ---------- group id ----------
+  var gid = (m.message_key && m.message_key.remoteJid) ? m.message_key.remoteJid
+           : (m.key && m.key.remoteJid)                ? m.key.remoteJid
+                                                        : "";
+
+  // ---------- sender number ----------
+  var sn = (m.message_key && m.message_key.participant) ? m.message_key.participant
+          : (m.key && m.key.participant)                ? m.key.participant
+                                                         : "";
+  sn = sn.replace(/@.+$/, "");      // strip “@s.whatsapp.net”
+
+  // ---------- build final object ----------
+  return {
+    Timestamp      : ts.toISOString(),
+    "Group ID"     : gid,
+    Sender         : m.push_name || m.pushName || "",
+    "Sender Number": sn,
+    Message        : txt.trim()
+  };
+})()
+}}
+
+

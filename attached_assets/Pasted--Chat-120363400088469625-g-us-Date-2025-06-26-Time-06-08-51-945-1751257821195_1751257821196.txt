@@ -1,0 +1,716 @@
+[
+  {
+    "Chat": "120363400088469625@g.us",
+    "Date": "2025-06-26",
+    "Time": "06:08:51.945",
+    "Sender": "Nirav gandhi",
+    "Sender Number": 917021542840,
+    "PID": "4600E/000R-B576",
+    "Year": "2023",
+    "Variant": "",
+    "Condition": "Full Set",
+    "Price": 130000,
+    "Currency": "HKD",
+    "listing_index": 1,
+    "total_listings": 5,
+    "Raw Line": "4600E/000R-B576 23Y fullset 130000hkd",
+    "_rowNumber": 2,
+    "_messageId": "2025-06-26T06:08:51.945Z_120363400088469625@g.us_4600E/000R-B576 23Y fullset 130000hkd \n♨F.P.J CHRONOMÈTRE Ã RÉSONANCE platinum  2023        \nNEW        Full Set        HKD        2.30m\n♨5089g-089  2023 used full set usdt 210k\n♨77450OR  2025/5 Brand new, unused  pink HKD 685K \n♨26420ce        2024        Blue         Used        Full Set        HKD        348k"
+  },
+  {
+    "Chat": "120363400088469625@g.us",
+    "Date": "2025-06-26",
+    "Time": "06:08:51.945",
+    "Sender": "Nirav gandhi",
+    "Sender Number": 917021542840,
+    "PID": "",
+    "Year": "2023",
+    "Variant": "platinum",
+    "Condition": "Brand New",
+    "Price": 2300000,
+    "Currency": "HKD",
+    "listing_index": 2,
+    "total_listings": 5,
+    "Raw Line": "F.P.J CHRONOMÈTRE Ã RÉSONANCE platinum  2023        \nNEW        Full Set        HKD        2.30m",
+    "_rowNumber": 2,
+    "_messageId": "2025-06-26T06:08:51.945Z_120363400088469625@g.us_4600E/000R-B576 23Y fullset 130000hkd \n♨F.P.J CHRONOMÈTRE Ã RÉSONANCE platinum  2023        \nNEW        Full Set        HKD        2.30m\n♨5089g-089  2023 used full set usdt 210k\n♨77450OR  2025/5 Brand new, unused  pink HKD 685K \n♨26420ce        2024        Blue         Used        Full Set        HKD        348k"
+  },
+  {
+    "Chat": "120363400088469625@g.us",
+    "Date": "2025-06-26",
+    "Time": "06:08:51.945",
+    "Sender": "Nirav gandhi",
+    "Sender Number": 917021542840,
+    "PID": "5089G-089",
+    "Year": "2023",
+    "Variant": "",
+    "Condition": "Full Set",
+    "Price": 210000,
+    "Currency": "USDT",
+    "listing_index": 3,
+    "total_listings": 5,
+    "Raw Line": "5089g-089  2023 used full set usdt 210k",
+    "_rowNumber": 2,
+    "_messageId": "2025-06-26T06:08:51.945Z_120363400088469625@g.us_4600E/000R-B576 23Y fullset 130000hkd \n♨F.P.J CHRONOMÈTRE Ã RÉSONANCE platinum  2023        \nNEW        Full Set        HKD        2.30m\n♨5089g-089  2023 used full set usdt 210k\n♨77450OR  2025/5 Brand new, unused  pink HKD 685K \n♨26420ce        2024        Blue         Used        Full Set        HKD        348k"
+  },
+  {
+    "Chat": "120363400088469625@g.us",
+    "Date": "2025-06-26",
+    "Time": "06:08:51.945",
+    "Sender": "Nirav gandhi",
+    "Sender Number": 917021542840,
+    "PID": "77450OR",
+    "Year": "2025",
+    "Variant": "pink",
+    "Condition": "Brand New",
+    "Price": 685000,
+    "Currency": "HKD",
+    "listing_index": 4,
+    "total_listings": 5,
+    "Raw Line": "77450OR  2025/5 Brand new, unused  pink HKD 685K",
+    "_rowNumber": 2,
+    "_messageId": "2025-06-26T06:08:51.945Z_120363400088469625@g.us_4600E/000R-B576 23Y fullset 130000hkd \n♨F.P.J CHRONOMÈTRE Ã RÉSONANCE platinum  2023        \nNEW        Full Set        HKD        2.30m\n♨5089g-089  2023 used full set usdt 210k\n♨77450OR  2025/5 Brand new, unused  pink HKD 685K \n♨26420ce        2024        Blue         Used        Full Set        HKD        348k"
+  },
+  {
+    "Chat": "120363400088469625@g.us",
+    "Date": "2025-06-26",
+    "Time": "06:08:51.945",
+    "Sender": "Nirav gandhi",
+    "Sender Number": 917021542840,
+    "PID": "26420CE",
+    "Year": "2024",
+    "Variant": "blue",
+    "Condition": "Full Set",
+    "Price": 348000,
+    "Currency": "HKD",
+    "listing_index": 5,
+    "total_listings": 5,
+    "Raw Line": "26420ce        2024        Blue         Used        Full Set        HKD        348k",
+    "_rowNumber": 2,
+    "_messageId": "2025-06-26T06:08:51.945Z_120363400088469625@g.us_4600E/000R-B576 23Y fullset 130000hkd \n♨F.P.J CHRONOMÈTRE Ã RÉSONANCE platinum  2023        \nNEW        Full Set        HKD        2.30m\n♨5089g-089  2023 used full set usdt 210k\n♨77450OR  2025/5 Brand new, unused  pink HKD 685K \n♨26420ce        2024        Blue         Used        Full Set        HKD        348k"
+  }
+]
+
+regex output
+
+debug node is right after regex node
+
+Debug code
+
+// Enhanced Debug Node - Place after Regex Parser
+// Settings: Execute Once = ON
+
+const items = $input.all();
+
+// Debug what came INTO regex parser (from upstream)
+const inputDebug = {
+  timestamp: new Date().toISOString(),
+  inputAnalysis: {
+    totalItemsReceived: items.length,
+    expectedItems: 5,
+    messageDetails: items.map((item, index) => ({
+      index: index + 1,
+      hasMessage: !!item.json.Message,
+      messageLength: (item.json.Message || '').length,
+      messagePreview: (item.json.Message || '').substring(0, 80) + '...',
+      messageLineCount: (item.json.Message || '').split('\n').length,
+      hasWatchSymbols: /[♨◆●▼⚡💎🔥]/.test(item.json.Message || ''),
+      originalRowNumber: item.json._rowNumber
+    }))
+  }
+};
+
+// Debug what regex parser OUTPUT (your existing logic)
+const outputDebug = {
+  totalOutputItems: items.length,
+  itemDetails: items.map((item, index) => ({
+    index: index + 1,
+    PID: item.json.PID || 'EMPTY',
+    Price: item.json.Price,
+    Currency: item.json.Currency,
+    listingIndex: item.json.listing_index
+  })),
+  rawLinesSample: items.slice(0, 2).map(item => item.json['Raw Line'])
+};
+
+// Return comprehensive debug info as first item, then all original items
+const output = [
+  {
+    json: {
+      _INPUT_DEBUG: inputDebug,
+      _OUTPUT_DEBUG: outputDebug,
+      _NODE_TYPE: 'COMPREHENSIVE_DEBUG'
+    }
+  },
+  ...items
+];
+
+return output;
+
+output
+
+[
+  {
+    "_INPUT_DEBUG": {
+      "timestamp": "2025-06-30T04:16:58.416Z",
+      "inputAnalysis": {
+        "totalItemsReceived": 1,
+        "expectedItems": 5,
+        "messageDetails": [
+          {
+            "index": 1,
+            "hasMessage": false,
+            "messageLength": 0,
+            "messagePreview": "...",
+            "messageLineCount": 1,
+            "hasWatchSymbols": false,
+            "originalRowNumber": 2
+          }
+        ]
+      }
+    },
+    "_OUTPUT_DEBUG": {
+      "totalOutputItems": 1,
+      "itemDetails": [
+        {
+          "index": 1,
+          "PID": "4600E/000R-B576",
+          "Price": 130000,
+          "Currency": "HKD",
+          "listingIndex": 1
+        }
+      ],
+      "rawLinesSample": [
+        "4600E/000R-B576 23Y fullset 130000hkd"
+      ]
+    },
+    "_NODE_TYPE": "COMPREHENSIVE_DEBUG"
+  },
+  {
+    "Chat": "120363400088469625@g.us",
+    "Date": "2025-06-26",
+    "Time": "06:08:51.945",
+    "Sender": "Nirav gandhi",
+    "Sender Number": 917021542840,
+    "PID": "4600E/000R-B576",
+    "Year": "2023",
+    "Variant": "",
+    "Condition": "Full Set",
+    "Price": 130000,
+    "Currency": "HKD",
+    "listing_index": 1,
+    "total_listings": 5,
+    "Raw Line": "4600E/000R-B576 23Y fullset 130000hkd",
+    "_rowNumber": 2,
+    "_messageId": "2025-06-26T06:08:51.945Z_120363400088469625@g.us_4600E/000R-B576 23Y fullset 130000hkd \n♨F.P.J CHRONOMÈTRE Ã RÉSONANCE platinum  2023        \nNEW        Full Set        HKD        2.30m\n♨5089g-089  2023 used full set usdt 210k\n♨77450OR  2025/5 Brand new, unused  pink HKD 685K \n♨26420ce        2024        Blue         Used        Full Set        HKD        348k"
+  }
+]
+
+debug node was on execute once
+i turn it off
+
+now output
+[
+  {
+    "_INPUT_DEBUG": {
+      "timestamp": "2025-06-30T04:25:10.014Z",
+      "inputAnalysis": {
+        "totalItemsReceived": 5,
+        "expectedItems": 5,
+        "messageDetails": [
+          {
+            "index": 1,
+            "hasMessage": false,
+            "messageLength": 0,
+            "messagePreview": "...",
+            "messageLineCount": 1,
+            "hasWatchSymbols": false,
+            "originalRowNumber": 2
+          },
+          {
+            "index": 2,
+            "hasMessage": false,
+            "messageLength": 0,
+            "messagePreview": "...",
+            "messageLineCount": 1,
+            "hasWatchSymbols": false,
+            "originalRowNumber": 2
+          },
+          {
+            "index": 3,
+            "hasMessage": false,
+            "messageLength": 0,
+            "messagePreview": "...",
+            "messageLineCount": 1,
+            "hasWatchSymbols": false,
+            "originalRowNumber": 2
+          },
+          {
+            "index": 4,
+            "hasMessage": false,
+            "messageLength": 0,
+            "messagePreview": "...",
+            "messageLineCount": 1,
+            "hasWatchSymbols": false,
+            "originalRowNumber": 2
+          },
+          {
+            "index": 5,
+            "hasMessage": false,
+            "messageLength": 0,
+            "messagePreview": "...",
+            "messageLineCount": 1,
+            "hasWatchSymbols": false,
+            "originalRowNumber": 2
+          }
+        ]
+      }
+    },
+    "_OUTPUT_DEBUG": {
+      "totalOutputItems": 5,
+      "itemDetails": [
+        {
+          "index": 1,
+          "PID": "4600E/000R-B576",
+          "Price": 130000,
+          "Currency": "HKD",
+          "listingIndex": 1
+        },
+        {
+          "index": 2,
+          "PID": "EMPTY",
+          "Price": 2300000,
+          "Currency": "HKD",
+          "listingIndex": 2
+        },
+        {
+          "index": 3,
+          "PID": "5089G-089",
+          "Price": 210000,
+          "Currency": "USDT",
+          "listingIndex": 3
+        },
+        {
+          "index": 4,
+          "PID": "77450OR",
+          "Price": 685000,
+          "Currency": "HKD",
+          "listingIndex": 4
+        },
+        {
+          "index": 5,
+          "PID": "26420CE",
+          "Price": 348000,
+          "Currency": "HKD",
+          "listingIndex": 5
+        }
+      ],
+      "rawLinesSample": [
+        "4600E/000R-B576 23Y fullset 130000hkd",
+        "F.P.J CHRONOMÈTRE Ã RÉSONANCE platinum  2023        \nNEW        Full Set        HKD        2.30m"
+      ]
+    },
+    "_NODE_TYPE": "COMPREHENSIVE_DEBUG"
+  },
+  {
+    "Chat": "120363400088469625@g.us",
+    "Date": "2025-06-26",
+    "Time": "06:08:51.945",
+    "Sender": "Nirav gandhi",
+    "Sender Number": 917021542840,
+    "PID": "4600E/000R-B576",
+    "Year": "2023",
+    "Variant": "",
+    "Condition": "Full Set",
+    "Price": 130000,
+    "Currency": "HKD",
+    "listing_index": 1,
+    "total_listings": 5,
+    "Raw Line": "4600E/000R-B576 23Y fullset 130000hkd",
+    "_rowNumber": 2,
+    "_messageId": "2025-06-26T06:08:51.945Z_120363400088469625@g.us_4600E/000R-B576 23Y fullset 130000hkd \n♨F.P.J CHRONOMÈTRE Ã RÉSONANCE platinum  2023        \nNEW        Full Set        HKD        2.30m\n♨5089g-089  2023 used full set usdt 210k\n♨77450OR  2025/5 Brand new, unused  pink HKD 685K \n♨26420ce        2024        Blue         Used        Full Set        HKD        348k"
+  },
+  {
+    "Chat": "120363400088469625@g.us",
+    "Date": "2025-06-26",
+    "Time": "06:08:51.945",
+    "Sender": "Nirav gandhi",
+    "Sender Number": 917021542840,
+    "PID": "",
+    "Year": "2023",
+    "Variant": "platinum",
+    "Condition": "Brand New",
+    "Price": 2300000,
+    "Currency": "HKD",
+    "listing_index": 2,
+    "total_listings": 5,
+    "Raw Line": "F.P.J CHRONOMÈTRE Ã RÉSONANCE platinum  2023        \nNEW        Full Set        HKD        2.30m",
+    "_rowNumber": 2,
+    "_messageId": "2025-06-26T06:08:51.945Z_120363400088469625@g.us_4600E/000R-B576 23Y fullset 130000hkd \n♨F.P.J CHRONOMÈTRE Ã RÉSONANCE platinum  2023        \nNEW        Full Set        HKD        2.30m\n♨5089g-089  2023 used full set usdt 210k\n♨77450OR  2025/5 Brand new, unused  pink HKD 685K \n♨26420ce        2024        Blue         Used        Full Set        HKD        348k"
+  },
+  {
+    "Chat": "120363400088469625@g.us",
+    "Date": "2025-06-26",
+    "Time": "06:08:51.945",
+    "Sender": "Nirav gandhi",
+    "Sender Number": 917021542840,
+    "PID": "5089G-089",
+    "Year": "2023",
+    "Variant": "",
+    "Condition": "Full Set",
+    "Price": 210000,
+    "Currency": "USDT",
+    "listing_index": 3,
+    "total_listings": 5,
+    "Raw Line": "5089g-089  2023 used full set usdt 210k",
+    "_rowNumber": 2,
+    "_messageId": "2025-06-26T06:08:51.945Z_120363400088469625@g.us_4600E/000R-B576 23Y fullset 130000hkd \n♨F.P.J CHRONOMÈTRE Ã RÉSONANCE platinum  2023        \nNEW        Full Set        HKD        2.30m\n♨5089g-089  2023 used full set usdt 210k\n♨77450OR  2025/5 Brand new, unused  pink HKD 685K \n♨26420ce        2024        Blue         Used        Full Set        HKD        348k"
+  },
+  {
+    "Chat": "120363400088469625@g.us",
+    "Date": "2025-06-26",
+    "Time": "06:08:51.945",
+    "Sender": "Nirav gandhi",
+    "Sender Number": 917021542840,
+    "PID": "77450OR",
+    "Year": "2025",
+    "Variant": "pink",
+    "Condition": "Brand New",
+    "Price": 685000,
+    "Currency": "HKD",
+    "listing_index": 4,
+    "total_listings": 5,
+    "Raw Line": "77450OR  2025/5 Brand new, unused  pink HKD 685K",
+    "_rowNumber": 2,
+    "_messageId": "2025-06-26T06:08:51.945Z_120363400088469625@g.us_4600E/000R-B576 23Y fullset 130000hkd \n♨F.P.J CHRONOMÈTRE Ã RÉSONANCE platinum  2023        \nNEW        Full Set        HKD        2.30m\n♨5089g-089  2023 used full set usdt 210k\n♨77450OR  2025/5 Brand new, unused  pink HKD 685K \n♨26420ce        2024        Blue         Used        Full Set        HKD        348k"
+  },
+  {
+    "Chat": "120363400088469625@g.us",
+    "Date": "2025-06-26",
+    "Time": "06:08:51.945",
+    "Sender": "Nirav gandhi",
+    "Sender Number": 917021542840,
+    "PID": "26420CE",
+    "Year": "2024",
+    "Variant": "blue",
+    "Condition": "Full Set",
+    "Price": 348000,
+    "Currency": "HKD",
+    "listing_index": 5,
+    "total_listings": 5,
+    "Raw Line": "26420ce        2024        Blue         Used        Full Set        HKD        348k",
+    "_rowNumber": 2,
+    "_messageId": "2025-06-26T06:08:51.945Z_120363400088469625@g.us_4600E/000R-B576 23Y fullset 130000hkd \n♨F.P.J CHRONOMÈTRE Ã RÉSONANCE platinum  2023        \nNEW        Full Set        HKD        2.30m\n♨5089g-089  2023 used full set usdt 210k\n♨77450OR  2025/5 Brand new, unused  pink HKD 685K \n♨26420ce        2024        Blue         Used        Full Set        HKD        348k"
+  }
+]
+
+but enrich db after execut once off output
+
+[
+  {
+    "nodeType": "ENRICH_DB_DEBUG",
+    "timestamp": "2025-06-30T04:27:19.472Z",
+    "staticDataStatus": {
+      "dbReady": true,
+      "mapSize": 0,
+      "lastUpdated": "2025-06-30T04:27:17.737Z"
+    },
+    "inputStatus": {
+      "itemsReceived": 6,
+      "expectedItems": 5
+    },
+    "sampleAvailablePIDs": [],
+    "lookupResults": [
+      {
+        "itemIndex": 1,
+        "originalPID": "",
+        "cleanPID": "",
+        "found": false,
+        "brandFound": "N/A"
+      },
+      {
+        "itemIndex": 2,
+        "originalPID": "4600E/000R-B576",
+        "cleanPID": "4600E/000R-B576",
+        "found": false,
+        "brandFound": "N/A"
+      },
+      {
+        "itemIndex": 3,
+        "originalPID": "",
+        "cleanPID": "",
+        "found": false,
+        "brandFound": "N/A"
+      },
+      {
+        "itemIndex": 4,
+        "originalPID": "5089G-089",
+        "cleanPID": "5089G-089",
+        "found": false,
+        "brandFound": "N/A"
+      },
+      {
+        "itemIndex": 5,
+        "originalPID": "77450OR",
+        "cleanPID": "77450OR",
+        "found": false,
+        "brandFound": "N/A"
+      },
+      {
+        "itemIndex": 6,
+        "originalPID": "26420CE",
+        "cleanPID": "26420CE",
+        "found": false,
+        "brandFound": "N/A"
+      }
+    ]
+  },
+  {
+    "_INPUT_DEBUG": {
+      "timestamp": "2025-06-30T04:27:19.467Z",
+      "inputAnalysis": {
+        "totalItemsReceived": 5,
+        "expectedItems": 5,
+        "messageDetails": [
+          {
+            "index": 1,
+            "hasMessage": false,
+            "messageLength": 0,
+            "messagePreview": "...",
+            "messageLineCount": 1,
+            "hasWatchSymbols": false,
+            "originalRowNumber": 2
+          },
+          {
+            "index": 2,
+            "hasMessage": false,
+            "messageLength": 0,
+            "messagePreview": "...",
+            "messageLineCount": 1,
+            "hasWatchSymbols": false,
+            "originalRowNumber": 2
+          },
+          {
+            "index": 3,
+            "hasMessage": false,
+            "messageLength": 0,
+            "messagePreview": "...",
+            "messageLineCount": 1,
+            "hasWatchSymbols": false,
+            "originalRowNumber": 2
+          },
+          {
+            "index": 4,
+            "hasMessage": false,
+            "messageLength": 0,
+            "messagePreview": "...",
+            "messageLineCount": 1,
+            "hasWatchSymbols": false,
+            "originalRowNumber": 2
+          },
+          {
+            "index": 5,
+            "hasMessage": false,
+            "messageLength": 0,
+            "messagePreview": "...",
+            "messageLineCount": 1,
+            "hasWatchSymbols": false,
+            "originalRowNumber": 2
+          }
+        ]
+      }
+    },
+    "_OUTPUT_DEBUG": {
+      "totalOutputItems": 5,
+      "itemDetails": [
+        {
+          "index": 1,
+          "PID": "4600E/000R-B576",
+          "Price": 130000,
+          "Currency": "HKD",
+          "listingIndex": 1
+        },
+        {
+          "index": 2,
+          "PID": "EMPTY",
+          "Price": 2300000,
+          "Currency": "HKD",
+          "listingIndex": 2
+        },
+        {
+          "index": 3,
+          "PID": "5089G-089",
+          "Price": 210000,
+          "Currency": "USDT",
+          "listingIndex": 3
+        },
+        {
+          "index": 4,
+          "PID": "77450OR",
+          "Price": 685000,
+          "Currency": "HKD",
+          "listingIndex": 4
+        },
+        {
+          "index": 5,
+          "PID": "26420CE",
+          "Price": 348000,
+          "Currency": "HKD",
+          "listingIndex": 5
+        }
+      ],
+      "rawLinesSample": [
+        "4600E/000R-B576 23Y fullset 130000hkd",
+        "F.P.J CHRONOMÈTRE Ã RÉSONANCE platinum  2023        \nNEW        Full Set        HKD        2.30m"
+      ]
+    },
+    "_NODE_TYPE": "COMPREHENSIVE_DEBUG",
+    "Brand": "",
+    "Family": "",
+    "Name": "",
+    "Reference": "",
+    "_dbLookup": "NOT_FOUND",
+    "_debug_cleanPID": "",
+    "_debug_mapReady": true,
+    "_debug_mapSize": 0,
+    "_debug_itemIndex": 1
+  },
+  {
+    "Chat": "120363400088469625@g.us",
+    "Date": "2025-06-26",
+    "Time": "06:08:51.945",
+    "Sender": "Nirav gandhi",
+    "Sender Number": 917021542840,
+    "PID": "4600E/000R-B576",
+    "Year": "2023",
+    "Variant": "",
+    "Condition": "Full Set",
+    "Price": 130000,
+    "Currency": "HKD",
+    "listing_index": 1,
+    "total_listings": 5,
+    "Raw Line": "4600E/000R-B576 23Y fullset 130000hkd",
+    "_rowNumber": 2,
+    "_messageId": "2025-06-26T06:08:51.945Z_120363400088469625@g.us_4600E/000R-B576 23Y fullset 130000hkd \n♨F.P.J CHRONOMÈTRE Ã RÉSONANCE platinum  2023        \nNEW        Full Set        HKD        2.30m\n♨5089g-089  2023 used full set usdt 210k\n♨77450OR  2025/5 Brand new, unused  pink HKD 685K \n♨26420ce        2024        Blue         Used        Full Set        HKD        348k",
+    "Brand": "",
+    "Family": "",
+    "Name": "",
+    "Reference": "",
+    "_dbLookup": "NOT_FOUND",
+    "_debug_cleanPID": "4600E/000R-B576",
+    "_debug_mapReady": true,
+    "_debug_mapSize": 0,
+    "_debug_itemIndex": 2
+  },
+  {
+    "Chat": "120363400088469625@g.us",
+    "Date": "2025-06-26",
+    "Time": "06:08:51.945",
+    "Sender": "Nirav gandhi",
+    "Sender Number": 917021542840,
+    "PID": "",
+    "Year": "2023",
+    "Variant": "platinum",
+    "Condition": "Brand New",
+    "Price": 2300000,
+    "Currency": "HKD",
+    "listing_index": 2,
+    "total_listings": 5,
+    "Raw Line": "F.P.J CHRONOMÈTRE Ã RÉSONANCE platinum  2023        \nNEW        Full Set        HKD        2.30m",
+    "_rowNumber": 2,
+    "_messageId": "2025-06-26T06:08:51.945Z_120363400088469625@g.us_4600E/000R-B576 23Y fullset 130000hkd \n♨F.P.J CHRONOMÈTRE Ã RÉSONANCE platinum  2023        \nNEW        Full Set        HKD        2.30m\n♨5089g-089  2023 used full set usdt 210k\n♨77450OR  2025/5 Brand new, unused  pink HKD 685K \n♨26420ce        2024        Blue         Used        Full Set        HKD        348k",
+    "Brand": "",
+    "Family": "",
+    "Name": "",
+    "Reference": "",
+    "_dbLookup": "NOT_FOUND",
+    "_debug_cleanPID": "",
+    "_debug_mapReady": true,
+    "_debug_mapSize": 0,
+    "_debug_itemIndex": 3
+  },
+  {
+    "Chat": "120363400088469625@g.us",
+    "Date": "2025-06-26",
+    "Time": "06:08:51.945",
+    "Sender": "Nirav gandhi",
+    "Sender Number": 917021542840,
+    "PID": "5089G-089",
+    "Year": "2023",
+    "Variant": "",
+    "Condition": "Full Set",
+    "Price": 210000,
+    "Currency": "USDT",
+    "listing_index": 3,
+    "total_listings": 5,
+    "Raw Line": "5089g-089  2023 used full set usdt 210k",
+    "_rowNumber": 2,
+    "_messageId": "2025-06-26T06:08:51.945Z_120363400088469625@g.us_4600E/000R-B576 23Y fullset 130000hkd \n♨F.P.J CHRONOMÈTRE Ã RÉSONANCE platinum  2023        \nNEW        Full Set        HKD        2.30m\n♨5089g-089  2023 used full set usdt 210k\n♨77450OR  2025/5 Brand new, unused  pink HKD 685K \n♨26420ce        2024        Blue         Used        Full Set        HKD        348k",
+    "Brand": "",
+    "Family": "",
+    "Name": "",
+    "Reference": "",
+    "_dbLookup": "NOT_FOUND",
+    "_debug_cleanPID": "5089G-089",
+    "_debug_mapReady": true,
+    "_debug_mapSize": 0,
+    "_debug_itemIndex": 4
+  },
+  {
+    "Chat": "120363400088469625@g.us",
+    "Date": "2025-06-26",
+    "Time": "06:08:51.945",
+    "Sender": "Nirav gandhi",
+    "Sender Number": 917021542840,
+    "PID": "77450OR",
+    "Year": "2025",
+    "Variant": "pink",
+    "Condition": "Brand New",
+    "Price": 685000,
+    "Currency": "HKD",
+    "listing_index": 4,
+    "total_listings": 5,
+    "Raw Line": "77450OR  2025/5 Brand new, unused  pink HKD 685K",
+    "_rowNumber": 2,
+    "_messageId": "2025-06-26T06:08:51.945Z_120363400088469625@g.us_4600E/000R-B576 23Y fullset 130000hkd \n♨F.P.J CHRONOMÈTRE Ã RÉSONANCE platinum  2023        \nNEW        Full Set        HKD        2.30m\n♨5089g-089  2023 used full set usdt 210k\n♨77450OR  2025/5 Brand new, unused  pink HKD 685K \n♨26420ce        2024        Blue         Used        Full Set        HKD        348k",
+    "Brand": "",
+    "Family": "",
+    "Name": "",
+    "Reference": "",
+    "_dbLookup": "NOT_FOUND",
+    "_debug_cleanPID": "77450OR",
+    "_debug_mapReady": true,
+    "_debug_mapSize": 0,
+    "_debug_itemIndex": 5
+  },
+  {
+    "Chat": "120363400088469625@g.us",
+    "Date": "2025-06-26",
+    "Time": "06:08:51.945",
+    "Sender": "Nirav gandhi",
+    "Sender Number": 917021542840,
+    "PID": "26420CE",
+    "Year": "2024",
+    "Variant": "blue",
+    "Condition": "Full Set",
+    "Price": 348000,
+    "Currency": "HKD",
+    "listing_index": 5,
+    "total_listings": 5,
+    "Raw Line": "26420ce        2024        Blue         Used        Full Set        HKD        348k",
+    "_rowNumber": 2,
+    "_messageId": "2025-06-26T06:08:51.945Z_120363400088469625@g.us_4600E/000R-B576 23Y fullset 130000hkd \n♨F.P.J CHRONOMÈTRE Ã RÉSONANCE platinum  2023        \nNEW        Full Set        HKD        2.30m\n♨5089g-089  2023 used full set usdt 210k\n♨77450OR  2025/5 Brand new, unused  pink HKD 685K \n♨26420ce        2024        Blue         Used        Full Set        HKD        348k",
+    "Brand": "",
+    "Family": "",
+    "Name": "",
+    "Reference": "",
+    "_dbLookup": "NOT_FOUND",
+    "_debug_cleanPID": "26420CE",
+    "_debug_mapReady": true,
+    "_debug_mapSize": 0,
+    "_debug_itemIndex": 6
+  }
+]
+n8n workslow test
+can you understand the problem 
+you need more context?

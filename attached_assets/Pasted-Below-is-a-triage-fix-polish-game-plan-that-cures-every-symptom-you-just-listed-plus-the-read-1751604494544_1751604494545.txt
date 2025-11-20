@@ -1,0 +1,183 @@
+Below is a “triage → fix → polish” game-plan that cures every symptom you just listed, plus the ready-to-paste code snippets.
+
+---
+
+## 1 Duplicate rows in **Incoming Messages**
+
+### Why it happens
+
+The webhook handler stores each payload as a “rawMessage” **before** running `extractMessageFromPayload()`.
+Duplicate detection currently tests:
+
+```ts
+const existing = rawMessages.find(
+  m => m.messageId === extracted.messageId || m.id === rawMessage.id
+);
+```
+
+For most inbound chats `extracted.messageId` is **undefined**, so the check falls back to the `id` we fabricate (`raw_${Date.now()}`) – two different milliseconds → two different IDs → duplicate row.
+
+### Quick patch — de-dupe on a stronger key
+
+`server/routes.ts`
+
+```diff
+- const existingMessage = (global as any).rawMessages.find((msg: any) =>
+-   msg.messageId === extractedData.messageId ||
+-   msg.id === rawMessage.id
+- );
++ const key = extractedData.messageId           // true WA id
++           || `${extractedData.senderNumber}-${extractedData.timestamp}`;
++
++ const existingMessage = (global as any).rawMessages.find(
++   (m: any) => m.dedupeKey === key
++ );
++
++ rawMessage.dedupeKey = key;      // <- store for future checks
+```
+
+and **just before** you slice the array down to 100 items add
+
+```ts
+// keep only the first hit for any dedupeKey
+(global as any).rawMessages = Array.from(
+  new Map((global as any).rawMessages.map(m => [m.dedupeKey, m])).values()
+);
+```
+
+No more double rows.
+
+---
+
+## 2 Rows stay in **pending** forever
+
+### Why it happens
+
+`status` only changes in two places:
+
+1. when the webhook first writes the payload (`pending`)
+2. when `storage.createProcessingLog()` succeeds (`success` / `error`)
+
+…but `createProcessingLog()` is **never called** in the current flow.
+
+### Minimal fix
+
+Right after you finish parsing and push the data to Google Sheets (or however you “work on” the message), write a log entry:
+
+```ts
+import { storage } from "./storage";
+
+await storage.createProcessingLog({
+  messageId: extracted.messageId,
+  rawMessage: extracted.message,
+  status: "success",          // or "error"
+  parsedData: JSON.stringify(parsedWatch, null, 2),
+});
+```
+
+#### Then flip the flag in memory as well
+
+```ts
+rawMessage.status    = "success";
+rawMessage.processed = true;
+```
+
+The next `/api/whatsapp/messages` poll will show **Processed** instead of **Pending**.
+
+*(Long-term you’ll want a background consumer that reads from a queue and updates the DB, but the two  lines above unblock you today.)*
+
+---
+
+## 3 “Watch related message” isn’t parsed / nothing appears in **All Records**
+
+1. Make sure the **group-whitelisting** feature is off or includes the group you’re testing in.
+2. Confirm `autoProcess` is **true** in `/api/whatsapp/configure` payload.
+   The incoming-messages page shows “Connection Active”, but if `autoProcess` is `false` the parser is skipped.
+3. After the quick patch in § 2 the same insert into `watchListings` you already have in `watch-parser.ts` will be executed and the new record will pop up in `/records` automatically.
+
+---
+
+## 4 Sidebar disappears on **WhatsApp Setup** page
+
+The page was built before you refactored everything into the `<Sidebar /><Topbar />` layout, so it renders “naked”.
+
+```tsx
+// client/src/pages/whatsapp-integration.tsx
+export default function WhatsAppIntegration() {
+  return (
+    <div className="flex">
+      <Sidebar />              {/* NEW */}
+      <div className="flex-1">
+        <Topbar title="WhatsApp Setup" />   {/* NEW */}
+        {/* …existing page content… */}
+      </div>
+    </div>
+  );
+}
+```
+
+Do the same for **Settings** (see § 5).
+
+---
+
+## 5 Empty **Settings** tab – wire a real page
+
+Create `client/src/pages/settings.tsx`:
+
+```tsx
+import Sidebar from "@/components/layout/sidebar";
+import Topbar  from "@/components/layout/topbar";
+
+export default function Settings() {
+  return (
+    <div className="flex">
+      <Sidebar />
+      <div className="flex-1 p-6">
+        <Topbar title="Settings" />
+        <h2 className="text-xl font-semibold mb-4">General</h2>
+
+        {/* Theme toggle */}
+        <div className="mb-6">
+          <label className="font-medium mr-3">Theme</label>
+          {/* your existing theme switch component */}
+        </div>
+
+        <h2 className="text-xl font-semibold mb-4">Data Retention</h2>
+        {/* sliders / inputs for “Keep raw messages X days”, etc. */}
+      </div>
+    </div>
+  );
+}
+```
+
+and add the route in **App.tsx**:
+
+```tsx
+<Route path="/settings" component={Settings} />
+```
+
+---
+
+## 6 Polish the **WhatsApp Setup** card
+
+* Replace the plain inputs with the same `Card`, `Label`, `Input`, `Button` trio you use elsewhere for consistency.
+* Show live connection state (green dot / red dot) next to the *Save Configuration* button by polling `/api/whatsapp/status`.
+* Move *Generate QR* and *Check Status* into a little button group so the top of the card doesn’t look “floaty”.
+
+*(If you want the exact JSX let me know – I kept this note short to avoid another 200-line paste.)*
+
+---
+
+### TL;DR
+
+| Issue                 | One-liner fix                                                              |
+| --------------------- | -------------------------------------------------------------------------- |
+| Duplicate rows        | de-dupe on `messageId` or `sender-timestamp` combo                         |
+| “Pending” never flips | call `storage.createProcessingLog()` and set `rawMessage.processed = true` |
+| Records not parsed    | ensure `autoProcess:true` and group is whitelisted                         |
+| Sidebar missing       | wrap page with `<Sidebar /><Topbar />`                                     |
+| Empty Settings        | add `/settings` page & route                                               |
+| WhatsApp Setup UX     | tidy with cards + live status indicator                                    |
+
+Apply the patches above, run `npm run dev` again, and every symptom you mentioned should vanish.
+Give it a spin and tell me which part needs more depth, or drop the next ZIP once you’ve committed these tweaks!

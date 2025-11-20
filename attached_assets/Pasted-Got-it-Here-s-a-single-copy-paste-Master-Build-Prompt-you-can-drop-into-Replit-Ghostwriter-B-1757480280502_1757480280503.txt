@@ -1,0 +1,217 @@
+Got it. Here’s a **single copy-paste “Master Build Prompt”** you can drop into Replit (Ghostwriter/Bolt/etc.). It tells it exactly what to build: login, subscriptions, usage limits, admin, webhooks, and a simple dashboard—no coding by you.
+
+---
+
+# MASTER BUILD PROMPT (Copy-Paste into Replit)
+
+**Goal:** Convert my existing **watch-parser** Express app into a simple paid SaaS with login, plans, Stripe subscriptions, monthly usage limits, and an admin panel. I’m non-technical—please do all setup, code, and wiring.
+
+## Tech choices
+
+* Backend: **Node.js + Express**
+* DB: **Postgres (Neon or Replit Postgres)** via `pg`
+* Auth: **Email/password with JWT**
+* Payments: **Stripe Subscriptions**
+* Views: **EJS** (server-rendered), CSS via Tailwind (CDN ok)
+* File storage: local folder (can upgrade later)
+* Cron: add an **/internal/cron/reset-usage** endpoint (I’ll ping it daily)
+
+## What to deliver
+
+1. **Environment**
+
+* Create `.env` and use Replit Secrets:
+
+  * `DATABASE_URL`
+  * `JWT_SECRET` (long random)
+  * `STRIPE_SECRET_KEY`
+  * `STRIPE_WEBHOOK_SECRET`
+  * `APP_URL` (e.g., https\://<my-repl>.replit.app)
+* Add npm deps: `express pg bcryptjs jsonwebtoken ejs body-parser stripe cookie-parser express-rate-limit`
+
+2. **Database schema (migrations)**
+   Create a `db/migrate.sql` and run it automatically on start:
+
+```sql
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+CREATE TABLE IF NOT EXISTS users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT,
+  plan TEXT NOT NULL DEFAULT 'free',
+  plan_status TEXT NOT NULL DEFAULT 'active', -- active | past_due | inactive
+  stripe_customer_id TEXT,
+  stripe_subscription_id TEXT,
+  usage_messages INT NOT NULL DEFAULT 0,
+  usage_storage_mb INT NOT NULL DEFAULT 0,
+  usage_period_start TIMESTAMP NOT NULL DEFAULT NOW(),
+  usage_period_end   TIMESTAMP NOT NULL DEFAULT NOW() + INTERVAL '30 days',
+  is_admin BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS api_keys (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  key_hash TEXT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  last_used_at TIMESTAMP
+);
+```
+
+3. **Seed admin**
+
+* On first boot, if no users exist, create an admin:
+
+  * email: `admin@local.test`
+  * password: `Admin!234`
+  * `is_admin=true`, `plan='business'`, `plan_status='active'`
+* Print the login in server logs only once.
+
+4. **Auth**
+
+* Routes: `/auth/register`, `/auth/login`, `/auth/logout`
+* Store JWT in **httpOnly cookie** (`Authorization` cookie), 7-day expiry
+* Middleware `authRequired` (reads cookie, verifies)
+* Rate-limit login/register (e.g., 10/min/IP)
+
+5. **Plans & limits**
+
+* Hardcode plan limits in `billing/limits.js`:
+
+  * `free: { msgs: 500, storageMb: 100 }`
+  * `pro: { msgs: 10000, storageMb: 5000 }`
+  * `business: { msgs: 100000, storageMb: 50000 }`
+* Helper `withinLimits(user, incMsgs, incStorageMb)` returns boolean
+* Monthly reset endpoint `POST /internal/cron/reset-usage`: if `usage_period_end <= now()`, reset counters & advance window 30 days
+
+6. **Stripe subscription**
+
+* A route `POST /billing/checkout` (auth required) with body `{ priceId }`
+
+  * Creates customer (if missing)
+  * Creates **Checkout Session** in subscription mode
+  * Success: `${APP_URL}/dashboard?checkout=success`
+  * Cancel: `${APP_URL}/billing?checkout=cancelled`
+* Webhook `POST /billing/webhook` using raw body + signature:
+
+  * On `customer.subscription.created/updated`: set `plan` from Stripe Price nickname (lowercase: `pro`, `business`) and `plan_status` from Stripe status (`active/past_due/inactive`), save `stripe_subscription_id`
+  * On `customer.subscription.deleted`: set `plan='free'`, `plan_status='active'`, clear sub id
+
+7. **UI pages (EJS)**
+
+* `GET /` → landing page with CTA “Try Free / Login”
+* `GET /login`, `GET /register`
+* `GET /dashboard` (auth):
+
+  * Show: current plan, plan\_status, usage bars (messages used / limit), renew date (usage\_period\_end), buttons to **Upgrade/Downgrade**, and link to **Billing**
+  * Simple file upload to test “storage usage” counter (+X MB)
+  * A “Parse sample message” button that calls `/api/parse` to increment message usage by 1 (simulate my watch parser)
+* `GET /billing` (auth):
+
+  * Buttons: “Upgrade to Pro”, “Upgrade to Business” → call `/billing/checkout` with their `priceId`
+  * Show current plan & status
+* `GET /admin` (admin only):
+
+  * Table of users (email, plan, plan\_status, usage, period end)
+  * Actions: set plan (free/pro/business), toggle plan\_status, zero usage, make/remove admin
+  * Find user by email
+
+8. **Protect my real parser**
+
+* Put the existing **watch parser** behind `POST /api/parse` and call `authRequired` + `withinLimits(user, 1, 0)` before running.
+* If over limit → HTTP 402 JSON `{ error: "Limit reached. Upgrade plan." }`
+* After successful parse, increment `usage_messages += 1`
+* If there’s an upload endpoint, calculate file size in MB and increment `usage_storage_mb`
+
+9. **Project structure**
+
+```
+/src
+  server.js
+  /lib
+    db.js          -- pg Pool + run migration if needed
+    jwt.js         -- sign/verify helpers
+  /auth
+    routes.js
+    middleware.js  -- authRequired, adminRequired
+  /billing
+    limits.js
+    routes.js      -- checkout, webhook
+  /routes
+    dashboard.js
+    parse.js
+    admin.js
+    cron.js
+/views
+  layout.ejs
+  index.ejs
+  login.ejs
+  register.ejs
+  dashboard.ejs
+  billing.ejs
+  admin.ejs
+/public
+  styles.css (or Tailwind CDN in layout)
+```
+
+10. **Acceptance checks (please implement & pass)**
+
+* [ ] I can register/login, cookie gets set, logout clears cookie.
+* [ ] Dashboard shows plan, plan\_status, usage bars, next reset date.
+* [ ] `/api/parse` increments usage by 1 and blocks when exceeding plan limit.
+* [ ] Uploading a file increments storage usage (MB, rounded up).
+* [ ] `/internal/cron/reset-usage` resets when the period ends.
+* [ ] Billing: `/billing/checkout` opens Stripe checkout for given `priceId`.
+* [ ] Webhook updates plan & plan\_status correctly; downgrades to free on cancel.
+* [ ] Admin panel lets me promote/demote admins, change plans, reset usage.
+* [ ] First run seeds `admin@local.test / Admin!234` and prints creds once.
+
+11. **Stripe dashboard setup (assumptions)**
+
+* I will create Stripe **Products/Prices**:
+
+  * `Pro` → `price_PRO_...` (nickname: `pro`)
+  * `Business` → `price_BUSINESS_...` (nickname: `business`)
+* In `.env`, I’ll set secrets. In code, please keep an easy place to paste `priceId`s used on the billing page.
+
+12. **Nice-to-have**
+
+* Add a simple “Profile” page: change password
+* Add basic ToS/Privacy pages with placeholders
+* Add `express-rate-limit` to `/auth/*` and `/billing/checkout`
+* Show small banner if `plan_status` is `past_due`
+
+**Deliver everything ready-to-run on Replit**. After building, print:
+
+* URL paths
+* Test admin login
+* A short “How to configure Stripe webhook on Replit” note:
+
+  * Endpoint: `${APP_URL}/billing/webhook`
+  * Events: `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`
+
+---
+
+## After it builds, run these follow-ups for me automatically
+
+1. Set admin seed user and show credentials in console once.
+2. Show me where to paste my Stripe `priceId`s on the billing page.
+3. Print one curl for testing parse:
+
+   ```
+   curl -X POST -H "Cookie: Authorization=<mycookie>" \
+        -H "Content-Type: application/json" \
+        -d '{}' \
+        https://<my-app>/api/parse
+   ```
+4. Print the SQL to manually promote a user to admin by email.
+
+---
+
+# END OF PROMPT
+
+---
+
+If you want Razorpay instead of Stripe, say: “swap payments to Razorpay subscriptions” and I’ll give you a replacement mini-prompt.

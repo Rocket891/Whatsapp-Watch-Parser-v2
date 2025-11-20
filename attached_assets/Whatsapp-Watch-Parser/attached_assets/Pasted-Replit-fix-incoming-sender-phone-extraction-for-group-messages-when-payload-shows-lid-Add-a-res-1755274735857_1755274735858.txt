@@ -1,0 +1,193 @@
+Replit, fix incoming sender phone extraction for group messages (when payload shows @lid). Add a resolver with multiple fallbacks and clear UI flags. Keep all existing logic; only add/modify the files below. Then run npm run dev.
+
+1) Create src/services/waResolve.ts
+// src/services/waResolve.ts
+import type { Request } from "express";
+
+// Helpers
+const digits = (s?: string | null) => (s ? String(s).replace(/[^\d]/g, "") : "");
+const isNumJid = (jid?: string) => !!jid && /@s\.whatsapp\.net$/.test(jid);
+const isCUs = (jid?: string) => !!jid && /@c\.us$/.test(jid);
+const isLid = (jid?: string) => !!jid && /@lid$/.test(jid);
+
+// Parse numbers from a vCard block (contactMessage)
+export function numbersFromVcard(vcard?: string): string[] {
+  if (!vcard) return [];
+  const out = new Set<string>();
+  // WhatsApp adds waid=XXXXXXXXX in the TEL line; also capture plain numbers
+  // TEL;TYPE=CELL;waid=919821822960:+91 98218 22960
+  const waidRe = /waid=(\d{6,20})/gi;
+  for (const m of vcard.matchAll(waidRe)) out.add(m[1]);
+  const telRe = /TEL[^:]*:([\+\d][\d\s\-\(\)]{5,})/gi;
+  for (const m of vcard.matchAll(telRe)) out.add(digits(m[1]));
+  return [...out].filter(Boolean);
+}
+
+// Try to extract a real phone number from the webhook payload
+export function resolveSenderNumber(payload: any): { number?: string; source: string } {
+  // 1) Direct JIDs (best case)
+  const jids: (string | undefined)[] = [
+    payload?.message?.key?.participant,
+    payload?.key?.participant,
+    payload?.participant,
+    payload?.sender,               // some providers
+    payload?.from,                 // some providers
+    payload?.user,                 // some providers
+    payload?.message_key?.participant,
+    payload?.message?.participant,
+    payload?.message?.message?.contextInfo?.participant, // quoted participant
+  ];
+
+  for (const j of jids) {
+    if (!j) continue;
+    if (isNumJid(j) || isCUs(j)) return { number: digits(j), source: "participant_jid" };
+  }
+
+  // 2) Check if the whole message is a direct chat (remoteJid ends with s.whatsapp.net)
+  const remote = payload?.message?.key?.remoteJid || payload?.key?.remoteJid || payload?.remoteJid;
+  if (isNumJid(remote) || isCUs(remote)) return { number: digits(remote), source: "remote_jid" };
+
+  // 3) vCard in contactMessage
+  const vcard =
+    payload?.message?.contactMessage?.vcard ||
+    payload?.message?.contactsArrayMessage?.contacts?.[0]?.vcard ||
+    payload?.message?.message?.contactMessage?.vcard ||
+    payload?.message?.message?.contactsArrayMessage?.contacts?.[0]?.vcard;
+  const vcNums = numbersFromVcard(vcard);
+  if (vcNums.length) return { number: vcNums[0], source: "vcard" };
+
+  // 4) Any explicit wa_id fields
+  const waid =
+    payload?.wa_id ||
+    payload?.message?.wa_id ||
+    payload?.message?.message?.wa_id ||
+    payload?.senderNumber ||
+    payload?.fromNumber;
+  if (waid && /^\d{6,20}$/.test(String(waid))) return { number: String(waid), source: "wa_id" };
+
+  // 5) If participant is @lid, mark as hidden due to WhatsApp number privacy
+  const anyJid = jids.find(Boolean) || remote;
+  if (isLid(anyJid)) return { number: undefined, source: "hidden_by_whatsapp_number_privacy" };
+
+  // Fallback: unknown
+  return { number: undefined, source: "unknown" };
+}
+
+2) Update your webhook to use the resolver and store senderNumberSource
+
+Edit: src/routes/webhook.ts (keep your existing logic; add the highlighted parts)
+
+// src/routes/webhook.ts
+import express from "express";
+import { upsertFromWebhook } from "../services/groupDb";
+import { resolveSenderNumber } from "../services/waResolve";
+
+const router = express.Router();
+
+router.post("/api/whatsapp/webhook", async (req, res) => {
+  const body = req.body || {};
+  // --- existing: detect instance, dedupe, etc. ---
+
+  // Identify group id
+  const rawGroupId =
+    body.group_id ||
+    body.chatId ||
+    body.remoteJid ||
+    body.chat_id ||
+    body.message?.chatId ||
+    body.message?.key?.remoteJid ||
+    body.message_key?.remoteJid ||
+    undefined;
+
+  const isGroup =
+    /@g\.us$/.test(String(rawGroupId ?? "")) || /^\d{10,}$/.test(String(rawGroupId ?? ""));
+
+  // Learn/refresh group (name + instance)
+  if (isGroup) {
+    const candidateNames = [
+      body.group_name,
+      body.groupSubject,
+      body.chatName,
+      body.chat_name,
+      body.pushName,
+      body.senderName,
+      body.message?.pushName,
+      body.push_name,
+    ];
+    const instanceNumber =
+      body.instance_number ||
+      body.phone ||
+      body.instancePhone ||
+      String(body.instanceLabel || body.instance_name || body.instance || "").replace(/[^\d]/g, "") ||
+      undefined;
+    const at =
+      typeof body.timestamp === "number"
+        ? body.timestamp
+        : typeof body.ts === "number"
+        ? body.ts
+        : typeof body.messageTimestamp === "number"
+        ? body.messageTimestamp * 1000
+        : Date.now();
+
+    upsertFromWebhook({ rawGroupId, candidateNames, instanceNumber, at });
+  }
+
+  // >>> NEW: robust sender phone extraction <<<
+  const { number: senderNumber, source: senderNumberSource } = resolveSenderNumber(body);
+
+  // Attach to your normalized message record (example keys; keep your schema)
+  const normalized = {
+    message: body.body_message?.content || body.message?.conversation || body.text || "",
+    sender: body.push_name || body.pushName || body.senderName || body.message?.pushName || "",
+    senderNumber: senderNumber || "",           // empty when hidden
+    senderNumberSource,                         // "participant_jid" | "remote_jid" | "vcard" | "wa_id" | "hidden_by_whatsapp_number_privacy" | "unknown"
+    group: rawGroupId || "",
+    timestamp:
+      body.timestamp ||
+      body.ts ||
+      (typeof body.messageTimestamp === "number" ? body.messageTimestamp * 1000 : Date.now()),
+    messageId:
+      body.messageId ||
+      body.message_id ||
+      body.message?.key?.id ||
+      body.message_key?.id ||
+      "",
+  };
+
+  // Optional: log clearly when number is hidden by WA privacy
+  if (!normalized.senderNumber && normalized.senderNumberSource === "hidden_by_whatsapp_number_privacy") {
+    console.warn(
+      "⚠️  WhatsApp number privacy: participant is @lid; phone is not provided in group messages. " +
+      "Will remain empty unless user DMs or shares a vCard."
+    );
+  }
+
+  // ...continue your existing storage/processing...
+  return res.status(200).json({ success: true, stored: true, parsed: true });
+});
+
+export default router;
+
+3) (Optional) UI: show why phone is missing
+
+If your frontend renders the sender, add a hint when we know it’s hidden:
+
+// If `senderNumber === ""` and `senderNumberSource === "hidden_by_whatsapp_number_privacy"`
+// render: "Number hidden by WhatsApp (group privacy)"
+
+4) What to expect
+
+If the payload contains real JIDs (...@s.whatsapp.net or ...@c.us) anywhere (participant, remoteJid, contextInfo), you’ll now get senderNumber.
+
+If the user shares a contact card (vCard), we parse waid= and store that number.
+
+If your provider supplies a wa_id field, we store it.
+
+When WhatsApp returns @lid for participants (number privacy in many groups/communities), the resolver sets senderNumber="" and senderNumberSource="hidden_by_whatsapp_number_privacy". This isn’t a code bug—WhatsApp purposely withholds the phone. You’ll only learn it if the user DMs you or shares a contact/vCard.
+
+5) Bonus (later, optional): participant roster fetch
+
+Some providers expose a get group participants API. If yours does, you can enrich unknown @lid senders by matching roster JIDs. Add a background job that hits the provider endpoint and caches { lid -> number } when available. (Left out here because endpoints differ per provider.)
+
+Summary for Replit:
+Add src/services/waResolve.ts. Update src/routes/webhook.ts to call resolveSenderNumber() and store both senderNumber and senderNumberSource. Do not remove any existing features. This will populate phone numbers whenever WhatsApp actually includes them and clearly mark cases where WhatsApp’s privacy replaces numbers with @lid.

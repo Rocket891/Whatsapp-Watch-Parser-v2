@@ -1,0 +1,221 @@
+Goal:
+Fix WhatsApp Groups loading + name resolution and stop webhook 500s. Don’t change any behavior about creating instances — keep using the instance ID I enter. Focus on:
+
+Initialize and use module-level caches safely (no undefined .get/.set)
+
+Resolve sender names from contacts.update events
+
+Resolve group names and return ${name} (${id}) in UI
+
+/api/whatsapp/groups should try the mBlaster API first and then merge with the cache collected from webhooks (no database fallback).
+
+Keep whitelist behavior (empty whitelist = allow all).
+
+Do not hardcode any group IDs.
+
+1) Edit server/routes.ts
+
+At the very top of the file (after imports), add a singleton cache block:
+
+// --- WhatsApp name caches: singletons across hot reloads ---
+const G: any = global as any;
+G.__wa = G.__wa || {};
+G.__wa.groupNameCache = G.__wa.groupNameCache || new Map<string, string>();
+G.__wa.contactNameCache = G.__wa.contactNameCache || new Map<string, string>();
+const groupNameCache: Map<string, string> = G.__wa.groupNameCache;
+const contactNameCache: Map<string, string> = G.__wa.contactNameCache;
+
+// Helper: normalize whitelist into a Set; empty -> allow all
+function getWhitelistSet() {
+  const raw =
+    (G.whitelistedGroups as string | undefined) ??
+    (waConfig.whitelistedGroups as string | undefined) ??
+    "";
+  const trimmed = (raw || "").trim();
+  if (!trimmed) return null; // null => allow all
+  return new Set(
+    trimmed
+      .split(/[\s,]+/)
+      .map(s => s.trim())
+      .filter(Boolean)
+  );
+}
+
+// Helper: safe JSON test (mBlaster sometimes returns HTML when IP blocked)
+async function fetchJSON(url: string, init?: RequestInit) {
+  const res = await fetch(url, {
+    method: "GET", // mBlaster works reliably with GET
+    headers: {
+      "Accept": "application/json",
+      "User-Agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Safari/537.36",
+    },
+    ...init,
+  });
+  const text = await res.text();
+  if (text.trim().startsWith("<!DOCTYPE") || text.trim().startsWith("<html")) {
+    const err: any = new Error("IP_REJECTED_HTML");
+    err.code = "IP_REJECTED_HTML";
+    throw err;
+  }
+  return JSON.parse(text);
+}
+
+2) In the webhook handler (app.post("/api/whatsapp/webhook", ...)):
+
+A. Just after you log the payload and before you early-return on “system events”, handle and cache contacts.update so names are always available:
+
+// If it's a contact update, cache names and exit early (no storage)
+const payload = req.body;
+const root = payload?.data;
+if (root?.event === "contacts.update" && Array.isArray(root?.data)) {
+  for (const c of root.data) {
+    const jid = c.id || c.jid;
+    const name =
+      c.notify || c.verifiedName || c.pushName || c.name || c.displayName;
+    if (jid && name) {
+      if (jid.endsWith("@g.us")) {
+        groupNameCache.set(jid, name);
+      } else {
+        contactNameCache.set(jid, name);
+      }
+    }
+  }
+  return res.json({
+    success: true,
+    stored: false,
+    parsed: false,
+    reason: "contact_update_cached",
+  });
+}
+
+
+B. Right after you call extractMessageFromPayload(...) and before whitelist checks or saving, apply friendly names from caches (prevents undefined .get/.set errors you saw on lines ~1100/1134):
+
+// Beautify names using caches (never assume caches are undefined)
+const senderJid =
+  (payload?.data?.message?.message_key?.participant) ||
+  (payload?.data?.data?.messages?.[0]?.key?.participant) ||
+  (extractedData.senderNumber ? `${extractedData.senderNumber}@s.whatsapp.net` : "");
+
+if (senderJid && contactNameCache.has(senderJid)) {
+  extractedData.sender = contactNameCache.get(senderJid)!;
+}
+if (extractedData.groupId && groupNameCache.has(extractedData.groupId)) {
+  extractedData.groupName = groupNameCache.get(extractedData.groupId)!;
+}
+
+
+C. When you determine the message’s group ID, opportunistically learn group names if present (some payloads include it). Right after you compute gid or have extractedData.groupId:
+
+if (extractedData.groupId?.endsWith("@g.us")) {
+  // If payload contains something we can use as a name, cache it.
+  const maybeGroupName =
+    payload?.data?.message?.group_name ||
+    payload?.data?.group_name ||
+    payload?.data?.data?.messages?.[0]?.groupName ||
+    null;
+
+  if (maybeGroupName) {
+    groupNameCache.set(extractedData.groupId, String(maybeGroupName));
+  }
+}
+
+
+D. Keep your existing whitelist behavior, but use the helper:
+
+const wl = getWhitelistSet();
+if (wl && extractedData.groupId && !wl.has(extractedData.groupId)) {
+  console.log(
+    `🚫 Group ${extractedData.groupId} not whitelisted - skipping. Whitelisted: ${[...wl].join(", ")}`
+  );
+  return res.json({ success: true, stored: false, parsed: false, reason: "not_whitelisted" });
+}
+
+
+This removes the crash you saw (.get/.set on undefined) and ensures names populate from contact updates and any hints in message payloads.
+
+3) Replace /api/whatsapp/groups to merge API + cache (no DB fallback)
+
+Find your existing handler for app.post("/api/whatsapp/groups", ...) and replace its body with this:
+
+app.post("/api/whatsapp/groups", async (req, res) => {
+  try {
+    const { instanceId, accessToken } = creds(req);
+    if (!instanceId || !accessToken) {
+      return res.status(400).json({ error: "Instance ID and access token are required" });
+    }
+
+    // 1) Try the official API first
+    let apiGroups: Array<{ id: string; name: string }> = [];
+    try {
+      const data = await fetchJSON(
+        `https://mblaster.in/api/get_groups?instance_id=${encodeURIComponent(instanceId)}&access_token=${encodeURIComponent(accessToken)}`
+      );
+
+      const list =
+        data?.groups ||
+        data?.data?.groups ||
+        data?.data ||
+        data?.result ||
+        [];
+
+      apiGroups = (Array.isArray(list) ? list : []).map((g: any) => {
+        const id = g.id || g.group_id || g.jid || g.remoteJid || g.groupJid;
+        const name =
+          g.name || g.subject || g.title || g.group_name || g.groupName || "";
+        if (id && name) groupNameCache.set(id, name); // keep cache hot
+        return id ? { id, name: name || "" } : null;
+      }).filter(Boolean) as Array<{ id: string; name: string }>;
+      console.log(`✅ Successfully fetched ${apiGroups.length} groups from mBlaster API`);
+    } catch (e: any) {
+      console.log(`🔄 mBlaster API error in /groups: ${e?.code || e?.message || e}`);
+    }
+
+    // 2) Merge with what we’ve learned from webhooks (cache)
+    const cacheGroups = Array.from(groupNameCache.entries()).map(([id, name]) => ({ id, name }));
+    const byId = new Map<string, { id: string; name: string }>();
+    for (const g of [...apiGroups, ...cacheGroups]) {
+      if (!g) continue;
+      const prev = byId.get(g.id);
+      if (!prev || (g.name && g.name.length > prev.name.length)) {
+        byId.set(g.id, g);
+      }
+    }
+
+    const groups = Array.from(byId.values())
+      .filter(g => g.id.endsWith("@g.us"))
+      .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
+    return res.json({ groups });
+  } catch (error) {
+    console.error("❌ Failed to get groups:", error);
+    res.status(500).json({ error: "Failed to get groups" });
+  }
+});
+
+4) Make /api/whatsapp/messages include pretty names
+
+In your GET /api/whatsapp/messages mapping logic, right before returning each message object, add:
+
+// Pretty sender & group names from caches
+const senderJid =
+  msg.senderNumber ? `${msg.senderNumber}@s.whatsapp.net` : (msg.sender || "");
+const niceSender =
+  (senderJid && contactNameCache.get(senderJid)) || msg.sender || "";
+const niceGroup =
+  (msg.groupId && groupNameCache.get(msg.groupId)) || msg.groupName || "";
+
+return {
+  ...msg,
+  sender: niceSender,
+  groupName: niceGroup
+};
+
+5) (Optional tiny UI tweak) Show “Name (id)” in the dropdown
+
+In client/src/pages/whatsapp-integration.tsx, wherever you render the group options, format like:
+
+<option key={g.id} value={g.id}>
+  {g.name ? `${g.name} (${g.id})` : g.id}
+</option>

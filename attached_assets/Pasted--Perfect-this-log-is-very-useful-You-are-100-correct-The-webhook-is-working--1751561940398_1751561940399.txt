@@ -1,0 +1,102 @@
+✅ **Perfect—this log is very useful.**
+
+You are **100% correct:**
+✅ The webhook **is working**
+✅ You **are receiving** the messages
+✅ The problem is **your code tries to parse and extract fields in a way that does not match the payload**, so it stores nothing.
+
+This line here shows the main issue:
+
+```
+📋 Extracted Data: {
+  message: '',
+  sender: 'unknown',
+  group: 'unknown',
+  timestamp: '2025-07-03T16:51:18.192Z',
+  messageId: 'msg_1751561478192',
+  senderNumber: ''
+}
+❌ No message content found in payload
+```
+
+---
+
+## 🟢 What You Want Right Now
+
+**Before parsing**, you want to **just log and save the raw payload** to your database so you can see them in your Incoming Messages tab.
+
+This means:
+✅ Instead of trying to extract `message`, `sender`, etc.,
+✅ Save everything as JSON in your `messages` table (or wherever you store them)
+
+---
+
+## 🛠️ How to Fix This Temporarily (Store Raw Payload)
+
+In your `server/index.ts`, find your webhook handler.
+It probably looks like this:
+
+```typescript
+app.post("/api/whatsapp/webhook", (req, res) => {
+  console.log("🔔 Incoming Webhook Payload:", JSON.stringify(req.body, null, 2));
+
+  // ⛔️ Old extraction logic here
+  const message = ... // trying to read req.body.data.message.text (but it is undefined)
+
+  if (!message) {
+    return res.status(400).json({ error: "No message content in payload" });
+  }
+
+  // Save logic...
+});
+```
+
+**Replace it** with this simplified version that stores everything:
+
+---
+
+### ✨ Example: Save Raw Message Without Parsing
+
+```typescript
+app.post("/api/whatsapp/webhook", async (req, res) => {
+  console.log("🔔 Incoming Webhook Payload:", JSON.stringify(req.body, null, 2));
+
+  // Instead of trying to extract fields, save as-is
+  const rawPayload = req.body;
+
+  // Build a minimal record
+  const newMessage = {
+    id: `msg_${Date.now()}`,
+    timestamp: new Date().toISOString(),
+    raw: JSON.stringify(rawPayload),
+    processed: false,
+    status: 'pending'
+  };
+
+  // TODO: Save newMessage to your database or in-memory store
+  // For example: messages.push(newMessage);
+
+  res.json({ success: true });
+});
+```
+
+---
+
+✅ Now in your Replit dashboard’s “Incoming Messages,” you can **show raw JSON text** so you see exactly what you received.
+✅ Later you can build a parser that extracts fields like `text`, `sender`, `group`—once you are confident what the structure is.
+
+---
+
+## 🟢 What Next?
+
+1️⃣ Implement the handler above.
+2️⃣ Restart the Replit server.
+3️⃣ Send a test message.
+4️⃣ You will see the message appear (as raw JSON).
+5️⃣ Then we can help you **map the payload fields** properly.
+
+This is the most robust way to confirm everything is flowing end-to-end.
+
+---
+
+If you show me where/how you store messages (`in memory? sqlite? postgres?`), I can give you exact code to do `INSERT` or `push()`. Just tell me!

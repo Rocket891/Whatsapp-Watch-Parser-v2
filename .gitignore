@@ -1,0 +1,3 @@
+attached_assets/*.json
+attached_assets/*.zip
+client/src/pages/google-sheets.tsx

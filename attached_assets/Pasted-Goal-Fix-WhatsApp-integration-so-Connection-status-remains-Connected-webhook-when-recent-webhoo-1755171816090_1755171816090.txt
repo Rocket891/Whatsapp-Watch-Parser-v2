@@ -1,0 +1,239 @@
+Goal:
+Fix WhatsApp integration so:
+
+Connection status remains Connected (webhook) when recent webhooks are received, even if the mBlaster status endpoints are IP-rejected.
+
+Group list shows all groups by merging mBlaster API results with groups learned via webhooks and any existing DB cache; each row must display GroupName (group_id).
+
+Whitelist checks use group JID (e.g., 1203634…@g.us), not the display name.
+
+Contact names in logs prefer cached names from contacts.update webhooks.
+
+Absolutely do not create a new instance. Always use the saved instanceId and accessToken.
+
+Context / Why:
+
+Browsers throttle timers in background tabs, so the UI polling can wobble; don’t flip to “disconnected” just because /status fails. Treat a recent webhook as authoritative connectivity. (Background throttling reference: Chromium team’s explanation of background timer throttling.) 
+Facebook for Developers
+
+WhatsApp integrations are meant to receive messages via webhooks, not polling; so webhook recency is a valid health signal. 
+Chrome for Developers
+
+mBlaster sometimes returns HTML (WAF page) instead of JSON for /get_groups or /get_status due to IP allowlisting. We must merge API results with cached groups learned from webhooks and DB so the UI stays complete and stable.
+
+1) Create a tiny cache module (process-level, safe on restarts)
+
+Add server/state/waCache.ts:
+
+// server/state/waCache.ts
+export type GroupInfo = { id: string; name?: string; size?: number };
+
+class WaCache {
+  lastWebhookAt: number | null = null;
+  // groupId -> name
+  groupName = new Map<string, string>();
+  // senderId/number -> display name
+  contactName = new Map<string, string>();
+  // discovered group IDs
+  seenGroupIds = new Set<string>();
+
+  markWebhookNow() { this.lastWebhookAt = Date.now(); }
+
+  upsertGroup(gid: string, name?: string) {
+    if (!gid) return;
+    this.seenGroupIds.add(gid);
+    if (name && name.trim()) this.groupName.set(gid, name.trim());
+  }
+
+  upsertContact(id: string, name?: string) {
+    if (!id) return;
+    if (name && name.trim()) this.contactName.set(id, name.trim());
+  }
+
+  getLastWebhookAgeMs() {
+    return this.lastWebhookAt ? (Date.now() - this.lastWebhookAt) : Number.POSITIVE_INFINITY;
+  }
+
+  getGroupsSnapshot(): GroupInfo[] {
+    const ids = Array.from(this.seenGroupIds);
+    return ids.map(id => ({ id, name: this.groupName.get(id) }));
+  }
+
+  getGroupName(id: string) { return this.groupName.get(id); }
+  getContactName(id: string) { return this.contactName.get(id); }
+}
+
+export const waCache = new WaCache();
+
+2) Harden the webhook handler
+
+Edit the WhatsApp webhook route (likely in server/routes.ts or server/routes/whatsapp.ts):
+
+Ensure you import and init the cache:
+
+import { waCache } from '../state/waCache'; // adjust path if needed
+
+
+At the very top of the webhook handler, call:
+
+waCache.markWebhookNow();
+
+
+When a webhook contains a group JID (e.g., remoteJid ending in @g.us), always do:
+
+const groupId = remoteJid; // e.g., '1203634...@g.us'
+const groupNameFromPayload = /* pull from any available field such as your API 'data' listing with name, or pushName when it's a group event */;
+waCache.upsertGroup(groupId, groupNameFromPayload);
+
+
+When a webhook contains contact info (e.g., contacts.update with { id, notify }), cache it:
+
+waCache.upsertContact(update.id, update.notify);
+
+
+When building the log entry, prefer cached real names:
+
+const senderId = extracted.senderNumber || participantId || pushName || '';
+const displayName = waCache.getContactName(senderId) || extracted.sender || pushName || senderId;
+
+
+Whitelist check must use groupId/JID only:
+
+// NEVER compare the display name to the whitelist
+const isWhitelisted = whitelistSet.has(groupId); // groupId like '1203634...@g.us'
+
+
+(You can still attach groupName = waCache.getGroupName(groupId) for display.)
+
+This fixes the bug shown in your logs where the first message passed (“whitelisted”) but the next one was skipped because group had been replaced by the display name.
+
+3) Make connection status webhook-aware
+
+Edit /api/whatsapp/status and /api/whatsapp/ping handlers:
+
+Compute webhook-based health first:
+
+const MS = 1000;
+const WEBHOOK_FRESH_MS = 2 * 60 * MS; // 2 minutes (tune if you like)
+const fresh = waCache.getLastWebhookAgeMs() <= WEBHOOK_FRESH_MS;
+let mode: 'webhook' | 'api' | 'none' = fresh ? 'webhook' : 'none';
+let connected = fresh;
+
+
+Only if !connected, then try the mBlaster /get_status (as you already do). If that succeeds, set connected = true; mode = 'api';.
+
+Return a structured payload the UI can use:
+
+res.json({
+  connected,
+  mode,                   // 'webhook' or 'api' or 'none'
+  lastWebhookAt: waCache.lastWebhookAt,
+  lastWebhookAgeMs: waCache.getLastWebhookAgeMs()
+});
+
+
+This stops the status from flipping to “disconnected” when you change tabs or when mBlaster status is IP-rejected — because you’re still getting live webhooks (the real source of truth). Background tabs are throttled; don’t tie “connected” solely to a polled API. 
+Facebook for Developers
+
+4) Return complete groups even when mBlaster API is blocked
+
+Edit /api/whatsapp/groups handler:
+
+Keep your current attempt to call https://mblaster.in/api/get_groups?instance_id=...&access_token=... with Accept: application/json and a desktop User-Agent. If that returns JSON, merge those results into the cache via waCache.upsertGroup(id, name).
+
+Regardless of API success, build the final list like this:
+
+// 1) All cached groups from webhooks / prior API successes
+const cached = waCache.getGroupsSnapshot();
+
+// 2) Optional DB records, if you already load them (dedupe by id)
+const dbGroups = await loadGroupsFromDbIfAvailable(); // if you have this; otherwise skip
+
+// 3) API response (if any)
+const apiGroups = groupsFromApiJson; // or []
+
+// Merge by id, preferring the most complete name
+const byId = new Map<string, { id: string; name?: string; size?: number }>();
+for (const g of [...cached, ...dbGroups, ...apiGroups]) {
+  const cur = byId.get(g.id) || { id: g.id };
+  if (g.name && (!cur.name || cur.name.length < g.name.length)) cur.name = g.name;
+  if (g.size && !cur.size) cur.size = g.size;
+  byId.set(g.id, cur);
+}
+const result = Array.from(byId.values())
+  .sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
+
+// Always return id + name as "Name (id)"
+res.json({
+  groups: result.map(g => ({
+    id: g.id,
+    name: g.name || g.id,
+    display: `${g.name || g.id} (${g.id})`,
+    size: g.size
+  })),
+  source: {
+    api: !!apiGroups.length,
+    cache: !!cached.length,
+    db: !!dbGroups?.length
+  }
+});
+
+
+Also, in webhook handler, whenever you see a new remoteJid for a group (or receive an event like new subscriber), call waCache.upsertGroup(groupId, maybeName). Over time, this learns all groups even if the API is blocked.
+
+Rationale: mBlaster’s group API can be IP-allowlisted by the provider; when it fails and returns HTML, you still show a complete list thanks to the union of Webhook-learned groups + DB cache. Users will see all groups with correct names instead of just 1–3. If you control the provider, you can later allowlist a static egress IP to restore full API access. (General IP allowlisting background.) 
+NordLayer
+
+5) Frontend tweaks (WhatsApp Integration page)
+
+Where you render connection state, use the mode and lastWebhookAgeMs fields:
+
+If connected && mode === 'webhook' → show green badge “Connected (webhook)”
+
+If connected && mode === 'api' → show “Connected (API)”
+
+Else → gray/red “Not connected”
+
+For the groups dropdown:
+
+Use the new /api/whatsapp/groups response.
+
+Display group.display (e.g., Test3 (1203634…@g.us)).
+
+Keep it dynamic — whenever instanceId is changed & saved, call /configure (you already do) and then re-hit /groups.
+
+In the incoming messages table:
+
+Show group as waCache.getGroupName(groupId) || groupId followed by (${groupId}).
+
+Show sender as waCache.getContactName(senderId) || senderId.
+
+6) Guard against “undefined cache” exceptions
+
+Your logs show:
+
+TypeError: Cannot read properties of undefined (reading 'get'/'set')
+ at routes.ts:1100 / 1134
+
+
+That’s a cache variable not initialized. Make sure you only access cache via waCache and that it’s imported where used. Remove any leftover groupNameCache/contactNameCache singletons and replace them with the waCache API.
+
+7) Do NOT create new instances
+
+Keep using the saved instanceId and accessToken in your config.
+
+The /configure endpoint should only refresh the webhook on mBlaster, not create anything new.
+
+All calls to mBlaster must be GET (your code already moved to GET).
+
+Test plan
+
+Save the same instanceId/accessToken you use in mBlaster.
+
+Send a message into a few different groups.
+
+Webhooks should flow, status should read Connected (webhook) within 2 minutes of the last message.
+
+Open “Load Groups” → you should see many groups, not just 1, because the handler returns the union (API + cache + DB). Each row displays Name (group_id).
+
+Whitelisting must pass when you whitelist 120363417668189591@g.us even if the display name is different.
