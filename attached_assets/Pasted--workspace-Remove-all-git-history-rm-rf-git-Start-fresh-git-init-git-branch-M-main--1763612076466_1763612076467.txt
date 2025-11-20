@@ -1,0 +1,588 @@
+~/workspace$ # Remove all git history
+rm -rf .git
+
+# Start fresh
+git init
+git branch -M main
+
+# Add files but ignore secrets
+echo "attached_assets/*.json" > .gitignore
+echo "attached_assets/*.zip" >> .gitignore
+echo "client/src/pages/google-sheets.tsx" >> .gitignore
+
+# Add all clean files
+git add .
+git commit -m "Initial commit - clean code"
+
+# Connect to GitHub (replace with your actual repo URL)
+git remote add origin https://github.com/Rocket891/Whatsapp-Watch-Parser-v2.git
+
+# Force push fresh history
+git push -f origin main
+Initialized empty Git repository in /home/runner/workspace/.git/
+[main (root-commit) 34d9666] Initial commit - clean code
+ 521 files changed, 98813 insertions(+)
+ create mode 100644 .gitignore
+ create mode 100644 .replit
+ create mode 100644 attached_assets/Extract_Watch_ID_1751652793399.py
+ create mode 100644 attached_assets/Pasted--4997-200r-purple-2023-New-full-set-HKD213k-5119R-2006-used-full-set-HKD99k-5146R-2019-used-full-1755145208432_1755145208433.txt
+ create mode 100644 attached_assets/Pasted--API-API-WhatApp-REST-Nirav-Gandhi-Your-Access-Token-6823295cdd694-Instance-Api-POST-Creat-1751534172716_1751534172717.txt
+ create mode 100644 attached_assets/Pasted--API-API-WhatApp-REST-Select-WhatsApp-account-Your-Access-Token-6823295cdd694-Instance-Api--1751866503089_1751866503090.txt
+ create mode 100644 attached_assets/Pasted--API-API-WhatApp-REST-Select-WhatsApp-account-Your-Access-Token-6823295cdd694-Instance-Api--1757937869988_1757937869989.txt
+ create mode 100644 attached_assets/Pasted--Chat-120363400088469625-g-us-Date-2025-06-26-Time-06-08-51-945-1751257821195_1751257821196.txt
+ create mode 100644 attached_assets/Pasted--Hand-off-notes-for-your-Replit-agent-paths-assume-the-usual-server-and-client-src-lay-1751611408573_1751611408574.txt
+ create mode 100644 attached_assets/Pasted--Perfect-this-log-is-very-useful-You-are-100-correct-The-webhook-is-working--1751561940398_1751561940399.txt
+ create mode 100644 attached_assets/Pasted--TL-DR-two-root-causes-are-blocking-every-new-instance-Root-cause--1752482353014_1752482353015.txt
+ create mode 100644 attached_assets/Pasted--TL-DR-two-root-causes-are-blocking-every-new-instance-Root-cause--1752482723485_1752482723486.txt
+ create mode 100644 attached_assets/Pasted--The-log-is-showing-only-POST-api-whatsapp-status-and-POST-api-whatsapp-qr-code-Those-calls-1751608239635_1751608239636.txt
+ create mode 100644 attached_assets/Pasted--WhatsApp-Multi-Watch-Regex-Parser-FINAL-CLEAN-VERSION-Mode-Run-for-Each-Item-Execute-O-1751349035318_1751349035319.txt
+ create mode 100644 attached_assets/Pasted--WhatsApp-Multi-Watch-Regex-Parser-FINAL-CLEAN-VERSION-with-PMID-fallback-chunk-Mode-Run-1751652839659_1751652839660.txt
+ create mode 100644 attached_assets/Pasted--Why-you-re-still-seeing-connection-error-even-though-messages-arrive-1-status-is-call-1751609292136_1751609292137.txt
+ create mode 100644 attached_assets/Pasted--app-post-api-whatsapp-webhook-async-req-res-try-Log-the-complete-paylo-1751865566343_1751865566344.txt
+ create mode 100644 attached_assets/Pasted--function-pick-first-message-regardless-of-shape-var-root-j-1751563751755_1751563751755.txt
+ create mode 100644 attached_assets/Pasted--headers-host-rocketelabs-app-n8n-cloud-user-agent-axios-1-7-1751563835516_1751563835516.txt
+ create mode 100644 attached_assets/Pasted--workspace-Remove-the-secret-files-from-git-git-rm-cached-attached-assets-whatsapp-watch-log--1763611851591_1763611851591.txt
+ create mode 100644 attached_assets/Pasted--workspace-git-push-f-origin-main-Enumerating-objects-3745-done-Counting-objects-100-3745-1763611623350_1763611623351.txt
+ create mode 100644 attached_assets/Pasted-Absolutely-here-is-the-same-WhatsApp-connection-setup-in-a-super-compact-format-optimized-for-m-1751539069175_1751539069176.txt
+ create mode 100644 attached_assets/Pasted-Absolutely-here-s-a-clear-structured-end-to-end-summary-of-what-your-n8n-workflow-does-ho-1751261255947_1751261255948.txt
+ create mode 100644 attached_assets/Pasted-Below-is-a-compact-punch-list-you-can-copy-straight-into-Replit-or-Slack-e-mail-It-only-targ-1751870602268_1751870602270.txt
+ create mode 100644 attached_assets/Pasted-Below-is-a-concise-Replit-friendly-message-you-can-forward-to-your-teammate-or-to-Replit-Suppor-1751651642826_1751651642827.txt
+ create mode 100644 attached_assets/Pasted-Below-is-a-high-level-map-of-the-exact-places-that-must-change-and-why-followed-by-two-conc-1752509615589_1752509615590.txt
+ create mode 100644 attached_assets/Pasted-Below-is-a-ready-to-forward-note-you-can-paste-into-Replit-Support-or-any-teammate-that-explains--1751649787712_1751649787713.txt
+ create mode 100644 attached_assets/Pasted-Below-is-a-triage-fix-polish-game-plan-that-cures-every-symptom-you-just-listed-plus-the-read-1751604494544_1751604494545.txt
+ create mode 100644 attached_assets/Pasted-Below-is-all-you-need-to-change-just-one-file-server-routes-whatsapp-ts-the-rest-of-the-b-1752508266833_1752508266833.txt
+ create mode 100644 attached_assets/Pasted-Below-is-an-updated-Replit-friendly-checklist-you-can-paste-straight-into-the-support-chat-tick-1751861412106_1751861412107.txt
+ create mode 100644 attached_assets/Pasted-Below-is-the-exact-minimal-sequence-to-put-your-existing-mBlaster-instance-Instance-ID--1752488513320_1752488513321.txt
+ create mode 100644 attached_assets/Pasted-Below-is-the-minimal-hit-list-of-edits-that-will-make-real-names-appear-everywhere-the-server--1751877172487_1751877172488.txt
+ create mode 100644 attached_assets/Pasted-Below-is-the-quickest-check-list-fix-to-bring-an-existing-mBlaster-instance-back-online-wi-1752486011003_1752486011005.txt
+ create mode 100644 attached_assets/Pasted-Fantastic-thank-you-for-sharing-the-latest-ZIP-You-ve-raised-several-excellent-practical-UX-poi-1751645894956_1751645894957.txt
+ create mode 100644 attached_assets/Pasted-Goal-Fix-WhatsApp-Groups-loading-name-resolution-and-stop-webhook-500s-Don-t-change-any-behavior-1755170783492_1755170783492.txt
+ create mode 100644 attached_assets/Pasted-Goal-Fix-WhatsApp-groups-live-connection-Use-the-existing-mBlaster-instance-the-user-enters-do--1755169963834_1755169963835.txt
+ create mode 100644 attached_assets/Pasted-Goal-Fix-WhatsApp-integration-so-Connection-status-remains-Connected-webhook-when-recent-webhoo-1755171816090_1755171816090.txt
+ create mode 100644 attached_assets/Pasted-Got-it-Here-s-a-single-copy-paste-Master-Build-Prompt-you-can-drop-into-Replit-Ghostwriter-B-1757480280502_1757480280503.txt
+ create mode 100644 attached_assets/Pasted-Got-it-I-ll-inspect-and-fix-the-server-side-WhatsApp-integration-to-ensure-dynamic-instance-ID-conf-1752484893631_1752484893631.txt
+ create mode 100644 attached_assets/Pasted-Got-it-your-core-goal-is-multi-tenant-access-with-a-simple-share-admin-data-switch-A-1757583752811_1757583752812.txt
+ create mode 100644 attached_assets/Pasted-Great-job-gathering-all-this-detail-this-is-exactly-the-sort-of-log-that-helps-pinpoint-the-proble-1751560882946_1751560882947.txt
+ create mode 100644 attached_assets/Pasted-Great-thank-you-for-sharing-the-latest-ZIP-Let-s-address-your-points-systematically-so-you-1751647988695_1751647988696.txt
+ create mode 100644 attached_assets/Pasted-Here-s-a-laser-focused-plan-to-fix-it-once-and-for-all-Centralize-and-Persist-Credentials-on-the-1751617217612_1751617217613.txt
+ create mode 100644 attached_assets/Pasted-Here-s-how-to-take-the-exact-curl-calls-that-now-work-in-the-Replit-shell-and-drop-them-into-you-1751543289728_1751543289729.txt
+ create mode 100644 attached_assets/Pasted-Here-s-what-s-really-going-on-and-why-your-instance-looks-perfectly-alive-inside-mBlaster-s-we-1752510472002_1752510472002.txt
+ create mode 100644 attached_assets/Pasted-Here-s-why-ChatGPT-s-unified-helper-approach-is-the-cleanest-path-and-exactly-what-to-do-now-in-your-1751612810459_1751612810459.txt
+ create mode 100644 attached_assets/Pasted-Perfect-let-s-clarify-this-step-by-step-because-you-are-VERY-close-to-working-but-you-re-g-1751563044799_1751563044800.txt
+ create mode 100644 attached_assets/Pasted-Project-type-Node-js-TypeScript-Express-WhatsApp-webhook-processor-using-Baileys-style-payloads-1755323007449_1755323007450.txt
+ create mode 100644 attached_assets/Pasted-ROLEX-116508g-blk-both-tag-09-2023-400000-124060-fs-both-tag-6-2025-90500-126000-lavender-both-t-1755512356163_1755512356164.txt
+ create mode 100644 attached_assets/Pasted-What-s-happening-using-your-JSON-It-s-a-group-message-remoteJid-120363417668189591-g-us-The-1755324083119_1755324083120.txt
+ create mode 100644 attached_assets/Pasted-Your-Access-Token-6823295cdd694-Instance-Api-POST-Create-Instance-https-mblaster-in-api-create-1755359102581_1755359102583.txt
+ create mode 100644 attached_assets/Pasted-gotcha-you-want-something-you-can-paste-into-Replit-s-AI-and-have-it-build-a-tiny-server-that--1755331235270_1755331235270.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/.gitignore
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/.replit
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Extract_Watch_ID_1751652793399.py
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted--4997-200r-purple-2023-New-full-set-HKD213k-5119R-2006-used-full-set-HKD99k-5146R-2019-used-full-1755145208432_1755145208433.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted--API-API-WhatApp-REST-Nirav-Gandhi-Your-Access-Token-6823295cdd694-Instance-Api-POST-Creat-1751534172716_1751534172717.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted--API-API-WhatApp-REST-Select-WhatsApp-account-Your-Access-Token-6823295cdd694-Instance-Api--1751866503089_1751866503090.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted--Chat-120363400088469625-g-us-Date-2025-06-26-Time-06-08-51-945-1751257821195_1751257821196.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted--Hand-off-notes-for-your-Replit-agent-paths-assume-the-usual-server-and-client-src-lay-1751611408573_1751611408574.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted--Perfect-this-log-is-very-useful-You-are-100-correct-The-webhook-is-working--1751561940398_1751561940399.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted--TL-DR-two-root-causes-are-blocking-every-new-instance-Root-cause--1752482353014_1752482353015.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted--TL-DR-two-root-causes-are-blocking-every-new-instance-Root-cause--1752482723485_1752482723486.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted--The-log-is-showing-only-POST-api-whatsapp-status-and-POST-api-whatsapp-qr-code-Those-calls-1751608239635_1751608239636.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted--WhatsApp-Multi-Watch-Regex-Parser-FINAL-CLEAN-VERSION-Mode-Run-for-Each-Item-Execute-O-1751349035318_1751349035319.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted--WhatsApp-Multi-Watch-Regex-Parser-FINAL-CLEAN-VERSION-with-PMID-fallback-chunk-Mode-Run-1751652839659_1751652839660.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted--Why-you-re-still-seeing-connection-error-even-though-messages-arrive-1-status-is-call-1751609292136_1751609292137.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted--app-post-api-whatsapp-webhook-async-req-res-try-Log-the-complete-paylo-1751865566343_1751865566344.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted--function-pick-first-message-regardless-of-shape-var-root-j-1751563751755_1751563751755.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted--headers-host-rocketelabs-app-n8n-cloud-user-agent-axios-1-7-1751563835516_1751563835516.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted-Absolutely-here-is-the-same-WhatsApp-connection-setup-in-a-super-compact-format-optimized-for-m-1751539069175_1751539069176.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted-Absolutely-here-s-a-clear-structured-end-to-end-summary-of-what-your-n8n-workflow-does-ho-1751261255947_1751261255948.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted-Below-is-a-compact-punch-list-you-can-copy-straight-into-Replit-or-Slack-e-mail-It-only-targ-1751870602268_1751870602270.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted-Below-is-a-concise-Replit-friendly-message-you-can-forward-to-your-teammate-or-to-Replit-Suppor-1751651642826_1751651642827.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted-Below-is-a-high-level-map-of-the-exact-places-that-must-change-and-why-followed-by-two-conc-1752509615589_1752509615590.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted-Below-is-a-ready-to-forward-note-you-can-paste-into-Replit-Support-or-any-teammate-that-explains--1751649787712_1751649787713.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted-Below-is-a-triage-fix-polish-game-plan-that-cures-every-symptom-you-just-listed-plus-the-read-1751604494544_1751604494545.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted-Below-is-all-you-need-to-change-just-one-file-server-routes-whatsapp-ts-the-rest-of-the-b-1752508266833_1752508266833.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted-Below-is-an-updated-Replit-friendly-checklist-you-can-paste-straight-into-the-support-chat-tick-1751861412106_1751861412107.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted-Below-is-the-exact-minimal-sequence-to-put-your-existing-mBlaster-instance-Instance-ID--1752488513320_1752488513321.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted-Below-is-the-minimal-hit-list-of-edits-that-will-make-real-names-appear-everywhere-the-server--1751877172487_1751877172488.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted-Below-is-the-quickest-check-list-fix-to-bring-an-existing-mBlaster-instance-back-online-wi-1752486011003_1752486011005.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted-Cartier-crash-pink-diamonds-watch-only-350k-usd-or-2-73M-Hkd-FPJ-platinum-vertical-tourb-2022-42-1755274754896_1755274754896.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted-Fantastic-thank-you-for-sharing-the-latest-ZIP-You-ve-raised-several-excellent-practical-UX-poi-1751645894956_1751645894957.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted-Goal-Make-WhatsApp-integration-work-reliably-on-Replit-without-relying-on-mBlaster-outbound-API-cal-1755187296808_1755187296809.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted-Got-it-I-ll-inspect-and-fix-the-server-side-WhatsApp-integration-to-ensure-dynamic-instance-ID-conf-1752484893631_1752484893631.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted-Great-job-gathering-all-this-detail-this-is-exactly-the-sort-of-log-that-helps-pinpoint-the-proble-1751560882946_1751560882947.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted-Great-thank-you-for-sharing-the-latest-ZIP-Let-s-address-your-points-systematically-so-you-1751647988695_1751647988696.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted-Here-s-a-laser-focused-plan-to-fix-it-once-and-for-all-Centralize-and-Persist-Credentials-on-the-1751617217612_1751617217613.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted-Here-s-how-to-take-the-exact-curl-calls-that-now-work-in-the-Replit-shell-and-drop-them-into-you-1751543289728_1751543289729.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted-Here-s-what-s-really-going-on-and-why-your-instance-looks-perfectly-alive-inside-mBlaster-s-we-1752510472002_1752510472002.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted-Here-s-why-ChatGPT-s-unified-helper-approach-is-the-cleanest-path-and-exactly-what-to-do-now-in-your-1751612810459_1751612810459.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted-Perfect-let-s-clarify-this-step-by-step-because-you-are-VERY-close-to-working-but-you-re-g-1751563044799_1751563044800.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted-Replit-fix-incoming-sender-phone-extraction-for-group-messages-when-payload-shows-lid-Add-a-res-1755274735857_1755274735858.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/Pasted-Replit-please-modify-my-TypeScript-Express-WhatsApp-parser-as-follows-Create-update-the-exact-file-1755192790433_1755192790434.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/content-1751563718829.md
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/image_1751883822086.png
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/image_1751885289812.png
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/image_1751885658746.png
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/image_1751885697710.png
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/image_1751958939900.png
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/image_1751966860098.png
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/image_1751967844431.png
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/image_1751971508504.png
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/image_1755146952420.png
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/image_1755146989039.png
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/image_1755193543027.png
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/image_1755271009001.png
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/image_1755271043382.png
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/image_1755271533546.png
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/merged_output_17May2025_15-46-07_1751954905731.xlsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/watch-listings-2025-07-07_1751889012387.csv
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/watch-listings-2025-07-07_1751889012390.csv
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/attached_assets/whatsapp-watch-log-new-be378569774e_1751262412695.json
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/index.html
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/App.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/GroupSelector.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/connection-status.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/dashboard/processing-status.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/dashboard/recent-data-table.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/dashboard/recent-errors.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/dashboard/stats-cards.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/group-management.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/layout/sidebar.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/layout/topbar.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/accordion.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/alert-dialog.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/alert.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/aspect-ratio.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/avatar.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/badge.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/breadcrumb.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/button.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/calendar.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/card.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/carousel.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/chart.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/checkbox.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/collapsible.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/command.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/context-menu.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/dialog.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/drawer.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/dropdown-menu.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/form.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/hover-card.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/input-otp.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/input.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/label.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/menubar.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/navigation-menu.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/pagination.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/popover.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/progress.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/radio-group.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/resizable.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/scroll-area.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/select.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/separator.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/sheet.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/sidebar.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/skeleton.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/slider.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/switch.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/table.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/tabs.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/textarea.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/toast.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/toaster.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/toggle-group.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/toggle.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/components/ui/tooltip.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/hooks/use-mobile.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/hooks/use-toast.ts
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/index.css
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/lib/api.ts
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/lib/queryClient.ts
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/lib/types.ts
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/lib/utils.ts
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/main.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/pages/ai-configuration.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/pages/all-records.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/pages/dashboard.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/pages/errors.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/pages/google-sheets.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/pages/incoming-messages.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/pages/inventory.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/pages/message-testing.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/pages/not-found.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/pages/pid-alerts.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/pages/records.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/pages/reference-database.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/pages/requirements-new.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/pages/requirements.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/pages/search-pids-new.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/pages/search-pids.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/pages/search.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/pages/settings.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/pages/whatsapp-integration.tsx
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/client/src/utils/config.ts
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/components.json
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/config.json
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/data/groups.json
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/data/raw-messages.json
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/data/wa-cache.json
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/drizzle.config.ts
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/package-lock.json
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/package.json
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/postcss.config.js
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/qr_data.txt
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/replit.md
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/server/connection-monitor.ts
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/server/db.ts
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/server/google-sheets.ts
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/server/index.ts
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/server/instance-recovery.ts
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/server/inventory-parser.ts
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/server/requirements-parser.ts
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/server/routes-old.ts
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/server/routes.ts
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/server/routes/groups.ts
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/server/routes/inventory.ts
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/server/routes/whatsapp.ts
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/server/services/groupDb.ts
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/server/services/waResolve.ts
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/server/storage.ts
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/server/vite.ts
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/server/wa-cache.ts
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/server/waConfig.ts
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/server/watch-parser.ts
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/shared/schema.ts
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/tailwind.config.ts
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/tsconfig.json
+ create mode 100644 attached_assets/Whatsapp-Watch-Parser/vite.config.ts
+ create mode 100644 attached_assets/content-1751563718829.md
+ create mode 100644 attached_assets/image_1751883822086.png
+ create mode 100644 attached_assets/image_1751885289812.png
+ create mode 100644 attached_assets/image_1751885658746.png
+ create mode 100644 attached_assets/image_1751885697710.png
+ create mode 100644 attached_assets/image_1751958939900.png
+ create mode 100644 attached_assets/image_1751966860098.png
+ create mode 100644 attached_assets/image_1751967844431.png
+ create mode 100644 attached_assets/image_1751971508504.png
+ create mode 100644 attached_assets/image_1755146952420.png
+ create mode 100644 attached_assets/image_1755146989039.png
+ create mode 100644 attached_assets/image_1755332460169.png
+ create mode 100644 attached_assets/image_1755334276030.png
+ create mode 100644 attached_assets/image_1755336682721.png
+ create mode 100644 attached_assets/image_1755338200250.png
+ create mode 100644 attached_assets/image_1755338578118.png
+ create mode 100644 attached_assets/image_1755339722327.png
+ create mode 100644 attached_assets/image_1755361941928.png
+ create mode 100644 attached_assets/image_1755362112329.png
+ create mode 100644 attached_assets/image_1755363023801.png
+ create mode 100644 attached_assets/image_1755363381602.png
+ create mode 100644 attached_assets/image_1755363420992.png
+ create mode 100644 attached_assets/image_1755364863214.png
+ create mode 100644 attached_assets/image_1755439474849.png
+ create mode 100644 attached_assets/image_1755439761404.png
+ create mode 100644 attached_assets/image_1755440473630.png
+ create mode 100644 attached_assets/image_1755441077858.png
+ create mode 100644 attached_assets/image_1755443539571.png
+ create mode 100644 attached_assets/image_1755445795600.png
+ create mode 100644 attached_assets/image_1755445816676.png
+ create mode 100644 attached_assets/image_1755445828256.png
+ create mode 100644 attached_assets/image_1755445835813.png
+ create mode 100644 attached_assets/image_1755447506256.png
+ create mode 100644 attached_assets/image_1755448713351.png
+ create mode 100644 attached_assets/image_1755492613948.png
+ create mode 100644 attached_assets/image_1755495355687.png
+ create mode 100644 attached_assets/image_1755497361691.png
+ create mode 100644 attached_assets/image_1755499566904.png
+ create mode 100644 attached_assets/image_1755500059796.png
+ create mode 100644 attached_assets/image_1755501564238.png
+ create mode 100644 attached_assets/image_1755501585813.png
+ create mode 100644 attached_assets/image_1755501629750.png
+ create mode 100644 attached_assets/image_1755503771578.png
+ create mode 100644 attached_assets/image_1755503775888.png
+ create mode 100644 attached_assets/image_1755504113995.png
+ create mode 100644 attached_assets/image_1755505704266.png
+ create mode 100644 attached_assets/image_1755505832379.png
+ create mode 100644 attached_assets/image_1755506067592.png
+ create mode 100644 attached_assets/image_1755506179613.png
+ create mode 100644 attached_assets/image_1755506346265.png
+ create mode 100644 attached_assets/image_1755506459147.png
+ create mode 100644 attached_assets/image_1755572959397.png
+ create mode 100644 attached_assets/image_1755579494594.png
+ create mode 100644 attached_assets/image_1755581326574.png
+ create mode 100644 attached_assets/image_1755583452630.png
+ create mode 100644 attached_assets/image_1755663070352.png
+ create mode 100644 attached_assets/image_1755663359081.png
+ create mode 100644 attached_assets/image_1755663380204.png
+ create mode 100644 attached_assets/image_1755663694435.png
+ create mode 100644 attached_assets/image_1755665126052.png
+ create mode 100644 attached_assets/image_1756105001659.png
+ create mode 100644 attached_assets/image_1756125226733.png
+ create mode 100644 attached_assets/image_1757484923134.png
+ create mode 100644 attached_assets/image_1757485996185.png
+ create mode 100644 attached_assets/image_1757486472099.png
+ create mode 100644 attached_assets/image_1757487071688.png
+ create mode 100644 attached_assets/image_1757487767897.png
+ create mode 100644 attached_assets/image_1757487897839.png
+ create mode 100644 attached_assets/image_1757488519174.png
+ create mode 100644 attached_assets/image_1757488581055.png
+ create mode 100644 attached_assets/image_1757488729576.png
+ create mode 100644 attached_assets/image_1757491476765.png
+ create mode 100644 attached_assets/image_1757491489410.png
+ create mode 100644 attached_assets/image_1757491976193.png
+ create mode 100644 attached_assets/image_1757492132386.png
+ create mode 100644 attached_assets/image_1757492612154.png
+ create mode 100644 attached_assets/image_1757492724326.png
+ create mode 100644 attached_assets/image_1757493122385.png
+ create mode 100644 attached_assets/image_1757493191001.png
+ create mode 100644 attached_assets/image_1757493321398.png
+ create mode 100644 attached_assets/image_1757493330568.png
+ create mode 100644 attached_assets/image_1757494053719.png
+ create mode 100644 attached_assets/image_1757494080877.png
+ create mode 100644 attached_assets/image_1757494139690.png
+ create mode 100644 attached_assets/image_1757496251061.png
+ create mode 100644 attached_assets/image_1757500537228.png
+ create mode 100644 attached_assets/image_1757501602987.png
+ create mode 100644 attached_assets/image_1757501642341.png
+ create mode 100644 attached_assets/image_1757502086633.png
+ create mode 100644 attached_assets/image_1757503146144.png
+ create mode 100644 attached_assets/image_1757503731341.png
+ create mode 100644 attached_assets/image_1757503938620.png
+ create mode 100644 attached_assets/image_1757565720330.png
+ create mode 100644 attached_assets/image_1757565765154.png
+ create mode 100644 attached_assets/image_1757566622844.png
+ create mode 100644 attached_assets/image_1757573355240.png
+ create mode 100644 attached_assets/image_1757573556401.png
+ create mode 100644 attached_assets/image_1757577626880.png
+ create mode 100644 attached_assets/image_1757577678574.png
+ create mode 100644 attached_assets/image_1757577791294.png
+ create mode 100644 attached_assets/image_1757578482873.png
+ create mode 100644 attached_assets/image_1757580017241.png
+ create mode 100644 attached_assets/image_1757581799833.png
+ create mode 100644 attached_assets/image_1757582434247.png
+ create mode 100644 attached_assets/image_1757586860273.png
+ create mode 100644 attached_assets/image_1757588046496.png
+ create mode 100644 attached_assets/image_1757589129063.png
+ create mode 100644 attached_assets/image_1757734460606.png
+ create mode 100644 attached_assets/image_1757735180654.png
+ create mode 100644 attached_assets/image_1757736590024.png
+ create mode 100644 attached_assets/image_1757736933950.png
+ create mode 100644 attached_assets/image_1757736966550.png
+ create mode 100644 attached_assets/image_1757737429085.png
+ create mode 100644 attached_assets/image_1757738302113.png
+ create mode 100644 attached_assets/image_1757741956098.png
+ create mode 100644 attached_assets/image_1757743296248.png
+ create mode 100644 attached_assets/image_1757744745334.png
+ create mode 100644 attached_assets/image_1757753903036.png
+ create mode 100644 attached_assets/image_1757755810439.png
+ create mode 100644 attached_assets/image_1757913125853.png
+ create mode 100644 attached_assets/image_1757935049008.png
+ create mode 100644 attached_assets/image_1757936304099.png
+ create mode 100644 attached_assets/image_1758080864543.png
+ create mode 100644 attached_assets/image_1758082001462.png
+ create mode 100644 attached_assets/image_1758085144135.png
+ create mode 100644 attached_assets/image_1758085196327.png
+ create mode 100644 attached_assets/image_1758085311117.png
+ create mode 100644 attached_assets/image_1758085337446.png
+ create mode 100644 attached_assets/image_1760069233476.png
+ create mode 100644 attached_assets/image_1762334693514.png
+ create mode 100644 attached_assets/image_1762334737697.png
+ create mode 100644 attached_assets/image_1763050229405.png
+ create mode 100644 attached_assets/image_1763092799897.png
+ create mode 100644 attached_assets/image_1763092850078.png
+ create mode 100644 attached_assets/image_1763523637979.png
+ create mode 100644 attached_assets/image_1763524528571.png
+ create mode 100644 attached_assets/image_1763524561218.png
+ create mode 100644 attached_assets/image_1763611107728.png
+ create mode 100644 attached_assets/image_1763611260107.png
+ create mode 100644 attached_assets/merged_output_17May2025_15-46-07_1751954905731.xlsx
+ create mode 100644 attached_assets/watch-listings-2025-07-07_1751889012387.csv
+ create mode 100644 attached_assets/watch-listings-2025-07-07_1751889012390.csv
+ create mode 100644 client/index.html
+ create mode 100644 client/src/App.tsx
+ create mode 100644 client/src/components/connection-status.tsx
+ create mode 100644 client/src/components/dashboard/active-groups-panel.tsx
+ create mode 100644 client/src/components/dashboard/high-value-listings.tsx
+ create mode 100644 client/src/components/dashboard/hot-pids-today.tsx
+ create mode 100644 client/src/components/dashboard/market-insights.tsx
+ create mode 100644 client/src/components/dashboard/price-alerts.tsx
+ create mode 100644 client/src/components/dashboard/processing-status.tsx
+ create mode 100644 client/src/components/dashboard/quick-actions.tsx
+ create mode 100644 client/src/components/dashboard/recent-data-table.tsx
+ create mode 100644 client/src/components/dashboard/recent-errors.tsx
+ create mode 100644 client/src/components/dashboard/stats-cards.tsx
+ create mode 100644 client/src/components/dashboard/trading-metrics.tsx
+ create mode 100644 client/src/components/enhanced-card.tsx
+ create mode 100644 client/src/components/group-management.tsx
+ create mode 100644 client/src/components/group-select.tsx
+ create mode 100644 client/src/components/layout/sidebar.tsx
+ create mode 100644 client/src/components/layout/topbar.tsx
+ create mode 100644 client/src/components/theme-selector.tsx
+ create mode 100644 client/src/components/ui/accordion.tsx
+ create mode 100644 client/src/components/ui/alert-dialog.tsx
+ create mode 100644 client/src/components/ui/alert.tsx
+ create mode 100644 client/src/components/ui/aspect-ratio.tsx
+ create mode 100644 client/src/components/ui/avatar.tsx
+ create mode 100644 client/src/components/ui/badge.tsx
+ create mode 100644 client/src/components/ui/breadcrumb.tsx
+ create mode 100644 client/src/components/ui/button.tsx
+ create mode 100644 client/src/components/ui/calendar.tsx
+ create mode 100644 client/src/components/ui/card.tsx
+ create mode 100644 client/src/components/ui/carousel.tsx
+ create mode 100644 client/src/components/ui/chart.tsx
+ create mode 100644 client/src/components/ui/checkbox.tsx
+ create mode 100644 client/src/components/ui/collapsible.tsx
+ create mode 100644 client/src/components/ui/command.tsx
+ create mode 100644 client/src/components/ui/context-menu.tsx
+ create mode 100644 client/src/components/ui/dialog.tsx
+ create mode 100644 client/src/components/ui/drawer.tsx
+ create mode 100644 client/src/components/ui/dropdown-menu.tsx
+ create mode 100644 client/src/components/ui/form.tsx
+ create mode 100644 client/src/components/ui/hover-card.tsx
+ create mode 100644 client/src/components/ui/input-otp.tsx
+ create mode 100644 client/src/components/ui/input.tsx
+ create mode 100644 client/src/components/ui/label.tsx
+ create mode 100644 client/src/components/ui/menubar.tsx
+ create mode 100644 client/src/components/ui/navigation-menu.tsx
+ create mode 100644 client/src/components/ui/pagination.tsx
+ create mode 100644 client/src/components/ui/popover.tsx
+ create mode 100644 client/src/components/ui/progress.tsx
+ create mode 100644 client/src/components/ui/radio-group.tsx
+ create mode 100644 client/src/components/ui/resizable.tsx
+ create mode 100644 client/src/components/ui/scroll-area.tsx
+ create mode 100644 client/src/components/ui/select.tsx
+ create mode 100644 client/src/components/ui/separator.tsx
+ create mode 100644 client/src/components/ui/sheet.tsx
+ create mode 100644 client/src/components/ui/sidebar.tsx
+ create mode 100644 client/src/components/ui/skeleton.tsx
+ create mode 100644 client/src/components/ui/slider.tsx
+ create mode 100644 client/src/components/ui/switch.tsx
+ create mode 100644 client/src/components/ui/table.tsx
+ create mode 100644 client/src/components/ui/tabs.tsx
+ create mode 100644 client/src/components/ui/textarea.tsx
+ create mode 100644 client/src/components/ui/toast.tsx
+ create mode 100644 client/src/components/ui/toaster.tsx
+ create mode 100644 client/src/components/ui/toggle-group.tsx
+ create mode 100644 client/src/components/ui/toggle.tsx
+ create mode 100644 client/src/components/ui/tooltip.tsx
+ create mode 100644 client/src/components/whatsapp-badge.tsx
+ create mode 100644 client/src/contexts/auth-context.tsx
+ create mode 100644 client/src/contexts/theme-context.tsx
+ create mode 100644 client/src/hooks/use-mobile.tsx
+ create mode 100644 client/src/hooks/use-toast.ts
+ create mode 100644 client/src/index.css
+ create mode 100644 client/src/lib/api.ts
+ create mode 100644 client/src/lib/queryClient.ts
+ create mode 100644 client/src/lib/types.ts
+ create mode 100644 client/src/lib/utils.ts
+ create mode 100644 client/src/main.tsx
+ create mode 100644 client/src/pages/admin.tsx
+ create mode 100644 client/src/pages/ai-configuration.tsx
+ create mode 100644 client/src/pages/all-records.tsx
+ create mode 100644 client/src/pages/contacts.tsx
+ create mode 100644 client/src/pages/dashboard.tsx
+ create mode 100644 client/src/pages/errors.tsx
+ create mode 100644 client/src/pages/group-database.tsx
+ create mode 100644 client/src/pages/home.tsx
+ create mode 100644 client/src/pages/incoming-messages.tsx
+ create mode 100644 client/src/pages/inventory.tsx
+ create mode 100644 client/src/pages/login.tsx
+ create mode 100644 client/src/pages/matches.tsx
+ create mode 100644 client/src/pages/message-log.tsx
+ create mode 100644 client/src/pages/message-testing.tsx
+ create mode 100644 client/src/pages/not-found.tsx
+ create mode 100644 client/src/pages/pid-alerts.tsx
+ create mode 100644 client/src/pages/profile.tsx
+ create mode 100644 client/src/pages/records.tsx
+ create mode 100644 client/src/pages/reference-database.tsx
+ create mode 100644 client/src/pages/register.tsx
+ create mode 100644 client/src/pages/requirements.tsx
+ create mode 100644 client/src/pages/search-pids-new.tsx
+ create mode 100644 client/src/pages/search-pids.tsx
+ create mode 100644 client/src/pages/search.tsx
+ create mode 100644 client/src/pages/settings.tsx
+ create mode 100644 client/src/pages/whatsapp-integration.tsx
+ create mode 100644 client/src/utils/config.ts
+ create mode 100644 components.json
+ create mode 100644 config.json
+ create mode 100644 drizzle.config.ts
+ create mode 100644 package-lock.json
+ create mode 100644 package.json
+ create mode 100644 postcss.config.js
+ create mode 100644 prod.bak
+ create mode 100644 qr_data.txt
+ create mode 100644 replit.md
+ create mode 100644 server/auth/jwt.ts
+ create mode 100644 server/connection-monitor.ts
+ create mode 100644 server/contactResolver.ts
+ create mode 100644 server/db.ts
+ create mode 100644 server/deduplicator.ts
+ create mode 100644 server/google-sheets.ts
+ create mode 100644 server/index.ts
+ create mode 100644 server/instance-recovery.ts
+ create mode 100644 server/lib/access.ts
+ create mode 100644 server/middleware/auth.ts
+ create mode 100644 server/migrations/001_saas_setup.sql
+ create mode 100644 server/normalize.ts
+ create mode 100644 server/parser/offers.ts
+ create mode 100644 server/routes-old.ts
+ create mode 100644 server/routes.ts
+ create mode 100644 server/routes/admin.ts
+ create mode 100644 server/routes/auth.ts
+ create mode 100644 server/routes/dashboard.ts
+ create mode 100644 server/routes/webhook-secure.ts
+ create mode 100644 server/routes/whatsapp-secure.ts
+ create mode 100644 server/routes/whatsapp.ts
+ create mode 100644 server/state/waCache.ts
+ create mode 100644 server/storage.ts
+ create mode 100644 server/types/express.d.ts
+ create mode 100644 server/vite.ts
+ create mode 100644 server/waConfig.ts
+ create mode 100644 server/watch-parser.ts
+ create mode 100644 shared/schema.ts
+ create mode 100644 tailwind.config.ts
+ create mode 100644 tsconfig.json
+ create mode 100644 vite.config.ts
+Enumerating objects: 427, done.
+Counting objects: 100% (427/427), done.
+Delta compression using up to 8 threads
+Compressing objects: 100% (415/415), done.
+Writing objects: 100% (427/427), 17.88 MiB | 5.50 MiB/s, done.
+Total 427 (delta 48), reused 0 (delta 0), pack-reused 0 (from 0)
+remote: Resolving deltas: 100% (48/48), done.
+remote: error: GH013: Repository rule violations found for refs/heads/main.
+remote: 
+remote: - GITHUB PUSH PROTECTION
+remote:   —————————————————————————————————————————
+remote:     Resolve the following violations before pushing again
+remote: 
+remote:     - Push cannot contain secrets
+remote: 
+remote:     
+remote:      (?) Learn how to resolve a blocked push
+remote:      https://docs.github.com/code-security/secret-scanning/working-with-secret-scanning-and-push-protection/working-with-push-protection-from-the-command-line#resolving-a-blocked-push
+remote:     
+remote:     
+remote:       —— Google Cloud Service Account Credentials ——————————
+remote:        locations:
+remote:          - commit: 34d96666c7e4b410578694950eb50cc65968f3ec
+remote:            path: attached_assets/Whatsapp-Watch-Parser/attached_assets/whatsapp-watch-log-new-be378569774e_1751262412695.json:1
+remote:     
+remote:        (?) To push, remove secret from commit(s) or follow this URL to allow the secret.
+remote:        https://github.com/Rocket891/Whatsapp-Watch-Parser-v2/security/secret-scanning/unblock-secret/35j77dWDOBzMOA7znl4dcmweSC0
+remote:     
+remote:     
+remote:       —— Google Cloud Service Account Credentials ——————————
+remote:        locations:
+remote:          - commit: 34d96666c7e4b410578694950eb50cc65968f3ec
+remote:            path: attached_assets/Whatsapp-Watch-Parser/client/src/pages/google-sheets.tsx:34
+remote:     
+remote:        (?) To push, remove secret from commit(s) or follow this URL to allow the secret.
+remote:        https://github.com/Rocket891/Whatsapp-Watch-Parser-v2/security/secret-scanning/unblock-secret/35j77bwv9Oa66V1kS6I7BKOpbpr
+remote:     
+remote: 
+remote: 
+To https://github.com/Rocket891/Whatsapp-Watch-Parser-v2.git
+ ! [remote rejected] main -> main (push declined due to repository rule violations)
+error: failed to push some refs to 'https://github.com/Rocket891/Whatsapp-Watch-Parser-v2.git'
+~/workspace$ 
