@@ -1,0 +1,74 @@
+You are inside my existing WhatsApp Watch SaaS project: "Whatsapp-Watch-Parser-v2".
+
+I want to TEST mBlaster's /api/send endpoint from THIS app (not a separate test project), using the SAME pattern that already works on Railway and Render.
+
+Here are the mBlaster credentials to use FOR TESTING ONLY:
+
+- instance_id: 691AAD3AACBF7
+- access_token: 6823295cdd694
+- test number: 917021542840 (no +, includes country code)
+
+My goal: add a simple TEST endpoint in this app:
+
+  GET /api/test-mblaster
+
+When I open /api/test-mblaster in the browser (on the Replit public URL), it should:
+
+1. Make a POST request to:
+   https://mblaster.in/api/send
+
+2. Use this JSON body:
+   {
+     "number": "917021542840",
+     "type": "text",
+     "message": "Test from Replit SaaS app",
+     "instance_id": "691AAD3AACBF7",
+     "access_token": "6823295cdd694"
+   }
+
+3. Read the raw text response from mBlaster.
+
+4. If the response LOOKS LIKE HTML (starts with "<" and contains "<html"), then respond from /api/test-mblaster with:
+   {
+     "ok": false,
+     "reason": "HTML_RESPONSE",
+     "statusCode": <HTTP status>,
+     "bodySample": "<first 200 characters of the response>"
+   }
+
+5. Otherwise, try to parse it as JSON. If JSON parse succeeds, respond with:
+   {
+     "ok": true,
+     "statusCode": <HTTP status>,
+     "parsedJson": <parsed JSON>,
+     "rawSample": <omit or short sample>
+   }
+
+6. If JSON parse fails (but it's not HTML), then respond with:
+   {
+     "ok": true,
+     "statusCode": <HTTP status>,
+     "parsedJson": null,
+     "rawSample": "<first 200 characters>"
+   }
+
+Very important requirements:
+
+- Do NOT break any existing routes or logic.
+- Follow the existing Express/TypeScript structure of this project.
+- If there is already a central Express app file (for example server/index.ts, server/app.ts, or similar), mount the new route there in the same style as other routes (e.g. under /api).
+- You may create a small new route module if that matches the current structure (for example in server/routes/test-mblaster.ts), or you can add the handler into an existing "secure" route file if that’s how the app is organized. Just keep it clean and consistent.
+
+Technical details:
+- Use whatever HTTP client the project is already using (axios, node-fetch, or fetch). If axios is already used in server/routes/whatsapp-secure.ts or similar, please reuse it. Do NOT introduce a big new dependency if not needed.
+- Make sure the /api/test-mblaster route compiles in TypeScript and is wired correctly into the Express app.
+- You can keep instance_id, access_token, and number hard-coded for now in this TEST route only. I understand this is not ideal for production, but this is JUST to test connectivity from Replit.
+
+After you implement this:
+
+1. Run the server in the Repl.
+2. Tell me the full public URL of the Repl (e.g., https://xxx.yyy.repl.co).
+3. Internally, YOU call GET /api/test-mblaster (from within the Replit webview or a simple HTTP client).
+4. Show me the EXACT JSON response returned by /api/test-mblaster so I can see whether mBlaster responded with "status":"success" JSON or with HTML.
+
+Do NOT refactor unrelated parts of the app. Only add the minimal test route and wire it in.
