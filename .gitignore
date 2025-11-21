@@ -1,3 +1,38 @@
+# Dependencies
+node_modules/
+
+# Production build
+dist/
+build/
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.development
+
+# Logs
+*.log
+npm-debug.log*
+
+# Replit specific
+.replit
+replit.nix
+.config/
+.cache/
+.upm/
+
+# IDE
+.vscode/
+.idea/
+
+# Temp files
+tmp/
+.tmp/
+
+# Attached assets (optional)
 attached_assets/*.json
 attached_assets/*.zip
+
+# Temporary exclusion
 client/src/pages/google-sheets.tsx
