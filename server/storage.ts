@@ -128,6 +128,11 @@ export interface IStorage {
   updateUserWhatsappConfig(userId: string, updates: Partial<InsertUserWhatsappConfig>): Promise<UserWhatsappConfig>;
   deleteUserWhatsappConfig(userId: string): Promise<boolean>;
   getUserIdByInstanceId(instanceId: string): Promise<string | undefined>; // Critical for webhook user mapping
+  
+  // Polling service support methods
+  getAllUsersWithActiveWhatsapp(): Promise<UserWhatsappConfig[]>;
+  getLastMessageTime(userId: string): Promise<Date | null>;
+  messageExists(userId: string, messageId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1646,6 +1651,50 @@ export class DatabaseStorage implements IStorage {
 
     console.log(`❌ No user found for instance ID: ${instanceId}`);
     return undefined;
+  }
+
+  // Polling service support methods
+  async getAllUsersWithActiveWhatsapp(): Promise<UserWhatsappConfig[]> {
+    return await db
+      .select()
+      .from(userWhatsappConfig)
+      .where(eq(userWhatsappConfig.isActive, true));
+  }
+
+  async getLastMessageTime(userId: string): Promise<Date | null> {
+    const dataWorkspaceId = await this.getDataWorkspaceId(userId);
+    if (!dataWorkspaceId) {
+      return null;
+    }
+
+    const [result] = await db
+      .select({ createdAt: watchListings.createdAt })
+      .from(watchListings)
+      .where(eq(watchListings.userId, dataWorkspaceId))
+      .orderBy(desc(watchListings.createdAt))
+      .limit(1);
+
+    return result?.createdAt || null;
+  }
+
+  async messageExists(userId: string, messageId: string): Promise<boolean> {
+    const dataWorkspaceId = await this.getDataWorkspaceId(userId);
+    if (!dataWorkspaceId) {
+      return false;
+    }
+
+    const [result] = await db
+      .select({ id: messageLogs.id })
+      .from(messageLogs)
+      .where(
+        and(
+          eq(messageLogs.userId, dataWorkspaceId),
+          eq(messageLogs.messageId, messageId)
+        )
+      )
+      .limit(1);
+
+    return !!result;
   }
 
   async getMessageLogById(id: number): Promise<any> {
