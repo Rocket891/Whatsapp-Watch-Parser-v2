@@ -1,0 +1,60 @@
+stage-0
+RUN npm ci
+18s
+npm warn config production Use `--omit=dev` instead.
+npm warn EBADENGINE Unsupported engine {
+npm warn EBADENGINE   package: '@google/genai@1.8.0',
+npm warn EBADENGINE   required: { node: '>=20.0.0' },
+npm warn EBADENGINE   current: { node: 'v18.20.5', npm: '10.8.2' }
+npm warn EBADENGINE }
+npm warn deprecated rimraf@2.7.1: Rimraf versions prior to v4 are no longer supported
+npm warn deprecated lodash.isequal@4.5.0: This package is deprecated. Use require('node:util').isDeepStrictEqual instead.
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+npm warn deprecated fstream@1.0.12: This package is no longer supported.
+npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.is
+npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.is
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm error code 1
+npm error path /app/node_modules/vite/node_modules/esbuild
+npm error command failed
+npm error command sh -c node install.js
+npm error node:internal/errors:496
+npm error     ErrorCaptureStackTrace(err);
+npm error     ^
+npm error
+npm error <ref *1> Error: spawnSync /app/node_modules/vite/node_modules/esbuild/bin/esbuild ETXTBSY
+npm error     at Object.spawnSync (node:internal/child_process:1117:20)
+npm error     at spawnSync (node:child_process:876:24)
+npm error     at Object.execFileSync (node:child_process:919:15)
+npm error     at validateBinaryVersion (/app/node_modules/vite/node_modules/esbuild/install.js:99:28)
+npm error     at /app/node_modules/vite/node_modules/esbuild/install.js:283:5 {
+npm error   errno: -26,
+npm error   code: 'ETXTBSY',
+npm error   syscall: 'spawnSync /app/node_modules/vite/node_modules/esbuild/bin/esbuild',
+npm error   path: '/app/node_modules/vite/node_modules/esbuild/bin/esbuild',
+npm error   spawnargs: [ '--version' ],
+npm error   error: [Circular *1],
+
+npm error   status: null,
+npm error   signal: null,
+npm error   output: null,
+npm error   pid: 0,
+npm error   stdout: null,
+npm error   stderr: null
+npm error }
+npm error
+npm error Node.js v18.20.5
+npm error A complete log of this run can be found in: /root/.npm/_logs/2025-11-21T11_48_44_601Z-debug-0.log
+Dockerfile:26
+-------------------
+24 |     ENV NIXPACKS_PATH=/app/node_modules/.bin:$NIXPACKS_PATH
+25 |     COPY . /app/.
+26 | >>> RUN --mount=type=cache,id=s/6bbd73ba-85de-4485-b96f-a45eb1b99eed-/root/npm,target=/root/.npm npm ci
+27 |
+28 |     # build phase
+-------------------
+ERROR: failed to build: failed to solve: process "/bin/bash -ol pipefail -c npm ci" did not complete successfully: exit code: 1
+Error: Docker build failed
