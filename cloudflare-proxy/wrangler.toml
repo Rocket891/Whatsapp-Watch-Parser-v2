@@ -1,0 +1,12 @@
+name = "mblaster-proxy"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# Environment variables
+[vars]
+# You'll set this after deploying: your Replit app URL
+# REPLIT_APP_URL = "https://your-replit-app.replit.dev"
+
+# Optional: Set this in Cloudflare dashboard after deployment
+# [env.production.vars]
+# REPLIT_APP_URL = "https://your-production-url.com"
