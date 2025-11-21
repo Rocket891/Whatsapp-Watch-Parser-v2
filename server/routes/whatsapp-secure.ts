@@ -26,6 +26,10 @@ function getUserCaches(userId: string) {
 }
 
 /* ---------- universal mBlaster caller with retry (per-user) -------------------- */
+// Cloudflare Worker Proxy URL (bypasses IP blocking)
+const PROXY_URL = process.env.CLOUDFLARE_PROXY_URL || "https://mblaster-proxy.rocketelabs.workers.dev";
+const USE_PROXY = process.env.USE_PROXY !== "false"; // Enabled by default
+
 export async function callMBSecure(
   endpoint: string,
   params: Record<string, string|number>,
@@ -33,7 +37,9 @@ export async function callMBSecure(
   method: "GET" | "POST" = "GET",
   retries = 1
 ) {
-  const url = new URL(`https://mblaster.in/api/${endpoint}`);
+  // Use Cloudflare Worker proxy to bypass IP blocking
+  const baseUrl = USE_PROXY ? `${PROXY_URL}/api/${endpoint}` : `https://mblaster.in/api/${endpoint}`;
+  const url = new URL(baseUrl);
   
   // Remove any trailing dots from hostname to prevent TLS CN mismatch
   url.hostname = url.hostname.replace(/\.$/, '');
