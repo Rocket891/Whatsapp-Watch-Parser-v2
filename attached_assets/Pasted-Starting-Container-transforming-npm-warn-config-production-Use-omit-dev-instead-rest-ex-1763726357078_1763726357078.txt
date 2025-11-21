@@ -1,0 +1,103 @@
+Starting Container
+transforming...
+npm warn config production Use `--omit=dev` instead.
+> rest-express@1.0.0 build
+> vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+vite v5.4.19 building for production...
+Browserslist: browsers data (caniuse-lite) is 13 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+✓ 2081 modules transformed.
+  dist/index.js  318.9kb
+rendering chunks...
+computing gzip size...
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+../dist/public/index.html                   0.63 kB │ gzip:   0.38 kB
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+../dist/public/assets/index-C-1upBnA.js   809.88 kB │ gzip: 214.83 kB
+../dist/public/assets/index-BIMCGmB0.css   82.05 kB │ gzip:  14.02 kB
+✓ built in 7.97s
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+⚡ Done in 21ms
+npm warn config production Use `--omit=dev` instead.
+🔧 Configuration loaded from file: {
+  mobileNumber: '***HIDDEN***',
+  accessToken: '***HIDDEN***',
+  instanceId: '685ADB8BEC061',
+  whitelistedGroups: '',
+  autoProcess: true,
+  paused: false
+}
+🔐 Multi-tenant WhatsApp system initialized - using per-user configurations
+🔧 Configuration loaded from file: {
+  mobileNumber: '***HIDDEN***',
+  accessToken: '***HIDDEN***',
+  instanceId: '685ADB8BEC061',
+  whitelistedGroups: '',
+  autoProcess: true,
+  paused: false
+}
+/app/server/vite.ts:74
+    throw new Error(
+          ^
+Error: Could not find the build directory: /app/server/public, make sure to build the client first
+    at serveStatic (/app/server/vite.ts:74:11)
+    at <anonymous> (/app/server/index.ts:57:5)
+Node.js v20.18.1
+npm warn config production Use `--omit=dev` instead.
+> rest-express@1.0.0 build
+> vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+vite v5.4.19 building for production...
+transforming...
+Browserslist: browsers data (caniuse-lite) is 13 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+✓ 2081 modules transformed.
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 7.91s
+rendering chunks...
+computing gzip size...
+../dist/public/index.html                   0.63 kB │ gzip:   0.38 kB
+../dist/public/assets/index-BIMCGmB0.css   82.05 kB │ gzip:  14.02 kB
+../dist/public/assets/index-C-1upBnA.js   809.88 kB │ gzip: 214.83 kB
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+  dist/index.js  318.9kb
+⚡ Done in 23ms
+npm warn config production Use `--omit=dev` instead.
+🔧 Configuration loaded from file: {
+  mobileNumber: '***HIDDEN***',
+  accessToken: '***HIDDEN***',
+  instanceId: '685ADB8BEC061',
+  whitelistedGroups: '',
+  autoProcess: true,
+  paused: false
+}
+🔐 Multi-tenant WhatsApp system initialized - using per-user configurations
+🔧 Configuration loaded from file: {
+  mobileNumber: '***HIDDEN***',
+  accessToken: '***HIDDEN***',
+  instanceId: '685ADB8BEC061',
+  whitelistedGroups: '',
+  autoProcess: true,
+  paused: false
+}
+Node.js v20.18.1
+/app/server/vite.ts:74
+    throw new Error(
+          ^
+Error: Could not find the build directory: /app/server/public, make sure to build the client first
+    at serveStatic (/app/server/vite.ts:74:11)
+    at <anonymous> (/app/server/index.ts:57:5)
+> rest-express@1.0.0 build
+> vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist
+npm warn config production Use `--omit=dev` instead.
+vite v5.4.19 building for production...
+transforming...
+Browserslist: browsers data (caniuse-lite) is 13 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+✓ 2081 modules transformed.
+- Using dynamic import() to code-split the application
