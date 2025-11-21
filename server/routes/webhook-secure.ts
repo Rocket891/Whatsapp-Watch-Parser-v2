@@ -58,7 +58,7 @@ export function registerSecureWebhookRoutes(app: Express) {
 /* ----------------------------------------------------------------
    SECURE WEBHOOK PROCESSING WITH USER CONTEXT
    ---------------------------------------------------------------- */
-async function processWebhookWithUserContext(payload: any, userId: string, userConfig: UserWhatsappConfig) {
+export async function processWebhookWithUserContext(payload: any, userId: string, userConfig: UserWhatsappConfig) {
   const { instanceId } = userConfig;
   
   try {
@@ -533,5 +533,3 @@ function shouldParseForWatches(messageContent: string): boolean {
 
   return hasNumberPatterns && (hasCurrency || hasWatchKeywords);
 }
-
-export { processWebhookWithUserContext };

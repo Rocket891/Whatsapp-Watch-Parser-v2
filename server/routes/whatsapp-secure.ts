@@ -5,6 +5,7 @@ import type { Express } from "express";
 import { requireAuth, type AuthRequest } from "../middleware/auth";
 import { storage } from "../storage";
 import type { InsertUserWhatsappConfig } from "@shared/schema";
+import { getPollingStatus, manualPoll } from "../polling-service";
 
 // Per-user WhatsApp name caches (isolated by userId)
 const groupNameCaches = new Map<string, Map<string, string>>();
@@ -268,6 +269,9 @@ export function registerSecureWhatsAppRoutes(app: Express) {
         return res.json({ connected: false, message: "WhatsApp not configured" });
       }
 
+      // Get polling status
+      const pollingStatus = getPollingStatus(req.user.userId);
+
       // Check connection status with increased retries for IP blocking resilience
       // With 3 retries: waits 1s, 2s, 4s between attempts (total ~7s max)
       const result = await callMBSecure("get_status", {}, userConfig, "GET", 3);
@@ -280,11 +284,59 @@ export function registerSecureWhatsAppRoutes(app: Express) {
         instanceId: userConfig.instanceId,
         mode: result?.json?.mode || "unknown",
         state: result?.json?.state || "unknown",
-        message: connected ? "Connected to WhatsApp" : "Not connected to WhatsApp"
+        message: connected ? "Connected to WhatsApp" : "Not connected to WhatsApp",
+        // Include polling status
+        pollingMode: pollingStatus?.mode || 'webhook',
+        pollingActive: pollingStatus?.isActive || false,
+        lastWebhookTime: pollingStatus?.lastWebhookTime,
+        lastPollTime: pollingStatus?.lastPollTime,
+        messagesFetched: pollingStatus?.messagesFetched || 0
       });
     } catch (error) {
       console.error(`Error checking connection status:`, error);
       res.json({ connected: false, message: "Failed to check connection" });
+    }
+  });
+
+  /* ------------------------------------------------ POLLING STATUS (Authenticated) */
+  app.get("/api/whatsapp/polling-status", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const pollingStatus = getPollingStatus(req.user.userId);
+      
+      if (!pollingStatus) {
+        return res.json({
+          enabled: false,
+          mode: 'webhook',
+          isActive: false,
+          message: "Polling not initialized"
+        });
+      }
+
+      return res.json({
+        enabled: true,
+        mode: pollingStatus.mode,
+        isActive: pollingStatus.isActive,
+        lastWebhookTime: pollingStatus.lastWebhookTime,
+        lastPollTime: pollingStatus.lastPollTime,
+        messagesFetched: pollingStatus.messagesFetched,
+        message: pollingStatus.isActive 
+          ? `Polling active - ${pollingStatus.messagesFetched} messages fetched`
+          : "Webhooks active - Polling on standby"
+      });
+    } catch (error) {
+      console.error("Error fetching polling status:", error);
+      res.status(500).json({ error: "Failed to fetch polling status" });
+    }
+  });
+
+  /* ------------------------------------------------ MANUAL POLL (Authenticated - for testing) */
+  app.post("/api/whatsapp/manual-poll", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      await manualPoll(req.user.userId);
+      return res.json({ success: true, message: "Manual poll triggered" });
+    } catch (error) {
+      console.error("Error during manual poll:", error);
+      res.status(500).json({ error: "Manual poll failed" });
     }
   });
 

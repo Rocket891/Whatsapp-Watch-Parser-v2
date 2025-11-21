@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { initializePollingService } from "./polling-service";
 
 const app = express();
 app.use(express.json({ limit: '10mb' })); // Increase limit for large WhatsApp messages
@@ -64,7 +65,10 @@ app.use((req, res, next) => {
     port,
     host: "0.0.0.0",
     reusePort: true,
-  }, () => {
+  }, async () => {
     log(`serving on port ${port}`);
+    
+    // Initialize smart hybrid polling service
+    await initializePollingService();
   });
 })();
