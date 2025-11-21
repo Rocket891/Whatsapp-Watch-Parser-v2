@@ -158,44 +158,12 @@ async function pollMessages(userId: string, userConfig: UserWhatsappConfig) {
       return;
     }
 
-    // Fetch messages from mBlaster
-    const response = await callMBSecure(
-      "getMessages",
-      { limit: 100 }, // Fetch last 100 messages
-      { instanceId: userConfig.instanceId, accessToken: userConfig.accessToken },
-      "GET",
-      3 // 3 retries
-    );
-
-    if (!response || !response.ok || !response.json || response.json.status !== "success") {
-      console.log(`⚠️ [User ${userId}] Polling failed:`, response?.json?.message || "Unknown error");
-      return;
-    }
-
-    const json = response.json;
-
-    const messages = json?.data || [];
-    if (!Array.isArray(messages) || messages.length === 0) {
-      console.log(`📭 [User ${userId}] No new messages`);
-      state.lastPollTime = new Date();
-      return;
-    }
-
-    console.log(`📬 [User ${userId}] Fetched ${messages.length} messages via polling`);
-
-    // Process each message (filter out already processed)
-    let newCount = 0;
-    for (const message of messages) {
-      const processed = await processPolledMessage(message, userId, userConfig);
-      if (processed) newCount++;
-    }
-
-    state.messagesFetched += newCount;
+    // NOTE: mBlaster API is webhook-based only - no message fetching endpoint exists
+    // Polling is disabled as per mBlaster API documentation
+    // All messages come through webhooks: mBlaster → Cloudflare Worker → Replit App
+    console.log(`ℹ️ [User ${userId}] mBlaster uses webhook-only architecture - polling not available`);
     state.lastPollTime = new Date();
-
-    if (newCount > 0) {
-      console.log(`✅ [User ${userId}] Processed ${newCount} new messages from polling (${state.messagesFetched} total)`);
-    }
+    return;
 
   } catch (error: any) {
     console.error(`❌ [User ${userId}] Polling error:`, error.message);

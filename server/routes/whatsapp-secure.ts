@@ -278,9 +278,9 @@ export function registerSecureWhatsAppRoutes(app: Express) {
       // Get polling status
       const pollingStatus = getPollingStatus(req.user.userId);
 
-      // Use get_groups to check connection (get_status may be blocked/deprecated)
+      // Use get_groups to check connection (POST method as per mBlaster API docs)
       // If get_groups returns valid JSON, WhatsApp is connected
-      const result = await callMBSecure("get_groups", {}, userConfig, "GET", 3);
+      const result = await callMBSecure("get_groups", {}, userConfig, "POST", 3);
       
       const connected = result && result.ok && result.json.status === "success";
       
