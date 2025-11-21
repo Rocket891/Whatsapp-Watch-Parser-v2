@@ -278,12 +278,11 @@ export function registerSecureWhatsAppRoutes(app: Express) {
       // Get polling status
       const pollingStatus = getPollingStatus(req.user.userId);
 
-      // Check connection status with increased retries for IP blocking resilience
-      // With 3 retries: waits 1s, 2s, 4s between attempts (total ~7s max)
-      const result = await callMBSecure("get_status", {}, userConfig, "GET", 3);
+      // Use get_groups to check connection (get_status may be blocked/deprecated)
+      // If get_groups returns valid JSON, WhatsApp is connected
+      const result = await callMBSecure("get_groups", {}, userConfig, "GET", 3);
       
-      const connected = result && result.ok && 
-        (result.json.state === "authenticated" || result.json.status === "connected");
+      const connected = result && result.ok && result.json.status === "success";
       
       return res.json({ 
         connected,
