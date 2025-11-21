@@ -15,7 +15,6 @@ import AllRecords from "@/pages/all-records";
 import IncomingMessages from "@/pages/incoming-messages";
 import Errors from "@/pages/errors";
 import MessageLog from "@/pages/message-log";
-import GoogleSheets from "@/pages/google-sheets";
 import WhatsAppIntegration from "@/pages/whatsapp-integration";
 import AIConfiguration from "@/pages/ai-configuration";
 import Settings from "@/pages/settings";
@@ -64,7 +63,6 @@ function Router() {
       <Route path="/incoming-messages" component={IncomingMessages} />
       <Route path="/errors" component={Errors} />
       <Route path="/message-log" component={MessageLog} />
-      <Route path="/google-sheets" component={GoogleSheets} />
       <Route path="/whatsapp-integration" component={WhatsAppIntegration} />
       <Route path="/ai-configuration" component={AIConfiguration} />
       <Route path="/reference-database" component={ReferenceDatabase} />
