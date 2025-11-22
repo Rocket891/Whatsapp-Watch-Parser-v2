@@ -1,0 +1,227 @@
+2025-11-22T04:33:08.000000000Z [inf]  Starting Container
+2025-11-22T04:33:10.069941087Z [inf]  [36mvite v5.4.19 [32mbuilding for production...[36m[39m
+2025-11-22T04:33:10.069947778Z [inf]  transforming...
+2025-11-22T04:33:10.069955146Z [err]  Browserslist: browsers data (caniuse-lite) is 13 months old. Please run:
+2025-11-22T04:33:10.069961074Z [err]    npx update-browserslist-db@latest
+2025-11-22T04:33:10.069966584Z [err]    Why you should do it regularly: https://github.com/browserslist/update-db#readme
+2025-11-22T04:33:17.152205575Z [inf]  [32m✓[39m 2081 modules transformed.
+2025-11-22T04:33:17.357296122Z [inf]  rendering chunks...
+2025-11-22T04:33:17.372403510Z [inf]  computing gzip size...
+2025-11-22T04:33:17.417826832Z [inf]  [2m../dist/public/[22m[32mindex.html                 [39m[1m[2m  0.63 kB[22m[1m[22m[2m │ gzip:   0.39 kB[22m
+2025-11-22T04:33:17.417832686Z [inf]  [2m../dist/public/[22m[2massets/[22m[35mindex-BMxtFWV5.css  [39m[1m[2m 82.15 kB[22m[1m[22m[2m │ gzip:  14.03 kB[22m
+2025-11-22T04:33:17.417837530Z [inf]  [2m../dist/public/[22m[2massets/[22m[36mindex-CGpuYdKJ.js   [39m[1m[33m811.47 kB[39m[22m[2m │ gzip: 215.16 kB[22m
+2025-11-22T04:33:17.417842803Z [err]  [33m
+2025-11-22T04:33:17.417847780Z [err]  (!) Some chunks are larger than 500 kB after minification. Consider:
+2025-11-22T04:33:17.417853237Z [err]  - Using dynamic import() to code-split the application
+2025-11-22T04:33:17.417860595Z [err]  - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+2025-11-22T04:33:17.417866432Z [err]  - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+2025-11-22T04:33:17.417873977Z [inf]  [32m✓ built in 8.65s[39m
+2025-11-22T04:33:17.615536627Z [err]  npm warn config production Use `--omit=dev` instead.
+2025-11-22T04:33:21.195243627Z [inf]  🔧 Configuration loaded from file: {
+2025-11-22T04:33:21.195258567Z [inf]    mobileNumber: '***HIDDEN***',
+2025-11-22T04:33:21.195267839Z [inf]    accessToken: '***HIDDEN***',
+2025-11-22T04:33:21.195274680Z [inf]    instanceId: '685ADB8BEC061',
+2025-11-22T04:33:21.195285115Z [inf]    whitelistedGroups: '',
+2025-11-22T04:33:21.195293377Z [inf]    autoProcess: true,
+2025-11-22T04:33:21.195302629Z [inf]    paused: false
+2025-11-22T04:33:21.195310724Z [inf]  }
+2025-11-22T04:33:21.195319908Z [inf]  🔐 Multi-tenant WhatsApp system initialized - using per-user configurations
+2025-11-22T04:33:21.195327965Z [inf]  🔧 Configuration loaded from file: {
+2025-11-22T04:33:21.195337495Z [inf]    mobileNumber: '***HIDDEN***',
+2025-11-22T04:33:21.195343188Z [inf]    accessToken: '***HIDDEN***',
+2025-11-22T04:33:21.195349743Z [inf]    instanceId: '685ADB8BEC061',
+2025-11-22T04:33:21.195356515Z [inf]    whitelistedGroups: '',
+2025-11-22T04:33:21.195363038Z [inf]    autoProcess: true,
+2025-11-22T04:33:21.195370470Z [inf]    paused: false
+2025-11-22T04:33:21.195377271Z [inf]  }
+2025-11-22T04:33:21.222302600Z [inf]  4:33:21 AM [express] serving on port 5000
+2025-11-22T04:33:21.222310859Z [inf]  🔄 Initializing Smart Hybrid Polling Service...
+2025-11-22T04:33:24.146507244Z [inf]  👀 [User 403cf295-83f5-40d9-b3be-ebe4ad68eb3c] Monitoring started - Last webhook: 2025-11-12T18:54:21.162Z
+2025-11-22T04:33:24.171955921Z [inf]  📊 Loaded 101 groups from database records
+2025-11-22T04:33:25.225198343Z [inf]  👀 [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] Monitoring started - Last webhook: 2025-11-11T17:51:18.480Z
+2025-11-22T04:33:26.364581403Z [inf]  👀 [User 60c8fc00-2596-403f-a2fc-008685e1092a] Monitoring started - Last webhook: never
+2025-11-22T04:33:28.186007126Z [inf]  ✅ Polling service initialized for 4 users
+2025-11-22T04:33:28.186047505Z [inf]  👀 [User 9a1e3228-5a72-46dd-916b-b3f23fc7e017] Monitoring started - Last webhook: 2025-11-11T17:51:18.480Z
+2025-11-22T04:33:57.802247781Z [inf]  🚨 [User 403cf295-83f5-40d9-b3be-ebe4ad68eb3c] Webhook silence detected (13540 min). Starting polling...
+2025-11-22T04:33:57.802262338Z [inf]  🔄 [User 403cf295-83f5-40d9-b3be-ebe4ad68eb3c] Polling activated (interval: 60s)
+2025-11-22T04:33:57.802272224Z [inf]  📡 [User 403cf295-83f5-40d9-b3be-ebe4ad68eb3c] Polling mBlaster for new messages...
+2025-11-22T04:33:57.802281359Z [inf]  ℹ️ [User 403cf295-83f5-40d9-b3be-ebe4ad68eb3c] mBlaster uses webhook-only architecture - polling not available
+2025-11-22T04:33:57.802289203Z [inf]  🚨 [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] Webhook silence detected (15043 min). Starting polling...
+2025-11-22T04:33:57.802298755Z [inf]  🔄 [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] Polling activated (interval: 60s)
+2025-11-22T04:33:57.802309094Z [inf]  📡 [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] Polling mBlaster for new messages...
+2025-11-22T04:33:57.802318407Z [inf]  ℹ️ [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] mBlaster uses webhook-only architecture - polling not available
+2025-11-22T04:33:58.269053027Z [inf]  🚨 [User 60c8fc00-2596-403f-a2fc-008685e1092a] Webhook silence detected (Infinity min). Starting polling...
+2025-11-22T04:33:58.269058008Z [inf]  🔄 [User 60c8fc00-2596-403f-a2fc-008685e1092a] Polling activated (interval: 60s)
+2025-11-22T04:33:58.269063037Z [inf]  📡 [User 60c8fc00-2596-403f-a2fc-008685e1092a] Polling mBlaster for new messages...
+2025-11-22T04:33:58.269067478Z [inf]  ℹ️ [User 60c8fc00-2596-403f-a2fc-008685e1092a] mBlaster uses webhook-only architecture - polling not available
+2025-11-22T04:33:59.296607185Z [inf]  🚨 [User 9a1e3228-5a72-46dd-916b-b3f23fc7e017] Webhook silence detected (15043 min). Starting polling...
+2025-11-22T04:33:59.296624528Z [inf]  🔄 [User 9a1e3228-5a72-46dd-916b-b3f23fc7e017] Polling activated (interval: 60s)
+2025-11-22T04:33:59.296632660Z [inf]  📡 [User 9a1e3228-5a72-46dd-916b-b3f23fc7e017] Polling mBlaster for new messages...
+2025-11-22T04:33:59.296640240Z [inf]  ℹ️ [User 9a1e3228-5a72-46dd-916b-b3f23fc7e017] mBlaster uses webhook-only architecture - polling not available
+2025-11-22T04:34:59.765965639Z [inf]  📡 [User 403cf295-83f5-40d9-b3be-ebe4ad68eb3c] Polling mBlaster for new messages...
+2025-11-22T04:34:59.765973300Z [inf]  ℹ️ [User 403cf295-83f5-40d9-b3be-ebe4ad68eb3c] mBlaster uses webhook-only architecture - polling not available
+2025-11-22T04:34:59.765980048Z [inf]  📡 [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] Polling mBlaster for new messages...
+2025-11-22T04:34:59.765986303Z [inf]  ℹ️ [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] mBlaster uses webhook-only architecture - polling not available
+2025-11-22T04:34:59.765995244Z [inf]  📡 [User 60c8fc00-2596-403f-a2fc-008685e1092a] Polling mBlaster for new messages...
+2025-11-22T04:34:59.766001182Z [inf]  ℹ️ [User 60c8fc00-2596-403f-a2fc-008685e1092a] mBlaster uses webhook-only architecture - polling not available
+2025-11-22T04:34:59.766008278Z [inf]  📡 [User 9a1e3228-5a72-46dd-916b-b3f23fc7e017] Polling mBlaster for new messages...
+2025-11-22T04:34:59.766013248Z [inf]  ℹ️ [User 9a1e3228-5a72-46dd-916b-b3f23fc7e017] mBlaster uses webhook-only architecture - polling not available
+2025-11-22T04:35:06.217019762Z [inf]  4:35:06 AM [express] GET /api/whatsapp/instance-info 304 in 752ms :: {"instanceId":"6871232390D4E","…
+2025-11-22T04:35:07.657116448Z [inf]  4:35:07 AM [express] GET /api/auth/me 200 in 235ms :: {"user":{"id":"815cb980-b776-4053-8cef-6e69d3d…
+2025-11-22T04:35:08.654251283Z [inf]  4:35:08 AM [express] GET /api/whatsapp/instance-info 304 in 707ms :: {"instanceId":"6871232390D4E","…
+2025-11-22T04:35:09.545125754Z [inf]  4:35:09 AM [express] GET /api/whatsapp/connection-status 200 in 1899ms :: {"connected":false,"instan…
+2025-11-22T04:35:10.614946181Z [inf]  4:35:10 AM [express] POST /api/whatsapp/ping 200 in 2802ms :: {"connected":false,"mode":"none","last…
+2025-11-22T04:35:10.971798632Z [inf]  4:35:10 AM [express] GET /api/whatsapp/messages 200 in 3350ms :: {"messages":[{"id":"raw_383760","me…
+2025-11-22T04:35:11.247406095Z [inf]  🔧 Configuration loaded from file: {
+2025-11-22T04:35:11.247414206Z [inf]    mobileNumber: '***HIDDEN***',
+2025-11-22T04:35:11.247419739Z [inf]    accessToken: '***HIDDEN***',
+2025-11-22T04:35:11.247425259Z [inf]    instanceId: '685ADB8BEC061',
+2025-11-22T04:35:11.247431428Z [inf]    whitelistedGroups: '',
+2025-11-22T04:35:11.247436478Z [inf]    autoProcess: true,
+2025-11-22T04:35:11.247441353Z [inf]    paused: false
+2025-11-22T04:35:11.247447700Z [inf]  }
+2025-11-22T04:35:11.251341642Z [inf]  4:35:11 AM [express] GET /api/whatsapp/pause-status 304 in 5ms :: {"paused":false}
+2025-11-22T04:35:11.679413923Z [inf]  📊 WhatsApp Setup > Groups Database API called for user 815cb980-b776-4053-8cef-6e69d3d6f0b8
+2025-11-22T04:35:11.959154160Z [inf]  📊 WhatsApp Setup Groups Database: Found 86 groups in database: [
+2025-11-22T04:35:11.959161489Z [inf]    'One World Dealers Group (YOLO) lll 🌎 ⌚️',
+2025-11-22T04:35:11.959166256Z [inf]    'CVD  & Gems',
+2025-11-22T04:35:11.959170975Z [inf]    '2️⃣ Lab Grown Diamonds 💎',
+2025-11-22T04:35:11.959175181Z [inf]    'Natural Diamonds Only',
+2025-11-22T04:35:11.959185451Z [inf]    'S.M.Jogani Family',
+2025-11-22T04:35:11.959191898Z [inf]    'TOXIC_WATCH_SUART 📍',
+2025-11-22T04:35:11.959197613Z [inf]    'LGD DEMAND VISHAL DIAMOND JE8240',
+2025-11-22T04:35:11.959204911Z [inf]    'IJT 2025',
+2025-11-22T04:35:11.959211664Z [inf]    'DSJS MUMBAI SANGH',
+2025-11-22T04:35:11.959217322Z [inf]    'Light Grown Diamond',
+2025-11-22T04:35:11.959223581Z [inf]    'Dark side😜',
+2025-11-22T04:35:11.959228169Z [inf]    'DXB / HK WATCHES',
+2025-11-22T04:35:11.959233818Z [inf]    'Sharing GREAT Watches with Andy',
+2025-11-22T04:35:11.959239298Z [inf]    '中欧美亚表商俱乐部',
+2025-11-22T04:35:11.959244325Z [inf]    '香港 (Rm PP AP Rolex FPJ)💖',
+2025-11-22T04:35:11.959249602Z [inf]    'Looking for parts ¡¡¡¡',
+2025-11-22T04:35:11.959256547Z [inf]    '𝐓.𝐃𝐄𝐀𝐋𝐄𝐑🇪🇺Europe',
+2025-11-22T04:35:11.959262075Z [inf]    '✅️CHECK YOUR SERIAL IN THE SYSTEMS',
+2025-11-22T04:35:11.959266761Z [inf]    '💎MASCOT LUXURY💎',
+2025-11-22T04:35:11.959270742Z [inf]    'Hk watches and Jewelry',
+2025-11-22T04:35:11.959274675Z [inf]    '𝐓.𝐃𝐄𝐀𝐋𝐄𝐑🇫🇷France',
+2025-11-22T04:35:11.959280450Z [inf]    'HK watch club',
+2025-11-22T04:35:11.959285476Z [inf]    '𝐓.𝐃𝐄𝐀𝐋𝐄𝐑🇪🇸Spain',
+2025-11-22T04:35:11.959291494Z [inf]    'ANA WATCHES Community',
+2025-11-22T04:35:11.959296513Z [inf]    'HK GOOD PRICE & LOOKING',
+2025-11-22T04:35:11.959301568Z [inf]    '📈Million Watches💰🤩🤩',
+2025-11-22T04:35:11.961553438Z [inf]    '🔝⚙️Only for Watch Parts🔝',
+2025-11-22T04:35:11.961563695Z [inf]    'General',
+2025-11-22T04:35:11.961586509Z [inf]    'Chrono Group 🌎',
+2025-11-22T04:35:11.961594878Z [inf]    '𝐓.𝐃𝐄𝐀𝐋𝐄𝐑🇩🇪Germany',
+2025-11-22T04:35:11.961597581Z [inf]    'General',
+2025-11-22T04:35:11.961605575Z [inf]    '𝐓.𝐃𝐄𝐀𝐋𝐄𝐑🇦🇪Dubai',
+2025-11-22T04:35:11.961606797Z [inf]    '发',
+2025-11-22T04:35:11.961606904Z [inf]    'BIG WATCH IN STOCK@KOREA',
+2025-11-22T04:35:11.961615377Z [inf]    'Sally Watch',
+2025-11-22T04:35:11.961620282Z [inf]    '🪩🪩Luxury Watches Trade',
+2025-11-22T04:35:11.961628064Z [inf]    '表',
+2025-11-22T04:35:11.961629656Z [inf]    '𝐓.𝐃𝐄𝐀𝐋𝐄𝐑🇺🇸United States',
+2025-11-22T04:35:11.961632747Z [inf]    'Time machine',
+2025-11-22T04:35:11.961635278Z [inf]    "RM&PP Only for Jimmy's Friends",
+2025-11-22T04:35:11.961635843Z [inf]    '⭐TIME Hunter⭐',
+2025-11-22T04:35:11.961642748Z [inf]    'General',
+2025-11-22T04:35:11.961653002Z [inf]    '𝐓.𝐃𝐄𝐀𝐋𝐄𝐑🇬🇧United Kingdom',
+2025-11-22T04:35:11.961655112Z [inf]    'HK watch',
+2025-11-22T04:35:11.961656550Z [inf]    'RM PP AP （HK）',
+2025-11-22T04:35:11.961659033Z [inf]    'Graffyne • Trade Group',
+2025-11-22T04:35:11.961664911Z [inf]    '🔥Famous Watch⌚Trade',
+2025-11-22T04:35:11.961675486Z [inf]    'BIG WATCH IN STOCK@CHINA',
+2025-11-22T04:35:11.961677843Z [inf]    '𝐓.𝐃𝐄𝐀𝐋𝐄𝐑🇮🇹Italy',
+2025-11-22T04:35:11.961683020Z [inf]    "Rolex Only for Jimmy's Friends",
+2025-11-22T04:35:11.961687580Z [inf]    'Maya Group‎ 🥰',
+2025-11-22T04:35:11.961690792Z [inf]    '𝐓.𝐃𝐄𝐀𝐋𝐄𝐑🇭🇰Hong Kong',
+2025-11-22T04:35:11.961703356Z [inf]    'yuyu HK watch🇭🇰1',
+2025-11-22T04:35:11.961709988Z [inf]    'Queen’s.E Success Watches 皇御名錶',
+2025-11-22T04:35:11.965133272Z [inf]    'Sorteos Legacy High Rollers Oficial',
+2025-11-22T04:35:11.965141935Z [inf]    'Graffyne Luxury Watches • D',
+2025-11-22T04:35:11.965149149Z [inf]    '𝐓.𝐃𝐄𝐀𝐋𝐄𝐑🇲🇾Malaysia',
+2025-11-22T04:35:11.965156275Z [inf]    'RM PP AP ROLEX VC',
+2025-11-22T04:35:11.965163900Z [inf]    'BIG WATCH IN STOCK@GERMANY',
+2025-11-22T04:35:11.965171755Z [inf]    'BIG WATCH IN STOCK@AUSTRALIA',
+2025-11-22T04:35:11.965179075Z [inf]    'Watch Trading Group',
+2025-11-22T04:35:11.965186375Z [inf]    'Henry Lu and Friends WTB & WTS',
+2025-11-22T04:35:11.965220848Z [inf]    'Maya Group Looking',
+2025-11-22T04:35:11.965222279Z [inf]    'TOP SWISS HK LTD',
+2025-11-22T04:35:11.965229977Z [inf]    'TNW INTERNATIONAL',
+2025-11-22T04:35:11.965238479Z [inf]    'Rm Pp Ap Vc Rolex Vip🔥',
+2025-11-22T04:35:11.965240409Z [inf]    'BIG WATCH IN STOCK@HK',
+2025-11-22T04:35:11.965246114Z [inf]    'Test3',
+2025-11-22T04:35:11.965255310Z [inf]    'Watch test',
+2025-11-22T04:35:11.965255883Z [inf]    'Hung Fa Watch',
+2025-11-22T04:35:11.965266629Z [inf]    'Rolex',
+2025-11-22T04:35:11.965271010Z [inf]    'BIG WATCH IN STOCK@USA',
+2025-11-22T04:35:11.965275107Z [inf]    'watch',
+2025-11-22T04:35:11.965284707Z [inf]    'Maya group USED',
+2025-11-22T04:35:11.965291885Z [inf]    'BIG WATCH IN STOCK@JAPAN',
+2025-11-22T04:35:11.965297066Z [inf]    "Legacy Artisan Dealers' Community",
+2025-11-22T04:35:11.965302794Z [inf]    'BIG WATCH IN STOCK@VIETNAM',
+2025-11-22T04:35:11.965310475Z [inf]    'BIG WATCH IN STOCK@ENG',
+2025-11-22T04:35:11.965317984Z [inf]    'BIG WATCH IN STOCK@Malaysia',
+2025-11-22T04:35:11.965325012Z [inf]    'WatchDen',
+2025-11-22T04:35:11.965334449Z [inf]    'M&J watchs(HK🇭🇰）',
+2025-11-22T04:35:11.965341168Z [inf]    'TOP SWISS HK LTD',
+2025-11-22T04:35:11.965351067Z [inf]    'HK Watch',
+2025-11-22T04:35:11.965356926Z [inf]    'Natalia watches hk',
+2025-11-22T04:35:11.967036226Z [inf]    'Family Rasikbhai  valani',
+2025-11-22T04:35:11.967049106Z [inf]    'Test 1'
+2025-11-22T04:35:11.967059451Z [inf]  ]
+2025-11-22T04:35:11.967067648Z [inf]  4:35:11 AM [express] GET /api/whatsapp/groups/database 304 in 713ms :: {"groups":[{"id":39,"groupId"…
+2025-11-22T04:35:12.925803017Z [inf]  4:35:12 AM [express] GET /api/whatsapp/connection-status 304 in 1426ms :: {"connected":false,"instan…
+2025-11-22T04:35:21.928973360Z [inf]  🔗 Updating webhook URL for instance: 6871232390D4E
+2025-11-22T04:35:21.928988952Z [inf]  🔗 Setting webhook to: https://whatsapp-watch-parser-v2-production.up.railway.app/api/whatsapp/webhook
+2025-11-22T04:35:23.754976147Z [inf]  🔗 Webhook update response: {"status":"success","message":"Webhook URI Saved"}
+2025-11-22T04:35:23.754988132Z [inf]  4:35:23 AM [express] POST /api/whatsapp/update-webhook 200 in 1435ms :: {"success":true,"webhookUrl"…
+2025-11-22T04:35:29.955469102Z [inf]  4:35:29 AM [express] GET /api/whatsapp/connection-status 304 in 1941ms :: {"connected":false,"instan…
+2025-11-22T04:35:36.839812732Z [inf]  🔄 [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] Setting webhook for instance 6871232390D4E: https://whatsapp-watch-parser-v2-production.up.railway.app/api/whatsapp/webhook
+2025-11-22T04:35:36.839968285Z [inf]  🧹 [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] Cleared group and contact caches for fresh data fetch
+2025-11-22T04:35:40.363011360Z [inf]  🧹 [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] Cleared group and contact caches for fresh data fetch
+2025-11-22T04:35:40.363019364Z [inf]  🔄 [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] Setting webhook for instance 6871232390D4E: https://whatsapp-watch-parser-v2-production.up.railway.app/api/whatsapp/webhook
+2025-11-22T04:35:40.846918021Z [inf]  ✅ [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] Webhook set and reconnected successfully for 6871232390D4E
+2025-11-22T04:35:40.846930534Z [inf]  4:35:40 AM [express] POST /api/whatsapp/configure 200 in 4732ms :: {"status":"configured","instanceI…
+2025-11-22T04:35:40.846938741Z [inf]  4:35:40 AM [express] GET /api/whatsapp/connection-status 401 in 1ms :: {"error":"No token provided"}
+2025-11-22T04:35:41.233312686Z [inf]  4:35:41 AM [express] GET /api/whatsapp/connection-status 401 in 0ms :: {"error":"No token provided"}
+2025-11-22T04:35:42.005836254Z [inf]  4:35:41 AM [express] GET /api/whatsapp/instance-info 304 in 761ms :: {"instanceId":"6871232390D4E","…
+2025-11-22T04:35:43.006051708Z [inf]  ✅ [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] Webhook set and reconnected successfully for 6871232390D4E
+2025-11-22T04:35:43.006060467Z [inf]  4:35:42 AM [express] POST /api/whatsapp/configure 200 in 2934ms :: {"status":"configured","instanceI…
+2025-11-22T04:35:43.006072309Z [inf]  4:35:42 AM [express] GET /api/whatsapp/connection-status 401 in 1ms :: {"error":"No token provided"}
+2025-11-22T04:35:47.270291402Z [inf]  4:35:47 AM [express] POST /api/whatsapp/ping 200 in 2737ms :: {"connected":false,"mode":"none","last…
+2025-11-22T04:35:50.436829483Z [inf]  4:35:50 AM [express] GET /api/whatsapp/connection-status 304 in 2064ms :: {"connected":false,"instan…
+2025-11-22T04:35:52.231052089Z [inf]  4:35:52 AM [express] GET /api/whatsapp/messages 200 in 2667ms :: {"messages":[{"id":"raw_383760","me…
+2025-11-22T04:35:56.019902853Z [inf]  📡 [User 403cf295-83f5-40d9-b3be-ebe4ad68eb3c] Polling mBlaster for new messages...
+2025-11-22T04:35:56.019909501Z [inf]  ℹ️ [User 403cf295-83f5-40d9-b3be-ebe4ad68eb3c] mBlaster uses webhook-only architecture - polling not available
+2025-11-22T04:35:57.487937061Z [inf]  📡 [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] Polling mBlaster for new messages...
+2025-11-22T04:35:57.487944890Z [inf]  ℹ️ [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] mBlaster uses webhook-only architecture - polling not available
+2025-11-22T04:35:57.989357691Z [inf]  ℹ️ [User 60c8fc00-2596-403f-a2fc-008685e1092a] mBlaster uses webhook-only architecture - polling not available
+2025-11-22T04:35:57.989456475Z [inf]  📡 [User 60c8fc00-2596-403f-a2fc-008685e1092a] Polling mBlaster for new messages...
+2025-11-22T04:35:59.297857919Z [inf]  📡 [User 9a1e3228-5a72-46dd-916b-b3f23fc7e017] Polling mBlaster for new messages...
+2025-11-22T04:35:59.297864755Z [inf]  ℹ️ [User 9a1e3228-5a72-46dd-916b-b3f23fc7e017] mBlaster uses webhook-only architecture - polling not available
+2025-11-22T04:36:00.510473684Z [inf]  4:36:00 AM [express] POST /api/whatsapp/ping 200 in 2762ms :: {"connected":false,"mode":"none","last…
+2025-11-22T04:36:01.004787501Z [inf]  4:36:00 AM [express] GET /api/whatsapp/messages 200 in 3044ms :: {"messages":[{"id":"raw_383760","me…
+2025-11-22T04:36:03.967774071Z [inf]  4:36:03 AM [express] GET /api/whatsapp/connection-status 200 in 1652ms :: {"connected":false,"instan…
+2025-11-22T04:36:33.549976091Z [inf]  4:36:30 AM [express] GET /api/whatsapp/connection-status 304 in 2007ms :: {"connected":false,"instan…
+2025-11-22T04:36:33.550008639Z [inf]  4:36:27 AM [express] POST /api/whatsapp/ping 200 in 1840ms :: {"connected":false,"mode":"none","last…
+2025-11-22T04:36:33.550018162Z [inf]  4:36:29 AM [express] GET /api/whatsapp/messages 200 in 3084ms :: {"messages":[{"id":"raw_383760","me…
+2025-11-22T04:37:03.556503970Z [inf]  📡 [User 403cf295-83f5-40d9-b3be-ebe4ad68eb3c] Polling mBlaster for new messages...
+2025-11-22T04:37:03.556511965Z [inf]  ℹ️ [User 403cf295-83f5-40d9-b3be-ebe4ad68eb3c] mBlaster uses webhook-only architecture - polling not available
+2025-11-22T04:37:03.556534253Z [inf]  📡 [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] Polling mBlaster for new messages...
+2025-11-22T04:37:03.556541926Z [inf]  ℹ️ [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] mBlaster uses webhook-only architecture - polling not available
+2025-11-22T04:37:03.556549144Z [inf]  📡 [User 60c8fc00-2596-403f-a2fc-008685e1092a] Polling mBlaster for new messages...
+2025-11-22T04:37:03.556557311Z [inf]  ℹ️ [User 60c8fc00-2596-403f-a2fc-008685e1092a] mBlaster uses webhook-only architecture - polling not available
+2025-11-22T04:37:03.556565510Z [inf]  📡 [User 9a1e3228-5a72-46dd-916b-b3f23fc7e017] Polling mBlaster for new messages...
+2025-11-22T04:37:03.556572792Z [inf]  ℹ️ [User 9a1e3228-5a72-46dd-916b-b3f23fc7e017] mBlaster uses webhook-only architecture - polling not available
+2025-11-22T04:38:03.571236079Z [inf]  📡 [User 403cf295-83f5-40d9-b3be-ebe4ad68eb3c] Polling mBlaster for new messages...
+2025-11-22T04:38:03.571242422Z [inf]  ℹ️ [User 403cf295-83f5-40d9-b3be-ebe4ad68eb3c] mBlaster uses webhook-only architecture - polling not available
+2025-11-22T04:38:03.571249448Z [inf]  📡 [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] Polling mBlaster for new messages...
+2025-11-22T04:38:03.571257345Z [inf]  ℹ️ [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] mBlaster uses webhook-only architecture - polling not available
+2025-11-22T04:38:03.571265313Z [inf]  📡 [User 60c8fc00-2596-403f-a2fc-008685e1092a] Polling mBlaster for new messages...
+2025-11-22T04:38:03.571272270Z [inf]  ℹ️ [User 60c8fc00-2596-403f-a2fc-008685e1092a] mBlaster uses webhook-only architecture - polling not available
+2025-11-22T04:38:03.571279225Z [inf]  📡 [User 9a1e3228-5a72-46dd-916b-b3f23fc7e017] Polling mBlaster for new messages...
+2025-11-22T04:38:03.571286458Z [inf]  ℹ️ [User 9a1e3228-5a72-46dd-916b-b3f23fc7e017] mBlaster uses webhook-only architecture - polling not available
+2025-11-22T04:38:10.737483280Z [inf]  4:38:10 AM [express] POST /api/whatsapp/ping 200 in 1827ms :: {"connected":false,"mode":"none","last…
+2025-11-22T04:38:11.662750189Z [inf]  4:38:11 AM [express] GET /api/whatsapp/messages 200 in 2900ms :: {"messages":[{"id":"raw_383760","me…
+2025-11-22T04:38:13.767784816Z [inf]  4:38:13 AM [express] GET /api/whatsapp/connection-status 200 in 1930ms :: {"connected":false,"instan…
