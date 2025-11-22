@@ -1361,6 +1361,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update webhook URL for existing instance
+  app.post("/api/whatsapp/update-webhook", async (req, res) => {
+    try {
+      const { accessToken, instanceId } = req.body;
+      
+      if (!accessToken || !instanceId) {
+        return res.status(400).json({ error: "Access token and instance ID are required" });
+      }
+      
+      console.log(`🔗 Updating webhook URL for instance: ${instanceId}`);
+      
+      // Use Railway URL or fallback to environment
+      const publicUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
+        ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+        : process.env.PUBLIC_URL || 'https://whatsapp-watch-parser-v2-production.up.railway.app';
+      
+      const webhookUrl = `${publicUrl}/api/whatsapp/webhook`;
+      
+      console.log(`🔗 Setting webhook to: ${webhookUrl}`);
+      
+      const response = await fetch(
+        `https://mblaster.in/api/set_webhook?webhook_url=${encodeURIComponent(webhookUrl)}&enable=true&instance_id=${instanceId}&access_token=${accessToken}`,
+        {
+          method: 'GET',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          }
+        }
+      );
+      
+      const data = await response.text();
+      console.log(`🔗 Webhook update response: ${data}`);
+      
+      try {
+        const jsonData = JSON.parse(data);
+        res.json({ 
+          success: true, 
+          webhookUrl,
+          response: jsonData 
+        });
+      } catch (parseError) {
+        res.status(400).json({ 
+          error: "Failed to update webhook", 
+          detail: "Received HTML instead of JSON response"
+        });
+      }
+    } catch (error) {
+      console.error('Webhook update error:', error);
+      res.status(500).json({ error: "Failed to update webhook URL" });
+    }
+  });
+
   // ===========================================
   // GOOGLE SHEETS INTEGRATION
   // ===========================================

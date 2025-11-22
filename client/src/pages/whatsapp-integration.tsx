@@ -627,6 +627,57 @@ export default function WhatsAppIntegration() {
     }
   };
 
+  // Update webhook URL for Railway deployment
+  const [updatingWebhook, setUpdatingWebhook] = useState(false);
+  
+  const updateWebhookUrl = async () => {
+    const data = form.getValues();
+    if (!data.instanceId || !data.accessToken) {
+      toast({ 
+        title: "Error", 
+        description: "Instance ID and access token are required",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setUpdatingWebhook(true);
+    try {
+      const res = await fetch("/api/whatsapp/update-webhook", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          instanceId: data.instanceId, 
+          accessToken: data.accessToken 
+        }),
+      });
+      
+      const result = await res.json();
+      
+      if (res.ok && result.success) {
+        toast({ 
+          title: "Webhook Updated! 🎉", 
+          description: `mBlaster now sends messages to: ${result.webhookUrl}`,
+          duration: 6000
+        });
+      } else {
+        toast({ 
+          title: "Error", 
+          description: result.error || "Failed to update webhook URL",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({ 
+        title: "Error", 
+        description: "Failed to update webhook URL",
+        variant: "destructive"
+      });
+    } finally {
+      setUpdatingWebhook(false);
+    }
+  };
+
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar />
@@ -688,6 +739,7 @@ export default function WhatsAppIntegration() {
                   onClick={checkStatus}
                   disabled={status === "connecting"}
                   className="flex-1"
+                  data-testid="button-check-status"
                 >
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Check Status
@@ -698,6 +750,7 @@ export default function WhatsAppIntegration() {
                   onClick={handlePauseResume}
                   disabled={loadingPause}
                   className="flex-1"
+                  data-testid="button-pause-resume"
                 >
                   {loadingPause ? (
                     <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
@@ -708,6 +761,37 @@ export default function WhatsAppIntegration() {
                   )}
                   {paused ? " Processing" : " Processing"}
                 </Button>
+              </div>
+              
+              {/* Update Webhook URL - Railway Deployment Fix */}
+              <div className="border-t pt-4">
+                <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-4">
+                  <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">
+                    🚀 Railway Deployment
+                  </h4>
+                  <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">
+                    Click below to point mBlaster webhook to Railway URL. This fixes incoming message delivery!
+                  </p>
+                  <Button
+                    type="button"
+                    onClick={updateWebhookUrl}
+                    disabled={updatingWebhook}
+                    className="w-full"
+                    variant="default"
+                    data-testid="button-update-webhook"
+                  >
+                    {updatingWebhook ? (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                        Updating Webhook...
+                      </>
+                    ) : (
+                      <>
+                        🔗 Update Webhook URL to Railway
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
               
               {/* Instance Diagnostic Tool */}
