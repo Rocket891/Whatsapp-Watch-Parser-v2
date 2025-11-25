@@ -3,8 +3,22 @@ import { requireAdmin } from '../middleware/auth';
 import { storage } from '../storage';
 import bcrypt from 'bcryptjs';
 import { db } from '../db';
-import { watchListings, watchRequirements, processingLogs } from '../../shared/schema';
-import { lt, sql, eq, and } from 'drizzle-orm';
+import { watchListings, watchRequirements, processingLogs, users } from '../../shared/schema';
+import { lt, sql, eq, and, inArray } from 'drizzle-orm';
+
+// Helper function to get all user IDs in deletion scope (admin + team members)
+async function getDeleteScopeUserIds(adminUserId: string): Promise<string[]> {
+  // Get all team members where this admin is the workspace owner
+  const teamMembers = await db.select({ id: users.id })
+    .from(users)
+    .where(eq(users.workspaceOwnerId, adminUserId));
+  
+  // Include admin's own ID plus all team member IDs
+  const allUserIds = [adminUserId, ...teamMembers.map(m => m.id)];
+  console.log(`🗑️  Delete scope: Admin ${adminUserId} + ${teamMembers.length} team members = ${allUserIds.length} users total`);
+  
+  return allUserIds;
+}
 
 const router = Router();
 
@@ -311,31 +325,34 @@ router.delete('/data/older-than/:days', async (req, res) => {
     cutoffDate.setDate(cutoffDate.getDate() - days);
     const cutoffDateString = cutoffDate.toISOString().split('T')[0];
 
-    // SECURITY FIX: Add user isolation + use date column instead of createdAt
+    // ADMIN FIX: Delete data for admin + all team members
+    const userIdsToDelete = await getDeleteScopeUserIds(userId);
+
     const deletedListings = await db.delete(watchListings)
       .where(and(
-        eq(watchListings.userId, userId),
+        inArray(watchListings.userId, userIdsToDelete),
         lt(watchListings.date, cutoffDateString)
       ));
 
     const deletedRequirements = await db.delete(watchRequirements)
       .where(and(
-        eq(watchRequirements.userId, userId),
+        inArray(watchRequirements.userId, userIdsToDelete),
         lt(watchRequirements.date, cutoffDateString)
       ));
 
     const deletedLogs = await db.delete(processingLogs)
       .where(and(
-        eq(processingLogs.userId, userId),
+        inArray(processingLogs.userId, userIdsToDelete),
         lt(processingLogs.createdAt, cutoffDate)
       ));
 
     res.json({
-      message: `Deleted data older than ${days} days`,
+      message: `Deleted data older than ${days} days for ${userIdsToDelete.length} user(s)`,
       deletedListings: deletedListings.rowCount,
       deletedRequirements: deletedRequirements.rowCount,
       deletedLogs: deletedLogs.rowCount,
-      cutoffDate: cutoffDate.toISOString()
+      cutoffDate: cutoffDate.toISOString(),
+      usersAffected: userIdsToDelete.length
     });
   } catch (error) {
     console.error('Error deleting old data:', error);
@@ -360,24 +377,27 @@ router.delete('/data/date-range', async (req, res) => {
     const start = startDate.split('T')[0];
     const end = endDate.split('T')[0];
 
-    // SECURITY FIX: Add user isolation + use date column (text) instead of createdAt
+    // ADMIN FIX: Delete data for admin + all team members
+    const userIdsToDelete = await getDeleteScopeUserIds(userId);
+
     const deletedListings = await db.delete(watchListings)
       .where(and(
-        eq(watchListings.userId, userId),
+        inArray(watchListings.userId, userIdsToDelete),
         sql`${watchListings.date} >= ${start} AND ${watchListings.date} <= ${end}`
       ));
 
     const deletedRequirements = await db.delete(watchRequirements)
       .where(and(
-        eq(watchRequirements.userId, userId),
+        inArray(watchRequirements.userId, userIdsToDelete),
         sql`${watchRequirements.date} >= ${start} AND ${watchRequirements.date} <= ${end}`
       ));
 
     res.json({
-      message: `Deleted data from ${startDate} to ${endDate}`,
+      message: `Deleted data from ${startDate} to ${endDate} for ${userIdsToDelete.length} user(s)`,
       deletedListings: deletedListings.rowCount,
       deletedRequirements: deletedRequirements.rowCount,
-      dateRange: { startDate, endDate }
+      dateRange: { startDate, endDate },
+      usersAffected: userIdsToDelete.length
     });
   } catch (error) {
     console.error('Error deleting data by date range:', error);
@@ -393,17 +413,20 @@ router.delete('/data/all-listings', async (req, res) => {
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
-    // SECURITY FIX: Add user isolation - only delete current user's listings
+    // ADMIN FIX: Delete data for admin + all team members
+    const userIdsToDelete = await getDeleteScopeUserIds(userId);
+
     const deletedListings = await db.delete(watchListings)
-      .where(eq(watchListings.userId, userId));
+      .where(inArray(watchListings.userId, userIdsToDelete));
     
     const deletedRequirements = await db.delete(watchRequirements)
-      .where(eq(watchRequirements.userId, userId));
+      .where(inArray(watchRequirements.userId, userIdsToDelete));
 
     res.json({
-      message: 'All watch listings and requirements deleted',
+      message: `All watch listings and requirements deleted for ${userIdsToDelete.length} user(s)`,
       deletedListings: deletedListings.rowCount,
-      deletedRequirements: deletedRequirements.rowCount
+      deletedRequirements: deletedRequirements.rowCount,
+      usersAffected: userIdsToDelete.length
     });
   } catch (error) {
     console.error('Error deleting all listings:', error);
