@@ -278,25 +278,63 @@ export function registerSecureWhatsAppRoutes(app: Express) {
       // Get polling status
       const pollingStatus = getPollingStatus(req.user.userId);
 
-      // Use get_groups to check connection (POST method as per mBlaster API docs)
-      // If get_groups returns valid JSON, WhatsApp is connected
-      const result = await callMBSecure("get_groups", {}, userConfig, "POST", 3);
-      
-      const connected = result && result.ok && result.json.status === "success";
-      
-      return res.json({ 
-        connected,
-        instanceId: userConfig.instanceId,
-        mode: result?.json?.mode || "unknown",
-        state: result?.json?.state || "unknown",
-        message: connected ? "Connected to WhatsApp" : "Not connected to WhatsApp",
-        // Include polling status
-        pollingMode: pollingStatus?.mode || 'webhook',
-        pollingActive: pollingStatus?.isActive || false,
-        lastWebhookTime: pollingStatus?.lastWebhookTime,
-        lastPollTime: pollingStatus?.lastPollTime,
-        messagesFetched: pollingStatus?.messagesFetched || 0
-      });
+      // PRIORITY: Check webhook health FIRST (more reliable than API calls)
+      const WEBHOOK_FRESH_MS = 5 * 60 * 1000; // 5 minutes
+      const webhookAge = pollingStatus?.lastWebhookTime 
+        ? Date.now() - pollingStatus.lastWebhookTime.getTime()
+        : Infinity;
+      const webhooksActive = webhookAge <= WEBHOOK_FRESH_MS;
+
+      if (webhooksActive) {
+        // Webhooks are flowing - connection is definitely alive
+        return res.json({
+          connected: true,
+          instanceId: userConfig.instanceId,
+          mode: "webhook",
+          state: "active",
+          message: "Connected via Webhooks",
+          pollingMode: pollingStatus?.mode || 'webhook',
+          pollingActive: pollingStatus?.isActive || false,
+          lastWebhookTime: pollingStatus?.lastWebhookTime,
+          lastPollTime: pollingStatus?.lastPollTime,
+          messagesFetched: pollingStatus?.messagesFetched || 0,
+          webhookAge: Math.floor(webhookAge / 1000) // seconds
+        });
+      }
+
+      // Only try API check if webhooks aren't recent
+      try {
+        const result = await callMBSecure("get_groups", {}, userConfig, "POST", 3);
+        const connected = result && result.ok && result.json.status === "success";
+        
+        return res.json({ 
+          connected,
+          instanceId: userConfig.instanceId,
+          mode: connected ? "api" : "disconnected",
+          state: result?.json?.state || "unknown",
+          message: connected ? "Connected to WhatsApp" : "Not connected to WhatsApp",
+          pollingMode: pollingStatus?.mode || 'webhook',
+          pollingActive: pollingStatus?.isActive || false,
+          lastWebhookTime: pollingStatus?.lastWebhookTime,
+          lastPollTime: pollingStatus?.lastPollTime,
+          messagesFetched: pollingStatus?.messagesFetched || 0
+        });
+      } catch (apiError) {
+        // API call failed (likely IP blocking), but no recent webhooks either
+        console.log("⚠️  Connection check: API failed, no recent webhooks");
+        return res.json({
+          connected: false,
+          instanceId: userConfig.instanceId,
+          mode: "disconnected",
+          state: "unknown",
+          message: "Connection check failed - no recent webhooks or API access",
+          pollingMode: pollingStatus?.mode || 'webhook',
+          pollingActive: pollingStatus?.isActive || false,
+          lastWebhookTime: pollingStatus?.lastWebhookTime,
+          lastPollTime: pollingStatus?.lastPollTime,
+          messagesFetched: pollingStatus?.messagesFetched || 0
+        });
+      }
     } catch (error) {
       console.error(`Error checking connection status:`, error);
       res.json({ connected: false, message: "Failed to check connection" });

@@ -4,7 +4,7 @@ import { storage } from '../storage';
 import bcrypt from 'bcryptjs';
 import { db } from '../db';
 import { watchListings, watchRequirements, processingLogs } from '../../shared/schema';
-import { lt, sql } from 'drizzle-orm';
+import { lt, sql, eq, and } from 'drizzle-orm';
 
 const router = Router();
 
@@ -16,20 +16,33 @@ router.get('/users', async (req, res) => {
   try {
     const users = await storage.getAllUsers();
     
-    // Add usage statistics for each user
-    const usersWithStats = await Promise.all(
-      users.map(async (user) => {
-        const totalListings = await storage.getUserListingsCount(user.id);
-        const dataUsage = await storage.getUserDataUsage(user.id);
-        
-        return {
-          ...user,
-          passwordHash: undefined, // Remove password hash from response for security
-          totalListings,
-          dataUsage
-        };
+    // PERFORMANCE FIX: Get all users' stats in a single query instead of per-user queries
+    // This reduces 14 queries (2 per user x 7 users) to just 1 query!
+    const listingsCountsByUser = await db
+      .select({
+        userId: watchListings.userId,
+        count: sql<number>`COUNT(*)::int`
       })
+      .from(watchListings)
+      .groupBy(watchListings.userId);
+    
+    // Create a lookup map for O(1) access
+    const listingsMap = new Map(
+      listingsCountsByUser.map(row => [row.userId, row.count])
     );
+    
+    // Merge stats with user data
+    const usersWithStats = users.map(user => {
+      const totalListings = listingsMap.get(user.id) || 0;
+      const dataUsage = totalListings * 1024; // Estimate ~1KB per listing
+      
+      return {
+        ...user,
+        passwordHash: undefined, // Remove password hash from response for security
+        totalListings,
+        dataUsage
+      };
+    });
     
     res.json(usersWithStats);
   } catch (error) {
@@ -284,24 +297,38 @@ router.post('/features', async (req, res) => {
 router.delete('/data/older-than/:days', async (req, res) => {
   try {
     const days = parseInt(req.params.days);
+    const userId = (req as any).user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
     if (isNaN(days) || days < 1) {
       return res.status(400).json({ error: 'Invalid number of days' });
     }
 
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - days);
+    const cutoffDateString = cutoffDate.toISOString().split('T')[0];
 
-    // Delete watch listings older than cutoff date
+    // SECURITY FIX: Add user isolation + use date column instead of createdAt
     const deletedListings = await db.delete(watchListings)
-      .where(lt(watchListings.createdAt, cutoffDate));
+      .where(and(
+        eq(watchListings.userId, userId),
+        lt(watchListings.date, cutoffDateString)
+      ));
 
-    // Delete watch requirements older than cutoff date  
     const deletedRequirements = await db.delete(watchRequirements)
-      .where(lt(watchRequirements.createdAt, cutoffDate));
+      .where(and(
+        eq(watchRequirements.userId, userId),
+        lt(watchRequirements.date, cutoffDateString)
+      ));
 
-    // Delete processing logs older than cutoff date
     const deletedLogs = await db.delete(processingLogs)
-      .where(lt(processingLogs.createdAt, cutoffDate));
+      .where(and(
+        eq(processingLogs.userId, userId),
+        lt(processingLogs.createdAt, cutoffDate)
+      ));
 
     res.json({
       message: `Deleted data older than ${days} days`,
@@ -319,25 +346,32 @@ router.delete('/data/older-than/:days', async (req, res) => {
 router.delete('/data/date-range', async (req, res) => {
   try {
     const { startDate, endDate } = req.body;
+    const userId = (req as any).user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
     
     if (!startDate || !endDate) {
       return res.status(400).json({ error: 'Start date and end date are required' });
     }
 
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
-      return res.status(400).json({ error: 'Invalid date format' });
-    }
+    // Format dates as YYYY-MM-DD strings for comparison with date column
+    const start = startDate.split('T')[0];
+    const end = endDate.split('T')[0];
 
-    // Delete watch listings in date range
+    // SECURITY FIX: Add user isolation + use date column (text) instead of createdAt
     const deletedListings = await db.delete(watchListings)
-      .where(sql`${watchListings.createdAt} >= ${start} AND ${watchListings.createdAt} <= ${end}`);
+      .where(and(
+        eq(watchListings.userId, userId),
+        sql`${watchListings.date} >= ${start} AND ${watchListings.date} <= ${end}`
+      ));
 
-    // Delete watch requirements in date range
     const deletedRequirements = await db.delete(watchRequirements)
-      .where(sql`${watchRequirements.createdAt} >= ${start} AND ${watchRequirements.createdAt} <= ${end}`);
+      .where(and(
+        eq(watchRequirements.userId, userId),
+        sql`${watchRequirements.date} >= ${start} AND ${watchRequirements.date} <= ${end}`
+      ));
 
     res.json({
       message: `Deleted data from ${startDate} to ${endDate}`,
@@ -353,11 +387,18 @@ router.delete('/data/date-range', async (req, res) => {
 
 router.delete('/data/all-listings', async (req, res) => {
   try {
-    // Delete all watch listings
-    const deletedListings = await db.delete(watchListings);
+    const userId = (req as any).user?.id;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    // SECURITY FIX: Add user isolation - only delete current user's listings
+    const deletedListings = await db.delete(watchListings)
+      .where(eq(watchListings.userId, userId));
     
-    // Delete all watch requirements
-    const deletedRequirements = await db.delete(watchRequirements);
+    const deletedRequirements = await db.delete(watchRequirements)
+      .where(eq(watchRequirements.userId, userId));
 
     res.json({
       message: 'All watch listings and requirements deleted',

@@ -610,6 +610,10 @@ export class WatchMessageParser {
   private extractPID(text: string): string {
     // COMPLETELY REWRITTEN: Enhanced PID patterns to capture complete references (ordered by specificity)
     const patterns = [
+      // CRITICAL FIX: Add 5-digit patterns (47040/000R-9666, 44000/000A-B437)
+      /\b(\d{5}\/\d{3,4}[A-Z]+-\d{4})\b/i,                // 47040/000R-9666, 44000/000A-B437 (PRIORITY FIX)
+      /\b(\d{5}\/\d{3,4}[A-Z]*)\b/i,                       // 47040/000R, 44000/000A format (PRIORITY FIX)
+      
       // PRIORITY: Fix 7118/1200r format - needs to capture full PID
       /\b(\d{4}\/\d{3,4}[A-Z]*)\b/i,                       // 7118/1200R, 5267/200A format (priority fix)
       

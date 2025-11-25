@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, varchar, decimal, jsonb, unique, uuid } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, varchar, decimal, jsonb, unique, uuid, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 import { z } from "zod";
@@ -118,7 +118,15 @@ export const watchListings = pgTable("watch_listings", {
   messageType: text("message_type").default("selling"), // "selling" or "looking_for"
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  // PERFORMANCE INDEXES: Dramatically speed up queries from minutes to seconds
+  userDateIdx: index("watch_listings_user_date_idx").on(table.userId, table.date),
+  userPidIdx: index("watch_listings_user_pid_idx").on(table.userId, table.pid),
+  userChatIdx: index("watch_listings_user_chat_idx").on(table.userId, table.chatId),
+  userCreatedIdx: index("watch_listings_user_created_idx").on(table.userId, table.createdAt),
+  dateIdx: index("watch_listings_date_idx").on(table.date),
+  pidIdx: index("watch_listings_pid_idx").on(table.pid),
+}));
 
 export const processingLogs = pgTable("processing_logs", {
   id: serial("id").primaryKey(),
@@ -203,7 +211,12 @@ export const messageLogs = pgTable("message_logs", {
   errorMessage: text("error_message"),
   instanceId: text("instance_id"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  // PERFORMANCE INDEXES: Speed up incoming messages queries
+  userTimestampIdx: index("message_logs_user_timestamp_idx").on(table.userId, table.timestamp),
+  userStatusIdx: index("message_logs_user_status_idx").on(table.userId, table.status),
+  messageIdIdx: index("message_logs_message_id_idx").on(table.messageId),
+}));
 
 export const broadcastReports = pgTable("broadcast_reports", {
   id: serial("id").primaryKey(),

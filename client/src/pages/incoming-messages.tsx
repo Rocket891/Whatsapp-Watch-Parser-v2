@@ -83,20 +83,34 @@ export default function IncomingMessages() {
         status = 'processed'; // Messages with parsed listings are processed
       } else if (status.includes('Requirements (')) {
         status = 'requirement'; // Handle requirement messages properly
-      } else if (status === 'duplicate, ignored') {
+      } else if (status === 'duplicate, ignored' || status === 'duplicate') {
         status = 'duplicate'; // Handle duplicate messages
-      } else if (status === 'pending') {
-        status = 'pending';
+      } else if (status === 'pending' || status === 'received') {
+        status = 'pending'; // 'received' means message is waiting to be processed
       } else if (status === 'error') {
         status = 'error';
-      } else if (status === 'duplicate') {
-        status = 'duplicate';
+      } else if (status === 'ignored') {
+        status = 'no-pid'; // Ignored messages are typically non-PID messages
+      } else if (status === 'processed') {
+        status = 'processed'; // Already in correct format
+      } else if (status === 'no-pid') {
+        status = 'no-pid'; // Already in correct format
+      } else if (status === 'requirement') {
+        status = 'requirement'; // Already in correct format
       } else if (status === 'unknown' || status === 'Unknown' || !status) {
-        // Fallback logic for unknown status
+        // Fallback logic for truly unknown status
         if (hasPID) {
           status = 'processed';
         } else if (!msg.message || msg.message.trim() === '') {
           status = 'no-pid';
+        } else {
+          status = 'no-pid';
+        }
+      } else {
+        // NEW: Catch-all for any other status - try to intelligently map it
+        console.log(`⚠️ Unmapped status detected: "${status}" - applying fallback logic`);
+        if (hasPID) {
+          status = 'processed';
         } else {
           status = 'no-pid';
         }
