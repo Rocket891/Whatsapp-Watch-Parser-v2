@@ -14,6 +14,16 @@ export interface ParsedWatchListing {
   name?: string;
 }
 
+// PRODUCTION-SAFE LOGGING: Reduces log volume to prevent Railway OOM crashes
+const isProduction = process.env.NODE_ENV === 'production';
+const isDebugMode = process.env.DEBUG_LOGGING === 'true';
+
+function debugLog(...args: any[]): void {
+  if (!isProduction || isDebugMode) {
+    console.log(...args);
+  }
+}
+
 export class WatchMessageParser {
   private referenceCache: Map<string, any> = new Map();
   private lastCacheUpdate: number = 0;
@@ -45,7 +55,7 @@ export class WatchMessageParser {
       }
       
       this.lastCacheUpdate = Date.now();
-      console.log(`Loaded ${references.length} reference records into cache`);
+      debugLog(`Loaded ${references.length} reference records into cache`);
     } catch (error) {
       console.error('Failed to load reference database:', error);
     }
@@ -55,12 +65,10 @@ export class WatchMessageParser {
     await this.loadReferenceDatabase(userId);
     
     const pidLower = pid.toLowerCase();
-    console.log(`🔍 Enriching PID: ${pidLower}`);
     
     // Try exact match first
     let match = this.referenceCache.get(pidLower);
     if (match) {
-      console.log(`✅ Exact match found for ${pidLower}:`, match.brand, match.family);
       return {
         brand: match.brand,
         family: match.family,
@@ -71,7 +79,6 @@ export class WatchMessageParser {
     // Try pattern matching - look for references that start with the PID
     for (const [key, value] of this.referenceCache.entries()) {
       if (key.startsWith(pidLower)) {
-        console.log(`✅ Pattern match found for ${pidLower} -> ${key}:`, value.brand, value.family);
         return {
           brand: value.brand,
           family: value.family,
@@ -80,7 +87,6 @@ export class WatchMessageParser {
       }
     }
     
-    console.log(`❌ No match found for PID: ${pidLower}`);
     return {};
   }
 
@@ -113,7 +119,7 @@ export class WatchMessageParser {
           brand = 'Vacheron Constantin';
         }
         
-        console.log(`🏷️ Emoji + Brand + Condition header detected: Brand="${brand}", Condition="${condition}", Accessories="${accessories}"`);
+        debugLog(`🏷️ Emoji + Brand + Condition header detected: Brand="${brand}", Condition="${condition}", Accessories="${accessories}"`);
         return { condition, brand };
       }
       
@@ -130,7 +136,7 @@ export class WatchMessageParser {
           condition = 'Used';
         }
         
-        console.log(`🏷️ Year + Condition header detected: Year="${year}", Condition="${condition}"`);
+        debugLog(`🏷️ Year + Condition header detected: Year="${year}", Condition="${condition}"`);
         return { condition, year };
       }
       
@@ -147,17 +153,17 @@ export class WatchMessageParser {
           condition = 'Used';
         }
         
-        console.log(`🏷️ Brand + Condition header detected: Brand="${brand}", Condition="${condition}"`);
+        debugLog(`🏷️ Brand + Condition header detected: Brand="${brand}", Condition="${condition}"`);
         return { condition, brand };
       }
       
       // Detect simple condition headers like "New", "Preowned"
       if (line.toLowerCase() === 'new') {
-        console.log(`🏷️ Simple header context: "New"`);
+        debugLog(`🏷️ Simple header context: "New"`);
         return { condition: 'New' };
       }
       if (line.toLowerCase() === 'preowned' || line.toLowerCase() === 'used') {
-        console.log(`🏷️ Simple header context: "Used"`);
+        debugLog(`🏷️ Simple header context: "Used"`);
         return { condition: 'Used' };
       }
     }
@@ -173,7 +179,7 @@ export class WatchMessageParser {
     if (match) {
       const monthNum = parseInt(match[1]);
       if (monthNum >= 1 && monthNum <= 12) {
-        console.log(`📅 Month extracted: N${monthNum}`);
+        debugLog(`📅 Month extracted: N${monthNum}`);
         return `N${monthNum}`;
       }
     }
@@ -240,7 +246,7 @@ export class WatchMessageParser {
 
     // Detect message type - "looking for" vs "selling"
     const messageType = this.detectMessageType(message);
-    console.log(`🔍 Message type detected: ${messageType}`);
+    debugLog(`🔍 Message type detected: ${messageType}`);
     
     // ENHANCED HEADER CONTEXT DETECTION: Parse headers with year, condition, and brand info
     let currentContext = this.detectHeaderContext(message);
@@ -256,7 +262,7 @@ export class WatchMessageParser {
       const lineContext = this.detectHeaderContext(line);
       if (lineContext) {
         currentContext = lineContext;
-        console.log(`🔄 Context changed at line ${i}: Year="${currentContext?.year}", Condition="${currentContext?.condition}"`);
+        debugLog(`🔄 Context changed at line ${i}: Year="${currentContext?.year}", Condition="${currentContext?.condition}"`);
       }
       
       contextsPerLine[i] = currentContext;
@@ -271,20 +277,20 @@ export class WatchMessageParser {
       // Check original message for symbols
       if (message.includes(symbol)) {
         const parts = message.split(symbol).filter(part => part.trim().length > 0);
-        console.log(`🔍 Symbol ${symbol} found, split into ${parts.length} parts:`, parts.map(p => p.substring(0, 50)));
+        debugLog(`🔍 Symbol ${symbol} found, split into ${parts.length} parts:`, parts.map(p => p.substring(0, 50)));
         if (parts.length > 1) {
-          console.log(`🔍 Multi-PID detected with ${symbol}: ${parts.length} parts`);
+          debugLog(`🔍 Multi-PID detected with ${symbol}: ${parts.length} parts`);
           // Skip first part if it's just header (like "🇭🇰 *PATEK* 🇭🇰" or "Test")
           const actualParts = parts.slice(1); // Skip header part
           multiPidMatches = actualParts.map((part, index) => [`${symbol}${part}`, symbol, part] as any);
-          console.log(`🔍 Processing ${actualParts.length} actual PID parts:`, actualParts.map(p => p.substring(0, 30)));
+          debugLog(`🔍 Processing ${actualParts.length} actual PID parts:`, actualParts.map(p => p.substring(0, 30)));
           break; // Use first symbol found
         }
       }
     }
     
     if (multiPidMatches.length > 0) {
-      console.log(`🔍 Multi-PID pattern detected: ${multiPidMatches.length} PIDs found`);
+      debugLog(`🔍 Multi-PID pattern detected: ${multiPidMatches.length} PIDs found`);
       
       for (const match of multiPidMatches) {
         const symbol = match[1];
@@ -320,7 +326,7 @@ export class WatchMessageParser {
       }
       
       if (listings.length > 0) {
-        console.log(`✅ Multi-PID parsing successful: ${listings.length} listings`);
+        debugLog(`✅ Multi-PID parsing successful: ${listings.length} listings`);
         return listings;
       }
     }
@@ -331,11 +337,11 @@ export class WatchMessageParser {
       .map(line => line.trim())
       .filter(line => line.length > 5);
 
-    console.log(`🔍 Processing ${parseLines.length} lines for parsing`);
+    debugLog(`🔍 Processing ${parseLines.length} lines for parsing`);
     
     for (let i = 0; i < parseLines.length; i++) {
       const line = parseLines[i];
-      console.log(`🔍 Checking line: "${line}"`);
+      debugLog(`🔍 Checking line: "${line}"`);
       
       // Get context for this specific line
       const lineContext = contextsPerLine[i];
@@ -344,7 +350,7 @@ export class WatchMessageParser {
       const langePattern = /\b(\d{3}\.\d{3})\b/;
       const langeMatch = line.match(langePattern);
       if (langeMatch) {
-        console.log(`✅ Found A.Lange&Sohne PID in line: ${langeMatch[1]}`);
+        debugLog(`✅ Found A.Lange&Sohne PID in line: ${langeMatch[1]}`);
       }
       
       // Handle cases where price is on separate line (like Q3523490 + 258000hkd)
@@ -359,24 +365,24 @@ export class WatchMessageParser {
         // If next line has price but no PID (or only a price-like number), combine them
         if (nextLinePrice && (!nextLinePid || /^\d{5,6}(hkd|usd|eur)?$/i.test(nextLine.trim()))) {
           combinedLine = `${line} ${nextLine}`;
-          console.log(`🔗 Combining lines: "${line}" + "${nextLine}"`);
+          debugLog(`🔗 Combining lines: "${line}" + "${nextLine}"`);
           i++; // Skip the next line since we've processed it
         }
       }
       
       const result = await this.parseChunkWithContext(combinedLine, lineContext);
       if (result && result.pid) {
-        console.log(`✅ Successfully parsed PID from line: ${result.pid} (Context: Year=${lineContext?.year}, Condition=${lineContext?.condition})`);
+        debugLog(`✅ Successfully parsed PID from line: ${result.pid} (Context: Year=${lineContext?.year}, Condition=${lineContext?.condition})`);
         result.messageType = messageType;
         listings.push(result);
       } else {
-        console.log(`❌ No PID found in line: "${line}"`);
+        debugLog(`❌ No PID found in line: "${line}"`);
       }
     }
     
     // If line parsing found results, return them
     if (listings.length > 0) {
-      console.log(`✅ Line-by-line parsing successful: ${listings.length} listings`);
+      debugLog(`✅ Line-by-line parsing successful: ${listings.length} listings`);
       return listings;
     }
     
@@ -415,29 +421,29 @@ export class WatchMessageParser {
     
     // Check for multi-PID patterns with symbols
     if (multiPidSymbols.test(message) && pidPattern.test(message)) {
-      console.log("🔍 Multi-PID symbol pattern detected:", message);
+      debugLog("🔍 Multi-PID symbol pattern detected:", message);
       return true;
     }
     
     // Check for PID + currency/price combination
     if (pidPattern.test(message) && (currencyPattern.test(message) || pricePattern.test(message))) {
-      console.log("🔍 PID + Currency/Price detected:", message);
+      debugLog("🔍 PID + Currency/Price detected:", message);
       return true;
     }
     
     // Check for hard brand indicators
     if (hardPattern.test(message)) {
-      console.log("🔍 Hard brand indicator detected:", message);
+      debugLog("🔍 Hard brand indicator detected:", message);
       return true;
     }
     
     // Check for soft indicators with numbers
     if (softPattern.test(message) && hasNumbers) {
-      console.log("🔍 Soft indicator + numbers detected:", message);
+      debugLog("🔍 Soft indicator + numbers detected:", message);
       return true;
     }
     
-    console.log("🔍 Message not recognized as watch message:", message);
+    debugLog("🔍 Message not recognized as watch message:", message);
     return false;
   }
 
@@ -504,7 +510,7 @@ export class WatchMessageParser {
     });
     
     if (pidLines.length > 1) {
-      console.log(`🔍 Found ${pidLines.length} lines with PIDs - splitting into chunks`);
+      debugLog(`🔍 Found ${pidLines.length} lines with PIDs - splitting into chunks`);
       return pidLines;
     }
     
@@ -516,7 +522,7 @@ export class WatchMessageParser {
       });
       
       if (validLines.length > 1) {
-        console.log(`🔍 Fallback multi-line parsing: ${validLines.length} lines`);
+        debugLog(`🔍 Fallback multi-line parsing: ${validLines.length} lines`);
         return validLines;
       }
     }
@@ -580,14 +586,14 @@ export class WatchMessageParser {
     // CONTEXTUAL YEAR: Use header context if no explicit year found
     if (!result.year && context?.year) {
       result.year = context.year;
-      console.log(`📅 Applied contextual year: ${context.year} to PID: ${result.pid}`);
+      debugLog(`📅 Applied contextual year: ${context.year} to PID: ${result.pid}`);
     }
     
     // CONTEXTUAL CONDITION: Use header context if no explicit condition found
     result.condition = this.extractCondition(chunk);
     if (!result.condition && context?.condition) {
       result.condition = context.condition;
-      console.log(`📋 Applied contextual condition: ${context.condition} to PID: ${result.pid}`);
+      debugLog(`📋 Applied contextual condition: ${context.condition} to PID: ${result.pid}`);
     }
     
     const priceInfo = this.extractPrice(chunk);
@@ -670,7 +676,7 @@ export class WatchMessageParser {
         
         // CRITICAL FIX: Skip if this looks like a year (2020Y, 2024Y, etc.)
         if (/^(19|20)\d{2}Y?$/.test(candidate)) {
-          console.log(`🚫 Skipping year pattern as PID: ${candidate}`);
+          debugLog(`🚫 Skipping year pattern as PID: ${candidate}`);
           continue; // Skip years disguised as PIDs
         }
         
@@ -711,14 +717,14 @@ export class WatchMessageParser {
         let isInvalidPid = false;
         for (const invalidPattern of invalidPidPatterns) {
           if (invalidPattern.test(candidate)) {
-            console.log(`🚫 Skipping invalid PID pattern: ${candidate}`);
+            debugLog(`🚫 Skipping invalid PID pattern: ${candidate}`);
             isInvalidPid = true;
             break;
           }
         }
         
         if (!isCurrency && !isInvalidPid) {
-          console.log(`✅ Found valid PID: ${candidate}`);
+          debugLog(`✅ Found valid PID: ${candidate}`);
           return candidate;
         }
       }

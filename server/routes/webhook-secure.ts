@@ -6,6 +6,16 @@ import { storage } from "../storage";
 import type { UserWhatsappConfig } from "@shared/schema";
 import { processContactUpdates, formatSenderWithDbLookup } from "../contactResolver";
 
+// PRODUCTION-SAFE LOGGING: Reduces log volume to prevent Railway OOM crashes
+const isProduction = process.env.NODE_ENV === 'production';
+const isDebugMode = process.env.DEBUG_LOGGING === 'true';
+
+function debugLog(...args: any[]): void {
+  if (!isProduction || isDebugMode) {
+    console.log(...args);
+  }
+}
+
 // Per-user group name cache
 const groupNameCache = new Map<string, string>(); // "${userId}:${groupJid}" -> "Group Name"
 
@@ -18,9 +28,15 @@ export function registerSecureWebhookRoutes(app: Express) {
     try {
       const payload = req.body;
       const instanceId = payload?.instance_id;
+      const eventType = payload?.data?.event;
 
-      console.log(`🔔 Incoming Webhook Payload:`, JSON.stringify(payload, null, 2));
-      console.log("[WEBHOOK-SECURE v1] event=", payload?.data?.event);
+      // PRODUCTION: Only log essential info, not full payload
+      if (isProduction && !isDebugMode) {
+        console.log(`📨 Webhook: instance=${instanceId}, event=${eventType}`);
+      } else {
+        console.log(`🔔 Incoming Webhook Payload:`, JSON.stringify(payload, null, 2));
+        console.log("[WEBHOOK-SECURE v1] event=", eventType);
+      }
 
       if (!instanceId) {
         console.error("❌ No instance_id in webhook payload");
@@ -41,7 +57,7 @@ export function registerSecureWebhookRoutes(app: Express) {
         return res.status(403).json({ error: "Inactive WhatsApp configuration" });
       }
 
-      console.log(`🔐 [User ${userId}] Processing webhook for instance: ${instanceId}`);
+      debugLog(`🔐 [User ${userId}] Processing webhook for instance: ${instanceId}`);
 
       // **SECURITY**: All processing now includes user context
       const result = await processWebhookWithUserContext(payload, userId, userConfig);
@@ -79,7 +95,7 @@ export async function processWebhookWithUserContext(payload: any, userId: string
         return await processNewSubscriber(payload, userId, userConfig);
         
       default:
-        console.log(`📋 [User ${userId}] Unhandled event type: ${eventType}`);
+        debugLog(`📋 [User ${userId}] Unhandled event type: ${eventType}`);
         return { success: true, handled: false, eventType };
     }
 
@@ -113,7 +129,7 @@ async function processMessagesUpsert(payload: any, userId: string, userConfig: U
         processedCount++;
       } else {
         skippedCount++;
-        console.log(`🚫 [User ${userId}] Skipped message: ${messageData.reason}`);
+        debugLog(`🚫 [User ${userId}] Skipped message: ${messageData.reason}`);
       }
 
     } catch (error) {
@@ -171,12 +187,12 @@ async function processContactsUpdate(payload: any, userId: string, userConfig: U
     return { success: true, processed: false, reason: "No contacts data" };
   }
 
-  console.log(`📞 [User ${userId}] Processing ${contacts.length} contact updates for LID mapping`);
+  debugLog(`📞 [User ${userId}] Processing ${contacts.length} contact updates for LID mapping`);
   
   // **SECURITY FIX**: Process contacts with user scoping to prevent cross-tenant contamination
   try {
     processContactUpdates(contacts, userId); // **SECURITY**: Pass userId for user-scoped caching
-    console.log(`✅ [User ${userId}] Successfully processed ${contacts.length} contact updates`);
+    debugLog(`✅ [User ${userId}] Successfully processed ${contacts.length} contact updates`);
   } catch (error) {
     console.error(`❌ [User ${userId}] Error processing contact updates:`, error);
   }
@@ -193,7 +209,7 @@ async function processNewSubscriber(payload: any, userId: string, userConfig: Us
   // Handle new subscriber events with user context
   const subscriberData = payload?.data?.data;
   
-  console.log(`📋 [User ${userId}] New subscriber event:`, subscriberData);
+  debugLog(`📋 [User ${userId}] New subscriber event:`, subscriberData);
   
   return {
     success: true,
@@ -206,7 +222,7 @@ async function processNewSubscriber(payload: any, userId: string, userConfig: Us
    EXTRACT MESSAGE WITH USER CONTEXT
    ---------------------------------------------------------------- */
 async function extractMessageWithUserContext(message: any, userId: string, userConfig: UserWhatsappConfig) {
-  console.log("[EXTRACT-ENTER] userId=", userId);
+  debugLog("[EXTRACT-ENTER] userId=", userId);
   // Determine message source and type
   const remoteJid = message?.key?.remoteJid || message?.message_key?.remoteJid;
   const fromMe = message?.key?.fromMe || message?.message_key?.fromMe;
@@ -258,7 +274,7 @@ async function extractMessageWithUserContext(message: any, userId: string, userC
   let messageTimestamp = message?.messageTimestamp;
   if (!messageTimestamp || isNaN(messageTimestamp) || messageTimestamp <= 0) {
     messageTimestamp = Math.floor(Date.now() / 1000);
-    console.log(`⚠️ [User ${userId}] Invalid messageTimestamp, using current time: ${messageTimestamp}`);
+    debugLog(`⚠️ [User ${userId}] Invalid messageTimestamp, using current time: ${messageTimestamp}`);
   }
 
   // 📋 ORGANIC CONTACT CAPTURE - Store contact information automatically (including LID contacts)
@@ -266,7 +282,7 @@ async function extractMessageWithUserContext(message: any, userId: string, userC
   const senderE164 = senderJid?.endsWith('@s.whatsapp.net') ? senderJid.split('@')[0] : undefined;
   const isLid = senderJid?.endsWith('@lid');
   
-  console.log(`👤 Capture gate (webhook): [User ${userId}]`, { senderE164, senderJid, isLid, senderName: pushName, groupJid: remoteJid });
+  debugLog(`👤 Capture gate (webhook): [User ${userId}]`, { senderE164, senderJid, isLid, senderName: pushName, groupJid: remoteJid });
   
   if ((senderE164 || isLid) && pushName && pushName !== "Unknown") {
     try {
@@ -297,10 +313,10 @@ async function extractMessageWithUserContext(message: any, userId: string, userC
             uploadBatch: `organic_${Date.now()}`
           });
           
-          console.log(`📋 [User ${userId}] Organically captured contact: ${pushName} (+${senderE164}) from ${remoteJid}`);
+          debugLog(`📋 [User ${userId}] Organically captured contact: ${pushName} (+${senderE164}) from ${remoteJid}`);
         } else if (isLid) {
           // For LID contacts, we don't store them in contacts table since we can't resolve the phone number yet
-          console.log(`🔒 [User ${userId}] Skipping LID contact storage (no phone resolution): ${pushName} (${senderJid}) from ${remoteJid}`);
+          debugLog(`🔒 [User ${userId}] Skipping LID contact storage (no phone resolution): ${pushName} (${senderJid}) from ${remoteJid}`);
         }
       }
     } catch (error) {
@@ -359,11 +375,11 @@ async function getGroupName(userId: string, groupJid: string): Promise<string> {
     let resolvedName: string;
     if (groupRecord.length > 0 && groupRecord[0].groupName) {
       resolvedName = groupRecord[0].groupName;
-      console.log(`✅ [User ${userId}] Resolved group name from DB: ${groupJid} → ${resolvedName}`);
+      debugLog(`✅ [User ${userId}] Resolved group name from DB: ${groupJid} → ${resolvedName}`);
     } else {
       // Fallback to simplified JID display
       resolvedName = groupJid.split('@')[0]; // Show just the numeric part
-      console.log(`⚠️ [User ${userId}] No group name found in DB for ${groupJid}, using fallback: ${resolvedName}`);
+      debugLog(`⚠️ [User ${userId}] No group name found in DB for ${groupJid}, using fallback: ${resolvedName}`);
     }
     
     // Cache the result
@@ -408,15 +424,15 @@ async function processMessageWithUserContext(messageData: any, userId: string, u
       instanceId: userConfig.instanceId
     };
     
-    console.log(`📝 [User ${userId}] Creating message log with timestamp: ${new Date(validTimestamp * 1000).toISOString()}`);
+    debugLog(`📝 [User ${userId}] Creating message log with timestamp: ${new Date(validTimestamp * 1000).toISOString()}`);
 
     // Store message in database with user context
     const storedMessage = await storage.createMessageLog(messageLogEntry);
-    console.log(`📝 [User ${userId}] Message stored in database with ID ${storedMessage.id}`);
+    debugLog(`📝 [User ${userId}] Message stored in database with ID ${storedMessage.id}`);
 
     // **CRITICAL**: Parse watch listings with USER CONTEXT for PID alerts
     if (messageContent && shouldParseForWatches(messageContent)) {
-      console.log(`🔍 [User ${userId}] Parsing message for watch listings...`);
+      debugLog(`🔍 [User ${userId}] Parsing message for watch listings...`);
       
       // Import parser with dynamic import to avoid circular dependencies
       const { parseWatchMessage } = await import('../watch-parser');
@@ -427,7 +443,7 @@ async function processMessageWithUserContext(messageData: any, userId: string, u
         messageId: messageId
       });
 
-      console.log(`🔍 [User ${userId}] Parser Results:`, {
+      debugLog(`🔍 [User ${userId}] Parser Results:`, {
         messageLength: messageContent.length,
         messageLines: messageContent.split('\n').length,
         parsedCount: parseResults?.length || 0,
@@ -436,7 +452,10 @@ async function processMessageWithUserContext(messageData: any, userId: string, u
 
       // **CRITICAL FIX**: Save parsed listings to database
       if (parseResults && parseResults.length > 0) {
-        console.log(`💾 [User ${userId}] Saving ${parseResults.length} parsed listings to database...`);
+        debugLog(`💾 [User ${userId}] Saving ${parseResults.length} parsed listings to database...`);
+        
+        let savedCount = 0;
+        let errorCount = 0;
         
         for (const parsed of parseResults) {
           try {
@@ -461,12 +480,24 @@ async function processMessageWithUserContext(messageData: any, userId: string, u
             };
             
             await storage.createWatchListing(listingData);
+            savedCount++;
+            
+            // PRODUCTION: Log individual PIDs with emoji for visual parsing
+            if (isProduction) {
+              console.log(`❤️‍🔥${parsed.pid} ${parsed.variant || ''} ${parsed.year ? parsed.year.slice(-2) + 'y' : ''} ${parsed.currency || 'HKD'}${parsed.price ? (parsed.price >= 1000000 ? (parsed.price/1000000).toFixed(2) + 'm' : (parsed.price/1000) + 'k') : ''}`);
+            }
           } catch (saveError) {
+            errorCount++;
             console.error(`❌ [User ${userId}] Failed to save listing ${parsed.pid}:`, saveError);
           }
         }
         
-        console.log(`✅ [User ${userId}] Successfully saved ${parseResults.length} listings to database`);
+        // PRODUCTION: Summary log instead of per-item debug logs
+        if (isProduction && !isDebugMode) {
+          console.log(`✅ Saved ${savedCount}/${parseResults.length} PIDs${errorCount > 0 ? `, ${errorCount} errors` : ''}`);
+        } else {
+          debugLog(`✅ [User ${userId}] Successfully saved ${savedCount} listings to database`);
+        }
       }
 
       // Update message log with parse results
@@ -479,7 +510,7 @@ async function processMessageWithUserContext(messageData: any, userId: string, u
         userId // **SECURITY**: Include userId for proper data isolation
       );
 
-      console.log(`📊 [User ${userId}] Updated message log ${storedMessage.id} with status: ${parseResults && parseResults.length > 0 ? 'processed' : 'ignored'}`);
+      debugLog(`📊 [User ${userId}] Updated message log ${storedMessage.id} with status: ${parseResults && parseResults.length > 0 ? 'processed' : 'ignored'}`);
     }
 
   } catch (error) {
