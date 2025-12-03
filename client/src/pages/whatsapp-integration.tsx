@@ -121,7 +121,11 @@ export default function WhatsAppIntegration() {
   });
 
   // Check if user is a team member (must have both plan === 'team' AND workspaceOwnerId)
-  const isTeamMember = user?.plan === 'team' && !!user?.workspaceOwnerId;
+  // OR if user has useSharedData enabled (shared data users also inherit receiving instance)
+  const isTeamMember = (user?.plan === 'team' && !!user?.workspaceOwnerId) || user?.useSharedData === true;
+  
+  // Check if user is specifically a shared data user (not a team member)
+  const isSharedDataUser = user?.useSharedData === true && user?.plan !== 'team';
   
   // Fetch admin's WhatsApp config for team members
   useEffect(() => {
@@ -993,7 +997,10 @@ export default function WhatsAppIntegration() {
                   {isTeamMember && (
                     <div className="bg-blue-50 dark:bg-blue-900/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
                       <p className="text-sm text-blue-800 dark:text-blue-200">
-                        🔒 Team members use their admin's WhatsApp receiving setup. These fields are read-only and inherited from your workspace owner.
+                        {isSharedDataUser 
+                          ? "🔒 Shared data users use the admin's WhatsApp receiving setup. These fields are read-only. You can configure your own sending instance in the 'Sending Instance' tab."
+                          : "🔒 Team members use their admin's WhatsApp receiving setup. These fields are read-only and inherited from your workspace owner."
+                        }
                       </p>
                     </div>
                   )}
@@ -1002,7 +1009,7 @@ export default function WhatsAppIntegration() {
                     <Input
                       id="mobileNumber"
                       {...form.register("mobileNumber")}
-                      placeholder="Enter WhatsApp number (e.g., +919821822960)"
+                      placeholder="Enter WhatsApp number (e.g., +91XXXXXXXXXX)"
                       disabled={status === "connecting" || isTeamMember}
                       data-testid="input-mobile-number"
                       className={isTeamMember ? "bg-gray-100 dark:bg-gray-800 cursor-not-allowed" : ""}
@@ -1343,7 +1350,7 @@ export default function WhatsAppIntegration() {
                     setSelected(value.split(/[\n,]+/).map(id => id.trim()).filter(Boolean));
                     saveConfig({ whitelistedGroups: value });
                   }}
-                  placeholder="Enter WhatsApp group IDs (one per line or comma-separated):&#10;919821822960-1609692489@g.us&#10;919821822960-1609692490@g.us&#10;919821822960-1609692491@g.us"
+                  placeholder="Enter WhatsApp group IDs (one per line or comma-separated):&#10;91XXXXXXXXXX-1609692489@g.us&#10;91XXXXXXXXXX-1609692490@g.us&#10;91XXXXXXXXXX-1609692491@g.us"
                   className="w-full min-h-[120px] p-3 border border-gray-300 rounded-md resize-y"
                   rows={5}
                 />
@@ -1546,7 +1553,7 @@ export default function WhatsAppIntegration() {
                                   </TableCell>
                                   <TableCell>
                                     <div className="text-sm font-mono text-blue-600">
-                                      {group.mobileNumber || '+919821822960'}
+                                      {group.mobileNumber || 'Not set'}
                                     </div>
                                   </TableCell>
                                 </TableRow>

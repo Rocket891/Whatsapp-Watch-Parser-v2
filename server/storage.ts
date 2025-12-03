@@ -207,8 +207,8 @@ export class DatabaseStorage implements IStorage {
       return userId;
     }
     
-    // SECURITY: Only allow team members to access shared workspace
-    // Removed unsafe useSharedData toggle for security
+    // Check if user has workspaceOwnerId set (team members OR shared data users)
+    // SECURITY: workspaceOwnerId must be explicitly set by an admin - never auto-assigned
     if (user.workspaceOwnerId) {
       // Verify team membership is legitimate by checking the owner exists
       const workspaceOwner = await this.getUser(user.workspaceOwnerId);
@@ -216,6 +216,15 @@ export class DatabaseStorage implements IStorage {
         throw new Error('Invalid workspace owner - access denied');
       }
       return user.workspaceOwnerId;
+    }
+    
+    // SHARED DATA FEATURE: Users with useSharedData=true but no workspaceOwnerId yet
+    // They must be explicitly linked to an admin through admin settings - don't auto-link
+    // For now, they see only their own data until an admin links them
+    if (user.useSharedData) {
+      // User has shared data enabled but no workspace owner assigned yet
+      // Return their own userId - they'll see empty data until an admin links them
+      console.log(`⚠️ User ${userId} has useSharedData=true but no workspaceOwnerId - needs admin to link them`);
     }
     
     // Users get their own isolated workspace by default

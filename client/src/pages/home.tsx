@@ -191,7 +191,7 @@ export default function Home() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Mobile Number</span>
-                    <span className="text-sm">{instanceData?.mobileNumber || '+919821822960'}</span>
+                    <span className="text-sm">{instanceData?.mobileNumber || 'Not configured'}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Instance ID</span>

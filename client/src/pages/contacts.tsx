@@ -1103,7 +1103,7 @@ export default function Contacts() {
 {user?.isAdmin ? "mBlaster Group Export (Auto-detected):" : "WhatsApp Group Export (Auto-detected):"}
 120363417668189591\tOne World Dealers Group
 12136231456@c.us\tAlan G Los Angeles
-919821822960@c.us\tNirav Lab Gandhi
+91XXXXXXXXXX@c.us\tExample Contact
 
 Other formats:
 John Doe, +852 1234 5678

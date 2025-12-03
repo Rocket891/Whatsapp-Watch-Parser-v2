@@ -122,10 +122,28 @@ router.put('/users/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
     const updates = req.body;
+    const currentAdmin = (req as any).user;
     
     // Never allow changing admin status - only rocketelabs@gmail.com can be admin
     if ('isAdmin' in updates) {
       delete updates.isAdmin;
+    }
+    
+    // SHARED DATA FEATURE: When enabling useSharedData, also set workspaceOwnerId to current admin
+    // This ensures proper data access linkage
+    if (updates.useSharedData === true) {
+      updates.workspaceOwnerId = currentAdmin.id;
+      console.log(`📎 Linking shared data user ${userId} to admin ${currentAdmin.id}`);
+    }
+    
+    // If disabling useSharedData AND user is not a team member, clear workspaceOwnerId
+    if (updates.useSharedData === false) {
+      const existingUser = await storage.getUser(userId);
+      // Only clear workspaceOwnerId if user was a shared data user (not a team member)
+      if (existingUser && existingUser.useSharedData === true && existingUser.plan !== 'team') {
+        updates.workspaceOwnerId = null;
+        console.log(`🔓 Unlinking shared data user ${userId} from admin workspace`);
+      }
     }
     
     const user = await storage.updateUser(userId, updates);

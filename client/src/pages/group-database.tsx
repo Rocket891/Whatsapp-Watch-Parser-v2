@@ -90,7 +90,7 @@ export default function GroupDatabase() {
               <span>6</span>
             </Badge>
             <Badge variant="outline" className="flex items-center gap-1">
-              <span>+919821822960</span>
+              <span>Primary Instance</span>
               <span className="ml-1">3</span>
             </Badge>
             <Badge variant="outline" className="flex items-center gap-1">
