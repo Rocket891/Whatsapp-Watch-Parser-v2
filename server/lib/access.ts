@@ -1,6 +1,6 @@
-import { and, eq, or, inArray } from 'drizzle-orm';
+import { and, eq, or, inArray, not } from 'drizzle-orm';
 import { db } from '../db';
-import { users } from '@shared/schema';
+import { users, watchListings } from '@shared/schema';
 
 export type AuthUser = {
   id: string;
@@ -84,4 +84,61 @@ export function inArraySafe<T>(column: any, ids: T[]) {
 export async function createUserAccessCondition(currentUser: AuthUser, userIdColumn: any) {
   const accessibleIds = await getAccessibleUserIds(currentUser);
   return inArraySafe(userIdColumn, accessibleIds);
+}
+
+/**
+ * Create a special access condition for watch_listings table that EXCLUDES inventory from sharing.
+ * 
+ * INVENTORY PRIVACY RULE:
+ * - Admin users can see all data (including their own inventory)
+ * - Shared data users can see:
+ *   - Their OWN data (including their own inventory)
+ *   - Workspace owner's data EXCEPT inventory items (isInventory=true)
+ * - Regular users see only their own data
+ * 
+ * This ensures inventory remains private to each user while sharing all other data.
+ */
+export async function createWatchListingsAccessCondition(currentUser: AuthUser) {
+  if (!currentUser.id) {
+    // Return a condition that never matches
+    return eq(watchListings.userId, '__never_matches__');
+  }
+
+  // Admin users can see all data for themselves and linked users (including inventory)
+  if (currentUser.isAdmin) {
+    const accessibleIds = await getAccessibleUserIds(currentUser);
+    return inArraySafe(watchListings.userId, accessibleIds);
+  }
+
+  // Shared data users with workspaceOwnerId: see workspace data BUT exclude others' inventory
+  if (currentUser.workspaceOwnerId && currentUser.useSharedData) {
+    // Get all users in workspace (for reference)
+    const workspaceUsers = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(
+        or(
+          eq(users.id, currentUser.workspaceOwnerId), // The workspace owner
+          eq(users.workspaceOwnerId, currentUser.workspaceOwnerId) // Other users in same workspace
+        )
+      );
+    
+    const workspaceUserIds = workspaceUsers.map(user => user.id);
+    const otherUserIds = workspaceUserIds.filter(id => id !== currentUser.id);
+    
+    // Build condition:
+    // - User's own data (any isInventory value) 
+    // OR
+    // - Other workspace users' data WHERE isInventory = false
+    return or(
+      eq(watchListings.userId, currentUser.id), // User's own data (including their inventory)
+      and(
+        inArraySafe(watchListings.userId, otherUserIds), // Other workspace users' data
+        eq(watchListings.isInventory, false) // But ONLY non-inventory items
+      )
+    );
+  }
+
+  // Regular users or unlinked shared users: only their own data
+  return eq(watchListings.userId, currentUser.id);
 }
