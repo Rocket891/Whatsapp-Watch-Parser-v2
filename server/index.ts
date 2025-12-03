@@ -4,6 +4,12 @@ import { setupVite, serveStatic, log } from "./vite";
 import { initializePollingService } from "./polling-service";
 
 const app = express();
+
+// Trust proxy for Railway/production environments (fixes rate limiting and client IP detection)
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 app.use(express.json({ limit: '10mb' })); // Increase limit for large WhatsApp messages
 app.use(express.urlencoded({ extended: false }));
 
