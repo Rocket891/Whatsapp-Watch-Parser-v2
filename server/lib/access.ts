@@ -99,19 +99,28 @@ export async function createUserAccessCondition(currentUser: AuthUser, userIdCol
  * This ensures inventory remains private to each user while sharing all other data.
  */
 export async function createWatchListingsAccessCondition(currentUser: AuthUser) {
+  console.log('📊 createWatchListingsAccessCondition called with:', {
+    id: currentUser.id,
+    isAdmin: currentUser.isAdmin,
+    workspaceOwnerId: currentUser.workspaceOwnerId,
+    useSharedData: currentUser.useSharedData
+  });
+  
   if (!currentUser.id) {
-    // Return a condition that never matches
+    console.log('📊 No user ID - returning never matches condition');
     return eq(watchListings.userId, '__never_matches__');
   }
 
   // Admin users can see all data for themselves and linked users (including inventory)
   if (currentUser.isAdmin) {
     const accessibleIds = await getAccessibleUserIds(currentUser);
+    console.log('📊 Admin user - accessible IDs:', accessibleIds);
     return inArraySafe(watchListings.userId, accessibleIds);
   }
 
   // Shared data users with workspaceOwnerId: see workspace data BUT exclude others' inventory
   if (currentUser.workspaceOwnerId && currentUser.useSharedData) {
+    console.log('📊 Shared data user with workspaceOwnerId detected');
     // Get all users in workspace (for reference)
     const workspaceUsers = await db
       .select({ id: users.id })
@@ -126,17 +135,22 @@ export async function createWatchListingsAccessCondition(currentUser: AuthUser) 
     const workspaceUserIds = workspaceUsers.map(user => user.id);
     const otherUserIds = workspaceUserIds.filter(id => id !== currentUser.id);
     
+    console.log('📊 Workspace users found:', workspaceUserIds);
+    console.log('📊 Other users (for data sharing):', otherUserIds);
+    
     // Build condition:
     // - User's own data (any isInventory value) 
     // OR
     // - Other workspace users' data WHERE isInventory = false
-    return or(
+    const condition = or(
       eq(watchListings.userId, currentUser.id), // User's own data (including their inventory)
       and(
         inArraySafe(watchListings.userId, otherUserIds), // Other workspace users' data
         eq(watchListings.isInventory, false) // But ONLY non-inventory items
       )
     );
+    console.log('📊 Created shared data condition for user:', currentUser.id);
+    return condition;
   }
 
   // Regular users or unlinked shared users: only their own data
