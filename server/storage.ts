@@ -828,22 +828,24 @@ export class DatabaseStorage implements IStorage {
         gte(processingLogs.createdAt, today)
       ));
 
-    // Build conditions with inventory exclusion for shared users
-    const uniquePidsConditions = [
-      eq(watchListings.userId, dataWorkspaceId),
-      sql`${watchListings.pid} is not null and ${watchListings.pid} != ''`
-    ];
-    
-    // Add inventory exclusion for shared data users
-    const inventoryExclusion = await this.getInventoryExclusionCondition(userId);
-    if (inventoryExclusion) {
-      uniquePidsConditions.push(inventoryExclusion);
+    // Get user for access control
+    const user = await this.getUser(userId);
+    if (!user) {
+      return { messagesToday: 0, parsedSuccess: 0, parseErrors: 0, uniquePids: 0 };
     }
+    
+    // Use proper access condition that handles inventory exclusion and includes user's own data
+    const accessCondition = await createWatchListingsAccessCondition(
+      { id: userId, isAdmin: user.isAdmin, workspaceOwnerId: user.workspaceOwnerId, useSharedData: user.useSharedData }
+    );
 
     const [uniquePidsResult] = await db
       .select({ count: sql<number>`count(distinct ${watchListings.pid})` })
       .from(watchListings)
-      .where(and(...uniquePidsConditions));
+      .where(and(
+        accessCondition,
+        sql`${watchListings.pid} is not null and ${watchListings.pid} != ''`
+      ));
 
       return {
         messagesToday: Number(todayProcessingCount?.count) || 0,
@@ -864,28 +866,24 @@ export class DatabaseStorage implements IStorage {
       return [];
     }
     
-    // Add workspace isolation
-    const dataWorkspaceId = await this.getDataWorkspaceId(userId);
-    if (!dataWorkspaceId) {
+    // Get user for access control
+    const user = await this.getUser(userId);
+    if (!user) {
       return [];
     }
     
-    // Build conditions with inventory exclusion for shared users
-    const conditions = [
-      eq(watchListings.userId, dataWorkspaceId),
-      sql`${watchListings.pid} is not null and ${watchListings.pid} != ''`
-    ];
-    
-    // Add inventory exclusion for shared data users
-    const inventoryExclusion = await this.getInventoryExclusionCondition(userId);
-    if (inventoryExclusion) {
-      conditions.push(inventoryExclusion);
-    }
+    // Use proper access condition that handles inventory exclusion and includes user's own data
+    const accessCondition = await createWatchListingsAccessCondition(
+      { id: userId, isAdmin: user.isAdmin, workspaceOwnerId: user.workspaceOwnerId, useSharedData: user.useSharedData }
+    );
     
     const results = await db
       .selectDistinct({ pid: watchListings.pid })
       .from(watchListings)
-      .where(and(...conditions))
+      .where(and(
+        accessCondition,
+        sql`${watchListings.pid} is not null and ${watchListings.pid} != ''`
+      ))
       .orderBy(asc(watchListings.pid));
     
     return results.map(r => r.pid!);
@@ -898,28 +896,24 @@ export class DatabaseStorage implements IStorage {
       return [];
     }
     
-    // Add workspace isolation
-    const dataWorkspaceId = await this.getDataWorkspaceId(userId);
-    if (!dataWorkspaceId) {
+    // Get user for access control
+    const user = await this.getUser(userId);
+    if (!user) {
       return [];
     }
     
-    // Build conditions with inventory exclusion for shared users
-    const conditions = [
-      eq(watchListings.userId, dataWorkspaceId),
-      sql`${watchListings.condition} is not null and ${watchListings.condition} != ''`
-    ];
-    
-    // Add inventory exclusion for shared data users
-    const inventoryExclusion = await this.getInventoryExclusionCondition(userId);
-    if (inventoryExclusion) {
-      conditions.push(inventoryExclusion);
-    }
+    // Use proper access condition that handles inventory exclusion and includes user's own data
+    const accessCondition = await createWatchListingsAccessCondition(
+      { id: userId, isAdmin: user.isAdmin, workspaceOwnerId: user.workspaceOwnerId, useSharedData: user.useSharedData }
+    );
     
     const results = await db
       .selectDistinct({ condition: watchListings.condition })
       .from(watchListings)
-      .where(and(...conditions))
+      .where(and(
+        accessCondition,
+        sql`${watchListings.condition} is not null and ${watchListings.condition} != ''`
+      ))
       .orderBy(asc(watchListings.condition));
     
     return results.map(r => r.condition!);
@@ -932,23 +926,16 @@ export class DatabaseStorage implements IStorage {
       return [];
     }
     
-    // Add workspace isolation
-    const dataWorkspaceId = await this.getDataWorkspaceId(userId);
-    if (!dataWorkspaceId) {
+    // Get user for access control
+    const user = await this.getUser(userId);
+    if (!user) {
       return [];
     }
     
-    // Build conditions with inventory exclusion for shared users
-    const conditions = [
-      eq(watchListings.userId, dataWorkspaceId),
-      sql`${watchListings.currency} is not null and ${watchListings.currency} != ''`
-    ];
-    
-    // Add inventory exclusion for shared data users
-    const inventoryExclusion = await this.getInventoryExclusionCondition(userId);
-    if (inventoryExclusion) {
-      conditions.push(inventoryExclusion);
-    }
+    // Use proper access condition that handles inventory exclusion and includes user's own data
+    const accessCondition = await createWatchListingsAccessCondition(
+      { id: userId, isAdmin: user.isAdmin, workspaceOwnerId: user.workspaceOwnerId, useSharedData: user.useSharedData }
+    );
     
     const results = await db
       .select({
@@ -956,7 +943,10 @@ export class DatabaseStorage implements IStorage {
         count: sql<number>`count(*)`,
       })
       .from(watchListings)
-      .where(and(...conditions))
+      .where(and(
+        accessCondition,
+        sql`${watchListings.currency} is not null and ${watchListings.currency} != ''`
+      ))
       .groupBy(watchListings.currency)
       .orderBy(desc(sql`count(*)`));
     
@@ -970,20 +960,16 @@ export class DatabaseStorage implements IStorage {
       return [];
     }
     
-    // Add workspace isolation
-    const dataWorkspaceId = await this.getDataWorkspaceId(userId);
-    if (!dataWorkspaceId) {
+    // Get user for access control
+    const user = await this.getUser(userId);
+    if (!user) {
       return [];
     }
     
-    // Build conditions with inventory exclusion for shared users
-    const conditions = [eq(watchListings.userId, dataWorkspaceId)];
-    
-    // Add inventory exclusion for shared data users
-    const inventoryExclusion = await this.getInventoryExclusionCondition(userId);
-    if (inventoryExclusion) {
-      conditions.push(inventoryExclusion);
-    }
+    // Use proper access condition that handles inventory exclusion and includes user's own data
+    const accessCondition = await createWatchListingsAccessCondition(
+      { id: userId, isAdmin: user.isAdmin, workspaceOwnerId: user.workspaceOwnerId, useSharedData: user.useSharedData }
+    );
     
     const results = await db
       .select({
@@ -991,7 +977,7 @@ export class DatabaseStorage implements IStorage {
         count: sql<number>`count(*)`,
       })
       .from(watchListings)
-      .where(and(...conditions))
+      .where(accessCondition)
       .groupBy(watchListings.sender)
       .orderBy(desc(sql`count(*)`))
       .limit(10);
