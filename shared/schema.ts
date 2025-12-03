@@ -116,6 +116,7 @@ export const watchListings = pgTable("watch_listings", {
   family: text("family"),
   month: text("month"), // N1-N12 month notation
   messageType: text("message_type").default("selling"), // "selling" or "looking_for"
+  isInventory: boolean("is_inventory").default(false).notNull(), // Private inventory items are not shared
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
