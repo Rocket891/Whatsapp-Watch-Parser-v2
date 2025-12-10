@@ -6,8 +6,10 @@ import { initializePollingService } from "./polling-service";
 const app = express();
 
 // Trust proxy for Railway/production environments (fixes rate limiting and client IP detection)
-if (process.env.NODE_ENV === 'production') {
+// Enable for any environment that uses a reverse proxy (Railway, Heroku, etc.)
+if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT || process.env.PORT) {
   app.set('trust proxy', 1);
+  console.log('🔒 Trust proxy enabled for reverse proxy environment');
 }
 
 app.use(express.json({ limit: '10mb' })); // Increase limit for large WhatsApp messages
