@@ -94,26 +94,34 @@ router.post('/register', authLimiter, async (req, res) => {
 
 // Login endpoint
 router.post('/login', authLimiter, async (req, res) => {
+  console.log('🔐 Login attempt received:', { email: req.body?.email?.slice(0, 10) + '...' });
   try {
     const { email, password } = loginSchema.parse(req.body);
+    console.log('🔐 Login credentials validated');
 
     // Find user by email
+    console.log('🔐 Looking up user in database...');
     const [user] = await db.select()
       .from(users)
       .where(eq(users.email, email))
       .limit(1);
+    console.log('🔐 User lookup result:', { found: !!user, hasPasswordHash: !!user?.passwordHash });
 
     if (!user || !user.passwordHash) {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
     // Verify password
+    console.log('🔐 Verifying password...');
     const isValidPassword = await bcrypt.compare(password, user.passwordHash);
     if (!isValidPassword) {
+      console.log('🔐 Login failed: invalid password');
       return res.status(401).json({ error: 'Invalid email or password' });
     }
+    console.log('🔐 Password verified successfully');
 
     // Generate JWT token
+    console.log('🔐 Generating token...');
     const token = generateToken({
       userId: user.id,
       email: user.email,
@@ -126,6 +134,7 @@ router.post('/login', authLimiter, async (req, res) => {
       .set({ updatedAt: new Date() })
       .where(eq(users.id, user.id));
 
+    console.log('🔐 Login successful for:', email);
     res.json({
       message: 'Login successful',
       token,
@@ -144,9 +153,10 @@ router.post('/login', authLimiter, async (req, res) => {
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
+      console.log('🔐 Login failed: validation error', error.errors);
       return res.status(400).json({ error: error.errors[0].message });
     }
-    console.error('Login error:', error);
+    console.error('🔐 Login error:', error);
     res.status(500).json({ error: 'Login failed' });
   }
 });
