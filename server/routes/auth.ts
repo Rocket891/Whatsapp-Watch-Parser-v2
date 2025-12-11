@@ -97,13 +97,15 @@ router.post('/login', authLimiter, async (req, res) => {
   console.log('🔐 Login attempt received:', { email: req.body?.email?.slice(0, 10) + '...' });
   try {
     const { email, password } = loginSchema.parse(req.body);
-    console.log('🔐 Login credentials validated');
+    // Normalize email to lowercase for case-insensitive matching
+    const normalizedEmail = email.toLowerCase().trim();
+    console.log('🔐 Login credentials validated, normalized email:', normalizedEmail.slice(0, 10) + '...');
 
-    // Find user by email
+    // Find user by email (case-insensitive)
     console.log('🔐 Looking up user in database...');
     const [user] = await db.select()
       .from(users)
-      .where(eq(users.email, email))
+      .where(eq(users.email, normalizedEmail))
       .limit(1);
     console.log('🔐 User lookup result:', { found: !!user, hasPasswordHash: !!user?.passwordHash });
 
