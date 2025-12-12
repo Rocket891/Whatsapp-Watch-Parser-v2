@@ -14,11 +14,13 @@ import Topbar from "@/components/layout/topbar";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useTheme, themes } from "@/contexts/theme-context";
+import { useAuth } from "@/contexts/auth-context";
 
 export default function Settings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { currentTheme, setTheme, isDark } = useTheme();
+  const { user } = useAuth();
   const [mobileNumber, setMobileNumber] = useState("");
   const [instanceId, setInstanceId] = useState("");
   const [accessToken, setAccessToken] = useState("");
@@ -37,15 +39,17 @@ export default function Settings() {
   // Team management state
   const [newTeamMemberEmail, setNewTeamMemberEmail] = useState('');
 
-  // Get current configuration
+  // Get current configuration - Admin only
   const { data: instanceInfo } = useQuery({
     queryKey: ["/api/whatsapp/instance-info"],
+    enabled: !!user?.isAdmin,
   });
 
-  // Team members query
+  // Team members query - Admin only
   const { data: teamMembers = [], isLoading: isLoadingTeamMembers } = useQuery<any[]>({
     queryKey: ['/api/admin/team-members'],
     retry: false,
+    enabled: !!user?.isAdmin,
   });
 
   // Update configuration mutation
@@ -221,50 +225,53 @@ export default function Settings() {
               </div>
             </div>
 
-            {/* Current Configuration */}
-            <Card className="card standout-card">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Globe className="h-5 w-5" />
-                  Current Configuration
-                </CardTitle>
-                <CardDescription>
-                  Current WhatsApp instance information
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <Label className="text-sm font-medium text-gray-600">Mobile Number</Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="outline">{(instanceInfo as any)?.mobileNumber || "Not configured"}</Badge>
+            {/* Current Configuration - Admin Only */}
+            {user?.isAdmin && (
+              <Card className="card standout-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Globe className="h-5 w-5" />
+                    Current Configuration
+                  </CardTitle>
+                  <CardDescription>
+                    Current WhatsApp instance information
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <Label className="text-sm font-medium text-gray-600">Mobile Number</Label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline">{(instanceInfo as any)?.mobileNumber || "Not configured"}</Badge>
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-gray-600">Instance ID</Label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline">{(instanceInfo as any)?.instanceId || "Not configured"}</Badge>
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium text-gray-600">Status</Label>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant={(instanceInfo as any)?.status?.includes("Active") ? "default" : "destructive"}>
+                          {(instanceInfo as any)?.status || "Unknown"}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-600">Instance ID</Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant="outline">{(instanceInfo as any)?.instanceId || "Not configured"}</Badge>
-                    </div>
-                  </div>
-                  <div>
-                    <Label className="text-sm font-medium text-gray-600">Status</Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant={(instanceInfo as any)?.status?.includes("Active") ? "default" : "destructive"}>
-                        {(instanceInfo as any)?.status || "Unknown"}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            )}
 
-            {/* Team Management */}
-            <Card className="card standout-card">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Team Management
-                </CardTitle>
+            {/* Team Management - Admin Only */}
+            {user?.isAdmin && (
+              <Card className="card standout-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Team Management
+                  </CardTitle>
                 <CardDescription>
                   Add team members to access your workspace data (Pro plan feature)
                 </CardDescription>
@@ -340,7 +347,8 @@ export default function Settings() {
                   </div>
                 </div>
               </CardContent>
-            </Card>
+              </Card>
+            )}
 
             {/* Theme Settings */}
             <Card className="card standout-card">
@@ -517,17 +525,18 @@ export default function Settings() {
               </CardContent>
             </Card>
 
-            {/* Data Management */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Database className="h-5 w-5" />
-                  Data Management
-                </CardTitle>
-                <CardDescription>
-                  Delete old data to free up storage space and manage data retention
-                </CardDescription>
-              </CardHeader>
+            {/* Data Management - Admin Only */}
+            {user?.isAdmin && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Database className="h-5 w-5" />
+                    Data Management
+                  </CardTitle>
+                  <CardDescription>
+                    Delete old data to free up storage space and manage data retention
+                  </CardDescription>
+                </CardHeader>
               <CardContent className="space-y-6">
                 {/* Quick Delete Actions */}
                 <div>
@@ -637,7 +646,8 @@ export default function Settings() {
                   </Button>
                 </div>
               </CardContent>
-            </Card>
+              </Card>
+            )}
 
             {/* Backup & Recovery */}
             <Card>
@@ -781,40 +791,6 @@ export default function Settings() {
                     <div>• {backupFrequency.charAt(0).toUpperCase() + backupFrequency.slice(1)} backups retain {backupFrequency === 'daily' ? '30 days' : backupFrequency === 'weekly' ? '12 weeks' : '12 months'} of history</div>
                     <div>• Cloud storage requires authentication setup (one-time)</div>
                     <div>• Manual exports available anytime in JSON and Excel formats</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Instructions */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Key className="h-5 w-5" />
-                  How to Get Your Credentials
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4 text-sm text-gray-600">
-                  <div>
-                    <h4 className="font-medium text-gray-900 mb-2">Step 1: Get WhatsApp Business API Access</h4>
-                    <p>1. Contact your WhatsApp Business API provider</p>
-                    <p>2. Obtain your API access credentials and instance details</p>
-                  </div>
-                  
-                  <div>
-                    <h4 className="font-medium text-gray-900 mb-2">Step 2: Create WhatsApp Instance</h4>
-                    <p>1. Create a new WhatsApp Business API instance</p>
-                    <p>2. Complete the verification process with your provider</p>
-                    <p>3. Copy the instance ID after successful setup</p>
-                  </div>
-                  
-                  <div>
-                    <h4 className="font-medium text-gray-900 mb-2">Step 3: Configure Here</h4>
-                    <p>1. Enter your mobile number (the one connected to WhatsApp)</p>
-                    <p>2. Enter your instance ID from your API provider</p>
-                    <p>3. Enter your access token from your API provider</p>
-                    <p>4. Click Save Configuration</p>
                   </div>
                 </div>
               </CardContent>

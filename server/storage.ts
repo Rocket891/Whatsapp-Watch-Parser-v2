@@ -1635,15 +1635,30 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserIdByInstanceId(instanceId: string): Promise<string | undefined> {
-    // First, check if the instance is directly configured for a user
-    const [config] = await db
-      .select({ userId: userWhatsappConfig.userId })
+    // CRITICAL FIX: When multiple users share the same instance ID, always prefer the admin user
+    // This ensures webhook messages route to the correct workspace owner
+    const configs = await db
+      .select({ 
+        userId: userWhatsappConfig.userId,
+        isAdmin: users.isAdmin,
+        email: users.email
+      })
       .from(userWhatsappConfig)
-      .where(eq(userWhatsappConfig.instanceId, instanceId));
+      .innerJoin(users, eq(userWhatsappConfig.userId, users.id))
+      .where(eq(userWhatsappConfig.instanceId, instanceId))
+      .orderBy(desc(users.isAdmin)); // Admin users first
     
-    if (config?.userId) {
-      console.log(`🔐 Direct instance match: ${instanceId} → User ${config.userId}`);
-      return config.userId;
+    if (configs.length > 0) {
+      const adminConfig = configs.find(c => c.isAdmin);
+      const selectedConfig = adminConfig || configs[0];
+      
+      if (configs.length > 1) {
+        console.log(`⚠️ Multiple users share instance ${instanceId}:`, configs.map(c => `${c.email} (admin: ${c.isAdmin})`));
+        console.log(`🔐 Prioritizing admin: ${selectedConfig.email}`);
+      }
+      
+      console.log(`🔐 Instance match: ${instanceId} → User ${selectedConfig.userId} (${selectedConfig.email})`);
+      return selectedConfig.userId;
     }
 
     // **DYNAMIC INSTANCE SHARING**: If no direct match, check if there are admin instances available

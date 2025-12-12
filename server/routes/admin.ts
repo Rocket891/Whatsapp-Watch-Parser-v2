@@ -325,14 +325,20 @@ router.post('/features', async (req, res) => {
   }
 });
 
-// Data deletion endpoints
+// Data deletion endpoints - ADMIN ONLY
 router.delete('/data/older-than/:days', async (req, res) => {
   try {
     const days = parseInt(req.params.days);
     const userId = (req as any).user?.id;
+    const isAdmin = (req as any).user?.isAdmin;
 
     if (!userId) {
       return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    // SECURITY: Only admin can delete data
+    if (!isAdmin) {
+      return res.status(403).json({ error: 'Only admin users can delete data' });
     }
 
     if (isNaN(days) || days < 1) {
@@ -382,9 +388,15 @@ router.delete('/data/date-range', async (req, res) => {
   try {
     const { startDate, endDate } = req.body;
     const userId = (req as any).user?.id;
+    const isAdmin = (req as any).user?.isAdmin;
 
     if (!userId) {
       return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    // SECURITY: Only admin can delete data
+    if (!isAdmin) {
+      return res.status(403).json({ error: 'Only admin users can delete data' });
     }
     
     if (!startDate || !endDate) {
@@ -426,9 +438,15 @@ router.delete('/data/date-range', async (req, res) => {
 router.delete('/data/all-listings', async (req, res) => {
   try {
     const userId = (req as any).user?.id;
+    const isAdmin = (req as any).user?.isAdmin;
 
     if (!userId) {
       return res.status(401).json({ error: 'User not authenticated' });
+    }
+
+    // SECURITY: Only admin can delete data
+    if (!isAdmin) {
+      return res.status(403).json({ error: 'Only admin users can delete data' });
     }
 
     // ADMIN FIX: Delete data for admin + all team members
