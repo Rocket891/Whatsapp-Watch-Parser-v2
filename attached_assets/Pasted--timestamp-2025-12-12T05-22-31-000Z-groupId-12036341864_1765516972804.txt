@@ -1,0 +1,25 @@
+  "timestamp": "2025-12-12T05:22:31.000Z",
+  "groupId": "120363418645809347@g.us",
+  "groupName": "𝐓.𝐃𝐄𝐀𝐋𝐄𝐑🇦🇪Dubai",
+  "sender": "Sally",
+  "senderNumber": "+85264376872",
+  "message": "🌟 HPI01773 N11 $405k\n🌟 8918BR/2C/364/D00D\n    335900-43%  09-25\n🌟 116598TBR🐯2021y\n     Tiger Diamond Bracelet\n     $2.48m  Like new full links  \n🌟 126333 wim jub 2021y\n     full links  Like new     $120k\n🌟 4910/1201R purple N11 $270k\n🌟 4910/1200A blue N11 $115k\n🌟 4948G white 05-24 $460k\n🌟 4962/200R zebra N10 $335k\n🌟 4968G 2021y $210k\n🌟 4997/200R purple N10 $172k\n🌟 5072R N12 $1.65m\n🌟 5160/500R N9 $1.45m\n🌟 5212A N11 $245k\n🌟 5226G N11 $260k\n🌟 5227j N11 $283k\n🌟 5267/200A green N12 $488k\n🌟 5270J N7 $1.065m\n🌟 5328G blue N9 $510k\n🌟 5726A N11 $735k\n🌟 5726/1A blue N11 $1.06m\n🌟 5738/1R N11 blk $568k\n🌟 5935A Salmon N10 $395k\n🌟 5968R N11 $1.09m\n🌟 5980/1400G N10 $5.3m\n🌟 6007G blue N11 $225k\n🌟 6007G yellow N11 $215k\n🌟 6119G N12 $210k\n🌟 7042/100G-010 N9 $1.78m\n🌟 7118/1R champ N11 $855k\n🌟 7118/1300R N12 $1.76m\n🌟 7118/1453g N11 $4.58m\n🌟 7121/200G blue N6 $235k\n🌟 7121/200G blue N11 $248k\n🌟 7121/200G grey 23y $210k\n🌟 7128/1G blue N12 $935k\n🌟 7130R green N11 $338k\n🌟 7200R white N11 $173k\n🌟 7300/1200A grey N11 $180k\n🌟 7300/1200A green N11 $174k\n🌟 124060🏷️N12 $92k\n🌟 124270 N9 $63k\n🌟 126538tbr champ N5 $1.05m\n🌟 126595 rainbow blk🏷️N9 $3.53\n🌟 126579ng N11 $645k\n🌟 126679 sabr Pave N8 $1.3m\n🌟 126610LV N10 $113k\n🌟 126715 CHNR Tiger Iron N11 $620k\n🌟 128235Puzzle🏷️N8 $1.78m\n🌟 128239A bright blue🏷️N10 $348k\n🌟 128396TBR Turquoise🏷️N8 $1.25m\n🌟 326934 white oys 2022y $128k\n🌟 336238 white N8 $310k\n🌟 126755rbow\n      pave have sticker      both tags🏷️\n      Only watch      No adj $1.05m\n🌟 126333G champ jub FS N10 $145k\n🌟 126334 blue jub 🏷️N10 $111k\n🌟 126234green jub🏷️N11 $98k\n🌟 126000 blk oys 🏷️N11 $61k\n🌟 124200 pistachio🏷️N8 $67k\n🌟 276200 Lavender🏷️N11 $53k\n🌟 278241G silver jub🏷️N11 $108k\n🌟 278274vi pink jub N11 $103k\n🌟 278381ng white jub🏷️N11 $193k\n🌟 278383g silver jub🏷️N11 $181k\n🌟 278341vi Purple oys N10 $135k\n🌟 VCARO8OD00 N9 $780k\n🌟 511.NX.7071.RX grey 45mm\n     HKD 59500-31%  N9\n🌟 511.NX.7170.RX blue 45mm\n     HKD 59500-30%  N11\n🌟 542.NX.7170.RX blue 42mm\n     HKD 59500-30%  N11\n🌟 M2543C1A7NU-0001 N11 $33k\n🌟 424.53.40.21.03.001\n42453402103001\n09-2024  blue HKD 50000",
+  "status": "received",
+  "instanceId": "6871232390D4E"
+}
+❌ [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] Error processing message: error: could not extend file because project size limit (10240 MB) has been exceeded
+    at file:///app/node_modules/@neondatabase/serverless/index.mjs:1345:74
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async NeonPreparedQuery.execute (/app/node_modules/src/neon-serverless/session.ts:102:18)
+    at async DatabaseStorage.createMessageLog (/app/server/storage.ts:1490:22)
+    at async processMessageWithUserContext (/app/server/routes/webhook-secure.ts:430:27)
+    at async processMessagesUpsert (/app/server/routes/webhook-secure.ts:128:9)
+    at async processWebhookWithUserContext (/app/server/routes/webhook-secure.ts:86:16)
+    at async <anonymous> (/app/server/routes/webhook-secure.ts:63:22) {
+  length: 198,
+  severity: 'ERROR',
+  code: '53100',
+  detail: undefined,
+  hint: 'This limit is defined by neon.max_cluster_size GUC',
+  position: undefined,
+  internalPosition: undefined,
