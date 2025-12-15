@@ -1,0 +1,122 @@
+
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'pagestore_smgr.c',
+  line: '1377',
+  routine: 'neon_zeroextend'
+}
+❤️‍🔥7118/1453G green 25y HKD4.67m
+❤️‍🔥26238ST   HKD308k
+    at async processWebhookWithUserContext (/app/server/routes/webhook-secure.ts:86:16)
+    at async <anonymous> (/app/server/routes/webhook-secure.ts:63:22) {
+  length: 198,
+  severity: 'ERROR',
+  code: '53100',
+  detail: undefined,
+  hint: 'This limit is defined by neon.max_cluster_size GUC',
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+❤️‍🔥5712G leather 20y HKD638k
+❌ [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] Failed to update message log with error: error: could not extend file because project size limit (10240 MB) has been exceeded
+  column: undefined,
+    at file:///app/node_modules/@neondatabase/serverless/index.mjs:1345:74
+  dataType: undefined,
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async DatabaseStorage.updateMessageLogStatus (/app/server/storage.ts:1589:5)
+    at async processMessageWithUserContext (/app/server/routes/webhook-secure.ts:521:7)
+    at async processMessagesUpsert (/app/server/routes/webhook-secure.ts:128:9)
+  constraint: undefined,
+  file: 'pagestore_smgr.c',
+  line: '1377',
+  routine: 'neon_zeroextend'
+}
+❌ [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] Error processing message: error: could not extend file because project size limit (10240 MB) has been exceeded
+    at file:///app/node_modules/@neondatabase/serverless/index.mjs:1345:74
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async DatabaseStorage.updateMessageLogStatus (/app/server/storage.ts:1589:5)
+    at async processMessageWithUserContext (/app/server/routes/webhook-secure.ts:504:7)
+    at async processMessagesUpsert (/app/server/routes/webhook-secure.ts:128:9)
+    at async processWebhookWithUserContext (/app/server/routes/webhook-secure.ts:86:16)
+    at async <anonymous> (/app/server/routes/webhook-secure.ts:63:22) {
+  length: 198,
+  severity: 'ERROR',
+  code: '53100',
+  detail: undefined,
+  hint: 'This limit is defined by neon.max_cluster_size GUC',
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'pagestore_smgr.c',
+  line: '1377',
+  routine: 'neon_zeroextend'
+}
+8:31:54 AM [express] GET /api/whatsapp/connection-status 200 in 30426ms :: {"connected":true,"instan…
+❌ [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] Failed to update message log with error: error: could not extend file because project size limit (10240 MB) has been exceeded
+  where: undefined,
+    at file:///app/node_modules/@neondatabase/serverless/index.mjs:1345:74
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+  schema: undefined,
+    at async DatabaseStorage.updateMessageLogStatus (/app/server/storage.ts:1589:5)
+    at async processMessageWithUserContext (/app/server/routes/webhook-secure.ts:521:7)
+  table: undefined,
+    at async processReceivedMessage (/app/server/routes/webhook-secure.ts:160:7)
+  column: undefined,
+    at async processWebhookWithUserContext (/app/server/routes/webhook-secure.ts:89:16)
+  dataType: undefined,
+    at async <anonymous> (/app/server/routes/webhook-secure.ts:63:22) {
+  constraint: undefined,
+  length: 198,
+  severity: 'ERROR',
+  code: '53100',
+  detail: undefined,
+  hint: 'This limit is defined by neon.max_cluster_size GUC',
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  file: 'pagestore_smgr.c',
+  line: '1377',
+  routine: 'neon_zeroextend'
+}
+❌ [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] Error processing received_message: error: could not extend file because project size limit (10240 MB) has been exceeded
+    at file:///app/node_modules/@neondatabase/serverless/index.mjs:1345:74
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async DatabaseStorage.updateMessageLogStatus (/app/server/storage.ts:1589:5)
+    at async processMessageWithUserContext (/app/server/routes/webhook-secure.ts:504:7)
+    at async processReceivedMessage (/app/server/routes/webhook-secure.ts:160:7)
+    at async processWebhookWithUserContext (/app/server/routes/webhook-secure.ts:89:16)
+    at async <anonymous> (/app/server/routes/webhook-secure.ts:63:22) {
+  length: 198,
+  severity: 'ERROR',
+  code: '53100',
+  detail: undefined,
+  hint: 'This limit is defined by neon.max_cluster_size GUC',
+  position: undefined,
+  internalPosition: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'pagestore_smgr.c',
+  line: '1377',
+  routine: 'neon_zeroextend'
+}
+❌ [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] Error processing webhook: error: could not extend file because project size limit (10240 MB) has been exceeded

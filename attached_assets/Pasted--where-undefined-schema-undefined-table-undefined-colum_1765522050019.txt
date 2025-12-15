@@ -1,0 +1,112 @@
+
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'pagestore_smgr.c',
+  line: '1377',
+  routine: 'neon_zeroextend'
+}
+🔍 createMessageLog called with: {
+  "userId": "815cb980-b776-4053-8cef-6e69d3d6f0b8",
+  "messageId": "A5C852EEF91E56C335494653710E46EA",
+  "timestamp": "2025-12-12T06:42:13.000Z",
+  "groupId": "120363417938013844@g.us",
+  "groupName": "𝐓.𝐃𝐄𝐀𝐋𝐄𝐑🇭🇰Hong Kong",
+  "sender": "Runner",
+  "senderNumber": "",
+  "message": "🔥🔥🔥AP Used FullSet🔥🔥🔥\n15202ba gold 2018y hkd756k\n15202ip blue 2019y hkd811k\n15202st blue 2020y hkd482k\n15407st 2021y hkd1.16m\n15450st blue 2019y hkd292k\n15450or black 2013y hkd236k\n15500st black 2019y hkd282k\n15500st white 2022y hkd278k\n15500or black leather 2020y hkd355k\n15510st black 2023y hkd328k\n15510st green 2023y hkd366k\n15510st white 2025y hkd338k\n15510or blue fullgold 2024y hkd725k\n15550st blue 2022y 50th hkd344k\n15550st gray 2023y hkd302k\n15551st blue 2022y 50th hkd391k\n15551st iceblue 2022y 50th hkd482k\n15551st gray 2023y hkd402k\n15709tr 2015y hkd240k\n15710st blue 2018y hkd129k\n15710st green 2018y hkd176k\n15720st blue 2024y hkd185k\u000b16202ba smoke yellow 2025y hkd957k\n16202bc blue 2024y hkd852k\n16202st blue 2024y hkd587k\n26231ba 2018y hkd366k\n26231st white 2020y hkd483k\n26231st blue 2018y hkd230k\n26231st pink 2018y hkd252k\n26231st purple 2019y hkd255k\n26231or gray 2020y hkd394k\n26234st 2020y hkd389k\n26236or white 2021y hkd918k\n26238ti green 2022y hkd254k\n26240bc iceblue 2023y hkd1.27m\n26240bc iceblue 2024y hkd1.32m\n26240st blue 2022y 50th hkd432k\n26240st white 2023y hkd344k\n26240st black 2023y hkd435k\n26240st green 2024y hkd447k\n26240or black leather 2023y hkd532k\n26240or green leather 2023y hkd648k\n26283st white 2014y hkd141k\n26315st white 2021y hkd357k\n26315or white 2021y hkd479k\n26331st black 2018y hkd282k\n26331st white 2018y hkd319k\n26331or blue leather 2019y hkd413k\n26385or 2012y hkd81k\n26400io black 2021y hkd169k\n26420ce blue 2024y hkd356k\n26420ce black 2024y hkd840k\n26420so yellow 2021y hkd247k\n26420so black 2023y hkd221k\n26420oi 2023y hkd399k\n26470or black fullgold 2020y hkd482k\n26470or brown leather 2019y hkd253k\n26470so 2020y hkd182k\n26470st brown 2019y hkd151k\n26480ti blue 2019y hkd168k\n26530or gray 2021y hkd1.62m\n26574st iceblue 2023y hkd901k\n26589io blue 2021y hkd932k\n26631st blue 2017y hkd313k\n26735st 2022y 50th hkd2.06m\n67540ok white 2018y hkd211k\n67651sr white 2019y hkd304k\n77350ce black 2021y hkd353k\n77451or blue 2025y hkd624k",
+  "status": "received",
+  "instanceId": "6871232390D4E"
+}
+    at async DatabaseStorage.createWatchListing (/app/server/storage.ts:448:28)
+❌ [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] Error processing message with user context: error: could not extend file because project size limit (10240 MB) has been exceeded
+    at async processMessageWithUserContext (/app/server/routes/webhook-secure.ts:482:13)
+  schema: undefined,
+    at file:///app/node_modules/@neondatabase/serverless/index.mjs:1345:74
+    at async processReceivedMessage (/app/server/routes/webhook-secure.ts:160:7)
+  table: undefined,
+    at async processWebhookWithUserContext (/app/server/routes/webhook-secure.ts:89:16)
+  column: undefined,
+    at async <anonymous> (/app/server/routes/webhook-secure.ts:63:22) {
+  length: 198,
+  dataType: undefined,
+  severity: 'ERROR',
+  constraint: undefined,
+  code: '53100',
+  file: 'pagestore_smgr.c',
+  detail: undefined,
+  line: '1377',
+  hint: 'This limit is defined by neon.max_cluster_size GUC',
+  routine: 'neon_zeroextend'
+  position: undefined,
+}
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+❌ [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] Failed to save listing 5172G: error: could not extend file because project size limit (10240 MB) has been exceeded
+    at file:///app/node_modules/@neondatabase/serverless/index.mjs:1345:74
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async NeonPreparedQuery.execute (/app/node_modules/src/neon-serverless/session.ts:102:18)
+❌ [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] Error processing message with user context: error: could not extend file because project size limit (10240 MB) has been exceeded
+  length: 198,
+    at file:///app/node_modules/@neondatabase/serverless/index.mjs:1345:74
+  severity: 'ERROR',
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async NeonPreparedQuery.execute (/app/node_modules/src/neon-serverless/session.ts:102:18)
+  code: '53100',
+    at async DatabaseStorage.createMessageLog (/app/server/storage.ts:1490:22)
+  detail: undefined,
+    at async processMessageWithUserContext (/app/server/routes/webhook-secure.ts:430:27)
+    at async processReceivedMessage (/app/server/routes/webhook-secure.ts:160:7)
+  hint: 'This limit is defined by neon.max_cluster_size GUC',
+    at async processWebhookWithUserContext (/app/server/routes/webhook-secure.ts:89:16)
+  position: undefined,
+    at async <anonymous> (/app/server/routes/webhook-secure.ts:63:22) {
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'pagestore_smgr.c',
+  line: '1377',
+  routine: 'neon_zeroextend'
+}
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+  severity: 'ERROR',
+  code: '53100',
+  detail: undefined,
+  hint: 'This limit is defined by neon.max_cluster_size GUC',
+❌ [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] Error processing message with user context: error: could not extend file because project size limit (10240 MB) has been exceeded
+  position: undefined,
+    at file:///app/node_modules/@neondatabase/serverless/index.mjs:1345:74
+  internalPosition: undefined,
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async NeonPreparedQuery.execute (/app/node_modules/src/neon-serverless/session.ts:102:18)
+    at async DatabaseStorage.createMessageLog (/app/server/storage.ts:1490:22)
+    at async processMessageWithUserContext (/app/server/routes/webhook-secure.ts:430:27)
+    at async processReceivedMessage (/app/server/routes/webhook-secure.ts:160:7)
+    at async processWebhookWithUserContext (/app/server/routes/webhook-secure.ts:89:16)
+    at async <anonymous> (/app/server/routes/webhook-secure.ts:63:22) {
+  length: 198,
+  routine: 'neon_zeroextend'
+}
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'pagestore_smgr.c',
+  line: '1377',
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+  "groupId": "120363401247340679@g.us",
+  "groupName": "120363401247340679",
+}
