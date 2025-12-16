@@ -1,0 +1,108 @@
+
+  accessToken: '***HIDDEN***',
+  accessToken: '***HIDDEN***',
+  instanceId: '685ADB8BEC061',
+  paused: false
+  whitelistedGroups: '',
+}
+  autoProcess: true,
+5:35:41 AM [express] serving on port 5000
+Error loading groups from database: ErrorEvent {
+  [Symbol(kTarget)]: WebSocket {
+    _events: [Object: null prototype] {
+      error: [Function],
+      message: [Function],
+      close: [Function],
+      open: [Function]
+    },
+    _eventsCount: 4,
+    _maxListeners: undefined,
+    _binaryType: 'arraybuffer',
+    _closeCode: 1006,
+    _closeFrameReceived: false,
+    _closeFrameSent: false,
+    _closeMessage: <Buffer >,
+    _closeTimer: null,
+    _errorEmitted: true,
+    _extensions: {},
+    _paused: false,
+    _protocol: '',
+    _readyState: 3,
+    _receiver: null,
+    _sender: null,
+    _socket: null,
+    _bufferedAmount: 0,
+    _isServer: false,
+    _redirects: 0,
+    _autoPong: true,
+    _url: 'wss://ep-floral-tree-ahazp7b3.c-3.us-east-1.aws.neon.tech/v2',
+    _req: null,
+    [Symbol(shapeMode)]: false,
+    [Symbol(kCapture)]: false
+  },
+  [Symbol(kType)]: 'error',
+    [errors]: [ [Error], [Error], [Error], [Error], [Error], [Error] ]
+  [Symbol(kError)]: AggregateError [ETIMEDOUT]: 
+      at internalConnectMultiple (node:net:1122:18)
+      at internalConnectMultiple (node:net:1190:5)
+      at Timeout.internalConnectMultipleTimeout (node:net:1716:5)
+      at listOnTimeout (node:internal/timers:583:11)
+      at process.processTimers (node:internal/timers:519:7) {
+    code: 'ETIMEDOUT',
+  },
+  [Symbol(kMessage)]: ''
+}
+❌ Failed to initialize polling service: ErrorEvent {
+  [Symbol(kTarget)]: WebSocket {
+    _events: [Object: null prototype] {
+      error: [Function],
+      message: [Function],
+      close: [Function],
+      open: [Function]
+    },
+    _eventsCount: 4,
+    _maxListeners: undefined,
+    _binaryType: 'arraybuffer',
+    _closeCode: 1006,
+    _sender: null,
+    _closeTimer: null,
+    _closeFrameReceived: false,
+    _socket: null,
+    _closeFrameSent: false,
+    _errorEmitted: true,
+    _bufferedAmount: 0,
+    _paused: false,
+    _closeMessage: <Buffer >,
+  [Symbol(kError)]: AggregateError [ETIMEDOUT]: 
+    _isServer: false,
+    _extensions: {},
+    _protocol: '',
+    _autoPong: true,
+      at internalConnectMultiple (node:net:1122:18)
+    _readyState: 3,
+    [Symbol(kCapture)]: false
+    _redirects: 0,
+    _url: 'wss://ep-floral-tree-ahazp7b3.c-3.us-east-1.aws.neon.tech/v2',
+    _req: null,
+    [Symbol(shapeMode)]: false,
+    _receiver: null,
+  },
+  [Symbol(kType)]: 'error',
+      at internalConnectMultiple (node:net:1190:5)
+      at Timeout.internalConnectMultipleTimeout (node:net:1716:5)
+      at listOnTimeout (node:internal/timers:583:11)
+      at process.processTimers (node:internal/timers:519:7) {
+    code: 'ETIMEDOUT',
+    [errors]: [ [Error], [Error], [Error], [Error], [Error], [Error] ]
+  },
+  [Symbol(kMessage)]: ''
+}
+6:40:03 AM [express] GET /api/whatsapp/connection-status 401 in 766ms :: {"error":"Invalid token"}
+6:40:05 AM [express] GET /api/whatsapp/instance-info 304 in 2585ms :: {"instanceId":"6871232390D4E",…
+🔐 Login attempt received: { email: 'watch@pars...' }
+🔐 Login credentials validated, normalized email: watch@pars...
+🔐 Looking up user in database...
+🔐 User lookup result: { found: true, hasPasswordHash: true }
+🔐 Verifying password...
+🔐 Login failed: invalid password
+7:48:03 AM [express] POST /api/auth/login 401 in 6929ms :: {"error":"Invalid email or password"}
