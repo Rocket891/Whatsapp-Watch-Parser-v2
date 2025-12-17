@@ -1,0 +1,89 @@
+.railway.app↗
+Details
+Build Logs
+Deploy Logs
+HTTP Logs
+Filter and search logs
+
+
+Load more
+📨 Webhook: instance=6871232390D4E, event=messages.upsert
+📨 Webhook: instance=6871232390D4E, event=received_message
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'friend@gmail.com (admin: false)',
+  'watch@parser.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'friend@gmail.com (admin: false)',
+  'watch@parser.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+📨 Webhook: instance=6871232390D4E, event=messages.upsert
+📨 Webhook: instance=6871232390D4E, event=contacts.update
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'friend@gmail.com (admin: false)',
+  'watch@parser.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+📨 Webhook: instance=6871232390D4E, event=received_message
+🔍 createMessageLog called with: {
+  "userId": "815cb980-b776-4053-8cef-6e69d3d6f0b8",
+  "messageId": "A5FC26339939DFBB21BB2BDAD4BD4449",
+  "timestamp": "2025-12-17T06:00:40.000Z",
+  "groupId": "120363322485690101@g.us",
+  "groupName": "120363322485690101",
+  "sender": "Melleur Moment",
+  "senderNumber": "",
+  "message": "🔥🔥Lange New🔥🔥\n142.055 n2025y 230000usdt\n145.032 n2022y 790000hkd\n363.179 n2025y 420000hkd\n424.037 n2024y 160000usdt\n706.050 full set 520000usdt\n720.038 n2024y 250000usdt\n730.032 n2022y 86000usdt\n\nUsed\n101.022 watch only 158000hkd\n109.025 watch only 220000hkd\n109.032 watch only 175000hkd\n140.029 2009y 415000hkd\n140.031 2023y 598000hkd\n140.032 full set 420000hkd\n140.032 2022y 455000hkd\n143.050 2017y 123000usdt\n145.029 2018y 730000hkd\n145.032 2022y 820000hkd\n148.038 2022y 82000usdt\n180.026 195000usdt\n180.032 watch only 980000hkd\n182.886 2022y 400000hkd\n192.032 2019y 260000hkd\n235.026 limited25 285000hkd\n235.032 naked 130000hkd\n345.033 2022y 715000hkd\n363.068 2021y 320000hkd\n384.032f watch only 190000hkd\n404.032 2018y 82000usdt\n405.034 2019y 215000usdt\n410.032 watch only 115000usdt\n414.026 2024y 445000hkd\n421.025 2021y 123000usdt\n421.032 2022y 1.12m hkd\n424.037 2021y 155000usdt\n424.038 2020y 152000usdt\n425.025 2023y  1.1m hkd\n730.032 2023y 85000usdt\n760.026 2020y 125000usdt\n760.032 2020y 125000usdt\n820.021 watch only 86000usdt\n830.025 full set 195000usdt\nMBF 33.RQTL.B watch only 300000usdt\n \n\n🔥🔥Rolex new🔥🔥\n116613ln 9/2025 145000hkd\n124060 n8 98000hkd\n126000 tiffany 2025y 115000hkd\n126508 green 2025y 648000hkd\n126518 mete n7 660000hkd\n126518 Tiffany 2025y 700000hkd\n126519 grey n10 405000hkd\n126525 n8 1.65m hkd\n126528 lemans n9 1.7m hkd\n126576 paved n9 1.9m hkd\n126579rbr 2024y 630000hkd\n126595 rbow black 2025y 3.4m hkd\n126595 white n9 1.45m hkd\n126655 n9 258000hkd\n126679 SABR 2025y 1.28m hkd\n126713grnr new8/2025 160000hkd\n126718grnr jub n10 348000hkd\n126519grnr mete n8/2025 785000hkd\n126528 Le Mans 2025y 1.75m hkd\n126598 pave 2024y 3.58m hkd\n126599 rainbow black 2025y 3.25m hkd\n126610lv n10 115000hkd\n126621 choco n7/2025 145000hkd\n127235 rg 2025y 378000hkd\n128235-0063 puzzle 6/2025y 1.85m hkd\n128238A green 2025y 435000hkd\n128348rbr-0049 orange 2025y 565000hkd\n128396tbr turquoise n8 1.55m hkd\n228398tbr green Rome 2023y 695000hkd\n228235 es 8/2025 515000hkd\n220238-0123 n3/2025 455000hkd\n228238 green rom n2/2025 455000hkd\n277200 lavender n9/2025 63000hkd\n\n🔥🔥Used Rolex🔥🔥\n116688 2010y 260000hkd\n116139 2022y 172000hkd\n116610lv 2017y 138000hkd\n116688 naked 245000hkd\n116688 2021y 335000hkd\n116506a 2020y 755000hkd\n116508 nag black 2021y 400000hkd\n116508 green 2021y 560000hkd\n116579 2019y 930000hkd\n116589tbr-0002 2023y 1.55m hkd\nNavarro 2020y 750000hkd\n116579 sapphire 2019y 1.48m hkd\n118235f-0093 watch only 240000hkd\n126610lv 2022y 102000hkd\n128235-0039 pave 2022y 530000hkd\n128235a blue 2024y 385000hkd\n128238 turquoise 2021y 750000hkd\n128348-0049 2023y 520000hkd\n179159-83139 watch only 135000hkd\n228235 green Roma 2020y 365000hkd\n228235-0004 pink 2023y 370000hkd\n228398tbr black 2016y 645000hkd\nm279135rbr-0021 2023y 378000hkd\n279171-0007 2022y 118000hkd\n336959tbr 2025y 650000usdt",
+  "status": "received",
+  "instanceId": "6871232390D4E"
+}
+🔍 createMessageLog called with: {
+  "userId": "815cb980-b776-4053-8cef-6e69d3d6f0b8",
+  "messageId": "A5FC26339939DFBB21BB2BDAD4BD4449",
+  "timestamp": "2025-12-17T08:04:07.000Z",
+  "groupId": "120363322485690101@g.us",
+  "groupName": "120363322485690101",
+  "sender": "Melleur Moment",
+  "senderNumber": "",
+  "message": "🔥🔥Lange New🔥🔥\n142.055 n2025y 230000usdt\n145.032 n2022y 790000hkd\n363.179 n2025y 420000hkd\n424.037 n2024y 160000usdt\n706.050 full set 520000usdt\n720.038 n2024y 250000usdt\n730.032 n2022y 86000usdt\n\nUsed\n101.022 watch only 158000hkd\n109.025 watch only 220000hkd\n109.032 watch only 175000hkd\n140.029 2009y 415000hkd\n140.031 2023y 598000hkd\n140.032 full set 420000hkd\n140.032 2022y 455000hkd\n143.050 2017y 123000usdt\n145.029 2018y 730000hkd\n145.032 2022y 820000hkd\n148.038 2022y 82000usdt\n180.026 195000usdt\n180.032 watch only 980000hkd\n182.886 2022y 400000hkd\n192.032 2019y 260000hkd\n235.026 limited25 285000hkd\n235.032 naked 130000hkd\n345.033 2022y 715000hkd\n363.068 2021y 320000hkd\n384.032f watch only 190000hkd\n404.032 2018y 82000usdt\n405.034 2019y 215000usdt\n410.032 watch only 115000usdt\n414.026 2024y 445000hkd\n421.025 2021y 123000usdt\n421.032 2022y 1.12m hkd\n424.037 2021y 155000usdt\n424.038 2020y 152000usdt\n425.025 2023y  1.1m hkd\n730.032 2023y 85000usdt\n760.026 2020y 125000usdt\n760.032 2020y 125000usdt\n820.021 watch only 86000usdt\n830.025 full set 195000usdt\nMBF 33.RQTL.B watch only 300000usdt\n \n\n🔥🔥Rolex new🔥🔥\n116613ln 9/2025 145000hkd\n124060 n8 98000hkd\n126000 tiffany 2025y 115000hkd\n126508 green 2025y 648000hkd\n126518 mete n7 660000hkd\n126518 Tiffany 2025y 700000hkd\n126519 grey n10 405000hkd\n126525 n8 1.65m hkd\n126528 lemans n9 1.7m hkd\n126576 paved n9 1.9m hkd\n126579rbr 2024y 630000hkd\n126595 rbow black 2025y 3.4m hkd\n126595 white n9 1.45m hkd\n126655 n9 258000hkd\n126679 SABR 2025y 1.28m hkd\n126713grnr new8/2025 160000hkd\n126718grnr jub n10 348000hkd\n126519grnr mete n8/2025 785000hkd\n126528 Le Mans 2025y 1.75m hkd\n126598 pave 2024y 3.58m hkd\n126599 rainbow black 2025y 3.25m hkd\n126610lv n10 115000hkd\n126621 choco n7/2025 145000hkd\n127235 rg 2025y 378000hkd\n128235-0063 puzzle 6/2025y 1.85m hkd\n128238A green 2025y 435000hkd\n128348rbr-0049 orange 2025y 565000hkd\n128396tbr turquoise n8 1.55m hkd\n228398tbr green Rome 2023y 695000hkd\n228235 es 8/2025 515000hkd\n220238-0123 n3/2025 455000hkd\n228238 green rom n2/2025 455000hkd\n277200 lavender n9/2025 63000hkd\n\n🔥🔥Used Rolex🔥🔥\n116688 2010y 260000hkd\n116139 2022y 172000hkd\n116610lv 2017y 138000hkd\n116688 naked 245000hkd\n116688 2021y 335000hkd\n116506a 2020y 755000hkd\n116508 nag black 2021y 400000hkd\n116508 green 2021y 560000hkd\n116579 2019y 930000hkd\n116589tbr-0002 2023y 1.55m hkd\nNavarro 2020y 750000hkd\n116579 sapphire 2019y 1.48m hkd\n118235f-0093 watch only 240000hkd\n126610lv 2022y 102000hkd\n128235-0039 pave 2022y 530000hkd\n128235a blue 2024y 385000hkd\n128238 turquoise 2021y 750000hkd\n128348-0049 2023y 520000hkd\n179159-83139 watch only 135000hkd\n228235 green Roma 2020y 365000hkd\n228235-0004 pink 2023y 370000hkd\n228398tbr black 2016y 645000hkd\nm279135rbr-0021 2023y 378000hkd\n279171-0007 2022y 118000hkd\n336959tbr 2025y 650000usdt",
+  "status": "received",
+  "instanceId": "6871232390D4E"
+}
+📞 [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] Resolved LID from database: 247704269623464@lid (Nicole) → 85263795543@s.whatsapp.net
+🔍 createMessageLog called with: {
+  "userId": "815cb980-b776-4053-8cef-6e69d3d6f0b8",
+  "messageId": "A55BBAC37D44DD24C9D1D51B182C824B",
+  "timestamp": "2025-12-17T08:04:08.000Z",
+  "groupId": "120363420080643196@g.us",
+  "groupName": "𝐓.𝐃𝐄𝐀𝐋𝐄𝐑🇬🇧United Kingdom",
+  "sender": "Nicole",
+  "senderNumber": "+85263795543",
+  "message": "📷",
+  "status": "received",
+  "instanceId": "6871232390D4E"
+}
+🔍 createMessageLog called with: {
+  "userId": "815cb980-b776-4053-8cef-6e69d3d6f0b8",
+  "messageId": "A5DDD5DD0B2A583C6F37B551365BD77B",
+  "timestamp": "2025-12-17T08:04:08.000Z",
+  "groupId": "120363419665874446@g.us",
+  "groupName": "𝐓.𝐃𝐄𝐀𝐋𝐄𝐑🇮🇹Italy",
+  "sender": "Lisa",
+  "senderNumber": "",
+  "message": "🌻 A.Lange & sohne 760.025 only watch 860k hkd\n🌻 A.Lange & sohne 236.049 only watch 198k hkd\n🌻 A.Lange & sohne 116.032 only watch 189k hkd\n🌻 A.Lange & sohne 405.035 2022y full set 568k hkd\n🌻 A.Lange & sohne 140.032 2021y full set 469k hkd\n \n🌻 A.Lange & sohne 760.026 2020y full set 1.02m hkd\n🌻 A.Lange & sohne 403.032 only watch 369k hkd\n🌻 A.Lange & sohne 414.026 2023y full set 435k hkd\n🌻 A.Lange & sohne 310.025 only watch 308k hkd\n🌻 A.Lange & sohne 402.026 only watch 265k hkd\n \n🌻 A.Lange & sohne 142.031 2023y full set 618k hkd\n🌻 A.Lange & sohne 109.025 only watch 215k hkd\n🌻 A.Lange & sohne 424.037 2021y full set 1.2m hkd\n🌻 A.Lange & sohne 182.886 2022y full set 369k hkd\n🌻 A.Lange & sohne 403.032 only watch 368k hkd\n \n🌻 A.Lange & sohne 384.032F only watch 175k hkd\n🌻 A.Lange & sohne \n118.032 only watch 188k hkd\n🌻 A.Lange & sohne 424.038F 2020y full set 1.15m hkd\n🌻A.Lange & sohne 221.021 only watch 155k hkd",
+  "status": "received",
+  "instanceId": "6871232390D4E"
+}
+🔍 createMessageLog called with: {
+  "userId": "815cb980-b776-4053-8cef-6e69d3d6f0b8",
+  "messageId": "A5DDD5DD0B2A583C6F37B551365BD77B",
+  "timestamp": "2025-12-17T06:00:40.000Z",
+  "groupId": "120363419665874446@g.us",

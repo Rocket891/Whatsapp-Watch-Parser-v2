@@ -33,12 +33,17 @@ export async function initializePollingService() {
     const activeUsers = await storage.getAllUsersWithActiveWhatsapp();
     
     for (const user of activeUsers) {
-      await startMonitoringUser(user.userId, user);
+      try {
+        await startMonitoringUser(user.userId, user);
+      } catch (userError) {
+        console.error(`⚠️ Failed to start monitoring for user ${user.userId}:`, userError);
+      }
     }
     
     console.log(`✅ Polling service initialized for ${activeUsers.length} users`);
   } catch (error) {
     console.error("❌ Failed to initialize polling service:", error);
+    // Don't crash the server - polling is optional functionality
   }
 }
 
@@ -46,8 +51,13 @@ export async function initializePollingService() {
    Start Monitoring a User (checks for webhook silence)
    ---------------------------------------------------------------- */
 async function startMonitoringUser(userId: string, userConfig: UserWhatsappConfig) {
-  // Initialize state
-  const lastMessage = await storage.getLastMessageTime(userId);
+  // Initialize state with error handling
+  let lastMessage: Date | null = null;
+  try {
+    lastMessage = await storage.getLastMessageTime(userId);
+  } catch (error) {
+    console.error(`⚠️ [User ${userId}] Failed to get last message time:`, error);
+  }
   
   userPollingStates.set(userId, {
     isActive: false,
@@ -61,7 +71,11 @@ async function startMonitoringUser(userId: string, userConfig: UserWhatsappConfi
   
   // Check every 30 seconds if we need to start polling
   const checkInterval = setInterval(async () => {
-    await checkWebhookHealth(userId, userConfig);
+    try {
+      await checkWebhookHealth(userId, userConfig);
+    } catch (error) {
+      console.error(`⚠️ [User ${userId}] Webhook health check failed:`, error);
+    }
   }, WEBHOOK_RESUME_CHECK_INTERVAL);
   
   pollingIntervals.set(`monitor_${userId}`, checkInterval);
