@@ -1,0 +1,122 @@
+
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'watch@parser.com (admin: false)',
+  'friend@gmail.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'watch@parser.com (admin: false)',
+  'friend@gmail.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'watch@parser.com (admin: false)',
+  'friend@gmail.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'watch@parser.com (admin: false)',
+  'friend@gmail.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'watch@parser.com (admin: false)',
+  'friend@gmail.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'watch@parser.com (admin: false)',
+  'friend@gmail.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'watch@parser.com (admin: false)',
+  'friend@gmail.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'watch@parser.com (admin: false)',
+  'friend@gmail.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'watch@parser.com (admin: false)',
+  'friend@gmail.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'watch@parser.com (admin: false)',
+  'friend@gmail.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'watch@parser.com (admin: false)',
+  'friend@gmail.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'watch@parser.com (admin: false)',
+  'friend@gmail.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'watch@parser.com (admin: false)',
+  'friend@gmail.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'watch@parser.com (admin: false)',
+  'friend@gmail.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+  'rocketelabs@gmail.com (admin: true)',
+⚠️ Multiple users share instance 6871232390D4E: [
+  'watch@parser.com (admin: false)',
+  'friend@gmail.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'watch@parser.com (admin: false)',
+  'friend@gmail.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'watch@parser.com (admin: false)',
+  'friend@gmail.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
