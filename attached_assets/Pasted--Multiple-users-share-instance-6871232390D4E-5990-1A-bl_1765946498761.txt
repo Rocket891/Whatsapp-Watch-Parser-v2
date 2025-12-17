@@ -1,0 +1,219 @@
+⚠️ Multiple users share instance 6871232390D4E: [
+❤️‍🔥5990/1A blue  HKD1.15m
+  'rocketelabs@gmail.com (admin: true)',
+  'friend@gmail.com (admin: false)',
+  'watch@parser.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+📨 Webhook: instance=6871232390D4E, event=contacts.update
+📨 Webhook: instance=6871232390D4E, event=received_message
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+❤️‍🔥126231   HKD143k
+📨 Webhook: instance=6871232390D4E, event=received_message
+📨 Webhook: instance=6871232390D4E, event=messages.upsert
+]
+❤️‍🔥5172G   HKD415k
+❤️‍🔥126710   HKD137k
+🔐 Prioritizing admin: rocketelabs@gmail.com
+⚠️ Multiple users share instance 6871232390D4E: [
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+  'rocketelabs@gmail.com (admin: true)',
+❤️‍🔥140.029  09y HKD401k
+  "groupId": "120363419665874446@g.us",
+  'friend@gmail.com (admin: false)',
+❤️‍🔥5073P black  HKD13.75m
+  "groupName": "𝐓.𝐃𝐄𝐀𝐋𝐄𝐑🇮🇹Italy",
+🔍 createMessageLog called with: {
+  'watch@parser.com (admin: false)'
+  "sender": "小贝 - 名表出售",
+  "userId": "815cb980-b776-4053-8cef-6e69d3d6f0b8",
+  "messageId": "A5EBAB08233E3AE755C0BA170A1C58C9",
+  "senderNumber": "",
+  "timestamp": "2025-12-17T04:29:33.000Z",
+  "message": "🇭🇰小贝Stock🇭🇰\n---\nPatek Philippe\n🤎 6104R new 2023 NOS HKD 4,200,000\n🤎 5271/11P N9/2025 HKD 4,100,000\n🤎 7968/300R N11/2025 HKD 3,160,000\n🤎 5990/1R N12/2023 NOS HKD 1,960,000\n🤎 5712/1A N6/2025 new buckle HKD 1,370,000\n🤎 7118/1200R White N9/2024 NOS 1,340,000\n🤎 5370P Blue new 2025 HKD 1,350,000\n🤎 5270/1R N11/2025 HKD 1,250,000\n🤎 5270J N10/2025 HKD 1,080,000\n🤎 5164R N11/2025 HKD 1,030,000\n🤎 5131J single seal NOS 2014 HKD 770,000\n🤎 5905R Blue N11/2025 HKD 515,000\n🤎 4948G N9/2025 HKD 500,000 \n🤎 5172G Salmon N11/2025 HKD 410,000\n🤎 5146G Grey N11/2024 NOS HKD 300,000\n🤎 6104R used 2022 HKD 4,100,000\n🤎 5712/1A used 2022 old buckle HKD 1,000,000\n🤎 5980/1AR used 2019 HKD 780,000\n🤎 4947G White used 2021 good condition HKD300,000\n🤎 5153R 4/2017 like new HKD 190,000\n🤎 PP 18K yellow gold Vintage blue dial original lady watch HKD 100,000\n🤎 4910/1200A blue HKD115000 N12\n🤎 4910/1201R purple HKD270000 N12\n🤎 4962/200R  HKD182000 02/2025\n🤎 5524G HKD420000 N10\n🤎 5726A HKD735000 N12\n🤎 5968G green HKD955000 N11\n🤎 6102P HKD2780000 N11\n🤎 7300/1200A grey HKD183000 N11\n🤎 7010/1G BLUE HKD700000 N10\n🤎 7118/1200R white HKD1450000 N11\n🤎 7118/1450R HKD3100000 N11\n🤎 7128/1G HKD935000 N12\n🤎 7140R HKD520000 N12\n🤎 7340/1R green HKD650000 N12\n🤎 7968/300R HKD3180000 N11\n🤎 5160/500R HKD1450000 N9\n🤎 5271P HKD1880000 2016y\n🤎 5275P HKD3800000 2017y\n🤎 5304R HKD7600000 2016y\n🤎 4910/1200A Blue N12\n🤎 5961R N10\n🤎 5905R Blue N11 HKD 514k\n🤎 5328G-001 N11 HKD 514k\n🤎 4997/200R N11 HKD 170k\n🤎 6007G Blue N11 HKD 216k\n🤎 5072R N10\n🤎 7300/1200A Grey N11 HKD 178k\n🤎 7300/1200A Green N11*2/N12 HKD 178k\n🤎 7200R N11 HKD 175k\n🤎 5935A N11 HKD 390k\n🤎 4946R N11 HKD 306k\n🤎 5524G Cream N12 HKD 408k\n🤎 7118/1300R N11\n🤎 6007G Yellow N12 HKD 215k\n🤎 5712/1R N10\n🤎 4910/1200A Green N12\n🤎 6007G Blue N12\n🤎 7300/1200A Grey N12\n🤎 5968R N12\n\n\n\nRichard Mille\n🖤 RM037 WG snow diamonds MOP lips N4/2025 USDT 330,000\n🖤 RM037 RG red lips snow diamonds N4/2025 USDT 295,000\n🖤 RM025 AJ TI new 2025 Ltd 30 HKD 2,000,000\n🖤 RM07-01 RG NTPT chain bracelet N11/2025 HKD 1,750,000\n🖤 RM16-02 Red N10/2025 HKD 1,600,000\n🖤 RM 07-01 RG half diamond red lips full gold chain bracelet 2019 USDT 195,000\n🖤 RM61-01 Black ceramic Yohan Blake Green 2015 HKD 1,350,000\n🖤 RM Stock 16 Dec 2025\n🖤 RM35-03 Blue 2024 USDT 420,000\n🖤 RM07-01 White ceramic MOP lips one row diamonds 2023 USDT 420,000\n🖤 RM65-01 Grey N12/2025 HKD 3,200,000\n🖤 RM 07-01 WG snow diamonds full gold bracelets N12/2025 \n🖤 RM65-01 NTPT N3/2025 HKD 2,830,000\n🖤 RM07-01 Black ceramic black lips one row diamonds N11/2025 USDT 350,000\n🖤 RM 65-01 RG CA N4/2025 USDT 350,000\n🖤 RM67-02 italy HKD3080000 N10\n🖤 RM07-01 Black lip Black ceramic HKD1850000 N10\n🖤 RM75-01 USDT3390000 2025 fresh date",
+  "status": "received",
+  "instanceId": "6871232390D4E"
+}
+❤️‍🔥7968/300R  23y HKD2.98m
+🔍 createMessageLog called with: {
+  "userId": "815cb980-b776-4053-8cef-6e69d3d6f0b8",
+  "messageId": "A5EBAB08233E3AE755C0BA170A1C58C9",
+  "timestamp": "2025-12-17T04:21:17.000Z",
+  "groupId": "120363419665874446@g.us",
+  "groupName": "𝐓.𝐃𝐄𝐀𝐋𝐄𝐑🇮🇹Italy",
+  "sender": "小贝 - 名表出售",
+  "senderNumber": "",
+  "message": "🇭🇰小贝Stock🇭🇰\n---\nPatek Philippe\n🤎 6104R new 2023 NOS HKD 4,200,000\n🤎 5271/11P N9/2025 HKD 4,100,000\n🤎 7968/300R N11/2025 HKD 3,160,000\n🤎 5990/1R N12/2023 NOS HKD 1,960,000\n🤎 5712/1A N6/2025 new buckle HKD 1,370,000\n🤎 7118/1200R White N9/2024 NOS 1,340,000\n🤎 5370P Blue new 2025 HKD 1,350,000\n🤎 5270/1R N11/2025 HKD 1,250,000\n🤎 5270J N10/2025 HKD 1,080,000\n🤎 5164R N11/2025 HKD 1,030,000\n🤎 5131J single seal NOS 2014 HKD 770,000\n🤎 5905R Blue N11/2025 HKD 515,000\n🤎 4948G N9/2025 HKD 500,000 \n🤎 5172G Salmon N11/2025 HKD 410,000\n🤎 5146G Grey N11/2024 NOS HKD 300,000\n🤎 6104R used 2022 HKD 4,100,000\n🤎 5712/1A used 2022 old buckle HKD 1,000,000\n🤎 5980/1AR used 2019 HKD 780,000\n🤎 4947G White used 2021 good condition HKD300,000\n🤎 5153R 4/2017 like new HKD 190,000\n🤎 PP 18K yellow gold Vintage blue dial original lady watch HKD 100,000\n🤎 4910/1200A blue HKD115000 N12\n🤎 4910/1201R purple HKD270000 N12\n🤎 4962/200R  HKD182000 02/2025\n🤎 5524G HKD420000 N10\n🤎 5726A HKD735000 N12\n🤎 5968G green HKD955000 N11\n🤎 6102P HKD2780000 N11\n🤎 7300/1200A grey HKD183000 N11\n🤎 7010/1G BLUE HKD700000 N10\n🤎 7118/1200R white HKD1450000 N11\n🤎 7118/1450R HKD3100000 N11\n🤎 7128/1G HKD935000 N12\n🤎 7140R HKD520000 N12\n🤎 7340/1R green HKD650000 N12\n🤎 7968/300R HKD3180000 N11\n🤎 5160/500R HKD1450000 N9\n🤎 5271P HKD1880000 2016y\n🤎 5275P HKD3800000 2017y\n🤎 5304R HKD7600000 2016y\n🤎 4910/1200A Blue N12\n🤎 5961R N10\n🤎 5905R Blue N11 HKD 514k\n🤎 5328G-001 N11 HKD 514k\n🤎 4997/200R N11 HKD 170k\n🤎 6007G Blue N11 HKD 216k\n🤎 5072R N10\n🤎 7300/1200A Grey N11 HKD 178k\n🤎 7300/1200A Green N11*2/N12 HKD 178k\n🤎 7200R N11 HKD 175k\n🤎 5935A N11 HKD 390k\n🤎 4946R N11 HKD 306k\n🤎 5524G Cream N12 HKD 408k\n🤎 7118/1300R N11\n🤎 6007G Yellow N12 HKD 215k\n🤎 5712/1R N10\n🤎 4910/1200A Green N12\n🤎 6007G Blue N12\n🤎 7300/1200A Grey N12\n🤎 5968R N12\n\n\n\nRichard Mille\n🖤 RM037 WG snow diamonds MOP lips N4/2025 USDT 330,000\n🖤 RM037 RG red lips snow diamonds N4/2025 USDT 295,000\n🖤 RM025 AJ TI new 2025 Ltd 30 HKD 2,000,000\n🖤 RM07-01 RG NTPT chain bracelet N11/2025 HKD 1,750,000\n🖤 RM16-02 Red N10/2025 HKD 1,600,000\n🖤 RM 07-01 RG half diamond red lips full gold chain bracelet 2019 USDT 195,000\n🖤 RM61-01 Black ceramic Yohan Blake Green 2015 HKD 1,350,000\n🖤 RM Stock 16 Dec 2025\n🖤 RM35-03 Blue 2024 USDT 420,000\n🖤 RM07-01 White ceramic MOP lips one row diamonds 2023 USDT 420,000\n🖤 RM65-01 Grey N12/2025 HKD 3,200,000\n🖤 RM 07-01 WG snow diamonds full gold bracelets N12/2025 \n🖤 RM65-01 NTPT N3/2025 HKD 2,830,000\n🖤 RM07-01 Black ceramic black lips one row diamonds N11/2025 USDT 350,000\n🖤 RM 65-01 RG CA N4/2025 USDT 350,000\n🖤 RM67-02 italy HKD3080000 N10\n🖤 RM07-01 Black lip Black ceramic HKD1850000 N10\n🖤 RM75-01 USDT3390000 2025 fresh date",
+  "status": "received",
+  "instanceId": "6871232390D4E"
+}
+❤️‍🔥5146/1G  18y HKD285k
+❤️‍🔥5396G white 25y HKD373k
+❤️‍🔥7018/1A white 17y HKD557k
+❤️‍🔥140.029  09y HKD401k
+❤️‍🔥126334 green  HKD121.5k
+❤️‍🔥26240CE  24y HKD795k
+❤️‍🔥128159  24y HKD540k
+❤️‍🔥26240CE  24y HKD795k
+❤️‍🔥RM43  25y USDT1.90m
+❤️‍🔥126334 green  HKD121.5k
+❤️‍🔥RM43  25y USDT1.90m
+📨 Webhook: instance=6871232390D4E, event=messages.upsert
+📨 Webhook: instance=6871232390D4E, event=received_message
+  'friend@gmail.com (admin: false)',
+  'watch@parser.com (admin: false)'
+]
+⚠️ Multiple users share instance 6871232390D4E: [
+🔐 Prioritizing admin: rocketelabs@gmail.com
+  'rocketelabs@gmail.com (admin: true)',
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'friend@gmail.com (admin: false)',
+  'watch@parser.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'friend@gmail.com (admin: false)',
+  'watch@parser.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+📨 Webhook: instance=6871232390D4E, event=contacts.update
+❤️‍🔥140.029  09y HKD401k
+❤️‍🔥126515  25y HKD350k
+❤️‍🔥126710   HKD137k
+❤️‍🔥5207G blue 23y USDT886k
+❤️‍🔥7118/1200A white  HKD905k
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'friend@gmail.com (admin: false)',
+  'watch@parser.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'friend@gmail.com (admin: false)',
+  'watch@parser.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'friend@gmail.com (admin: false)',
+  'watch@parser.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+❤️‍🔥15450ST  19y HKD255k
+❤️‍🔥5396G white 25y HKD372k
+❤️‍🔥5207G blue 23y USDT886k
+❤️‍🔥15450ST  19y HKD255k
+❤️‍🔥126720   HKD129k
+❤️‍🔥5226G  25y HKD280k
+❤️‍🔥26231ST white 18y HKD473k
+❤️‍🔥4997/200R  25y HKD172k
+❤️‍🔥RM65-01 white  HKD365.00m
+❤️‍🔥5146/1G  18y HKD285k
+❤️‍🔥5396G white 25y HKD372k
+❤️‍🔥26231ST white 18y HKD473k
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'friend@gmail.com (admin: false)',
+  'watch@parser.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'friend@gmail.com (admin: false)',
+  'watch@parser.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+📞 [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] Resolved LID from database: 244851924807772@lid (周周) → 85246787100@s.whatsapp.net
+🔍 createMessageLog called with: {
+  "userId": "815cb980-b776-4053-8cef-6e69d3d6f0b8",
+  "messageId": "2A5481E7725BC6F09437",
+  "timestamp": "2025-12-17T04:29:34.000Z",
+  "groupId": "120363417938013844@g.us",
+  "groupName": "𝐓.𝐃𝐄𝐀𝐋𝐄𝐑🇭🇰Hong Kong",
+  "sender": "周周",
+  "senderNumber": "+85246787100",
+  "message": "Rolex勞力士（HKD）\nnew全新\n126000 beige，N11/25 \n💰69000🏷\n126300 White oys，N11/25\n💰74000🏷\n126600，N12/25\n💰107500\n126618LB，N12/25\n💰325000🏷\n279381RBR-0011，N9/25\n💰170000\n228239-0078，N11/25\n💰470000🏷\n228398TBR-0043，N11/25\n💰780000🏷\n\n\nused二手\n116595rbow 2020💰4280000\n116659sabr 2020💰990000🏷\n279175-0016 2021💰250000🏷\n76188 only watch💰68000\n\n\nAudemars Piguet愛彼（HKD）\n🆕15407ST N2023💰1260000\n🆕26240CE N2024💰820000\n🆕26242OR N2025💰1470000\n\nused二手\n26287OK 2010💰300000\n26620IO 2021💰1450000\n26231ST black 2017💰245000\n26405CE grey 2016💰180000\n26401RO brown 2019💰290000",
+  "status": "received",
+  "instanceId": "6871232390D4E"
+}
+📞 [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] Resolved LID from database: 244851924807772@lid (周周) → 85246787100@s.whatsapp.net
+🔍 createMessageLog called with: {
+  "userId": "815cb980-b776-4053-8cef-6e69d3d6f0b8",
+  "messageId": "2A5481E7725BC6F09437",
+  "timestamp": "2025-12-17T04:21:18.000Z",
+  "groupId": "120363417938013844@g.us",
+  "groupName": "𝐓.𝐃𝐄𝐀𝐋𝐄𝐑🇭🇰Hong Kong",
+  "sender": "周周",
+  "senderNumber": "+85246787100",
+  "message": "Rolex勞力士（HKD）\nnew全新\n126000 beige，N11/25 \n💰69000🏷\n126300 White oys，N11/25\n💰74000🏷\n126600，N12/25\n💰107500\n126618LB，N12/25\n💰325000🏷\n279381RBR-0011，N9/25\n💰170000\n228239-0078，N11/25\n💰470000🏷\n228398TBR-0043，N11/25\n💰780000🏷\n\n\nused二手\n116595rbow 2020💰4280000\n116659sabr 2020💰990000🏷\n279175-0016 2021💰250000🏷\n76188 only watch💰68000\n\n\nAudemars Piguet愛彼（HKD）\n🆕15407ST N2023💰1260000\n🆕26240CE N2024💰820000\n🆕26242OR N2025💰1470000\n\nused二手\n26287OK 2010💰300000\n26620IO 2021💰1450000\n26231ST black 2017💰245000\n26405CE grey 2016💰180000\n26401RO brown 2019💰290000",
+  "status": "received",
+  "instanceId": "6871232390D4E"
+}
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'friend@gmail.com (admin: false)',
+  'watch@parser.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+❤️‍🔥AP15720ST green 22y HKD188k
+❤️‍🔥228238 black  HKD578k
+❤️‍🔥7118/1300R  24y HKD1.69m
+❤️‍🔥7118/1R  25y HKD868k
+❤️‍🔥7118/1R  25y HKD868k
+❤️‍🔥RM07-01  25y USDT2.68m
+❤️‍🔥7118/1200A white  HKD905k
+❤️‍🔥26331OR gold, blue 18y HKD633k
+📨 Webhook: instance=6871232390D4E, event=messages.upsert
+📨 Webhook: instance=6871232390D4E, event=received_message
+📨 Webhook: instance=6871232390D4E, event=contacts.update
+❤️‍🔥1205V/100A-B590  21y HKD118k
+❤️‍🔥RM07-01  25y USDT2.68m
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'friend@gmail.com (admin: false)',
+  'watch@parser.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+📨 Webhook: instance=6871232390D4E, event=contacts.update
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'friend@gmail.com (admin: false)',
+  'watch@parser.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+📨 Webhook: instance=6871232390D4E, event=messages.upsert
+📨 Webhook: instance=6871232390D4E, event=received_message
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'friend@gmail.com (admin: false)',
+  'watch@parser.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'friend@gmail.com (admin: false)',
+  'watch@parser.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'friend@gmail.com (admin: false)',
