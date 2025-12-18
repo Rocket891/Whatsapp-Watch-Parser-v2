@@ -76,7 +76,8 @@ app.use((req, res, next) => {
   }, async () => {
     log(`serving on port ${port}`);
     
-    // Initialize smart hybrid polling service
-    await initializePollingService();
+    // Polling service disabled - causes constant DB timeouts from cross-region connections
+    // The webhooks work fine without it
+    // await initializePollingService();
   });
 })();
