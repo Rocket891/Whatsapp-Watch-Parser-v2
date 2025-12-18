@@ -1,0 +1,135 @@
+-Parser-v2
+/
+76563a14
+Active
+
+Dec 18, 2025, 11:45 AM
+whatsapp-watch-parser-v2-production.up.railway.app
+Details
+Build Logs
+Deploy Logs
+HTTP Logs
+Filter and search logs
+
+
+Load more
+❌ Webhook processing error: NeonDbError: Server error (HTTP status 500): {"message":"remaining connection slots are reserved for roles with the SUPERUSER attribute","code":"53300","detail":null,"hint":null,"position":null,"internalPosition":null,"internalQuery":null,"severity":"FATAL","where":null,"table":null,"column":null,"schema":null,"dataType":null,"constraint":null,"file":"postinit.c","line":"949","routine":"InitPostgres"}
+    at execute (file:///app/node_modules/@neondatabase/serverless/index.mjs:1557:64)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async NeonHttpPreparedQuery.execute (/app/node_modules/src/neon-http/session.ts:68:18)
+    at async DatabaseStorage.getUserIdByInstanceId (/app/server/storage.ts:1640:21)
+    at async <anonymous> (/app/server/routes/webhook-secure.ts:47:22) {
+  schema: undefined,
+  severity: undefined,
+  table: undefined,
+  code: undefined,
+6:47:48 AM [express] POST /api/whatsapp/webhook 500 in 475ms :: {"error":"Webhook processing failed"}
+  dataType: undefined,
+  detail: undefined,
+  column: undefined,
+⚠️ Multiple users share instance 6871232390D4E: [
+  constraint: undefined,
+  hint: undefined,
+  'rocketelabs@gmail.com (admin: true)',
+  file: undefined,
+6:47:48 AM [express] POST /api/whatsapp/webhook 500 in 474ms :: {"error":"Webhook processing failed"}
+  position: undefined,
+  'watch@parser.com (admin: false)',
+  line: undefined,
+  sourceError: undefined
+  'friend@gmail.com (admin: false)'
+  internalPosition: undefined,
+  routine: undefined,
+]
+}
+  file: undefined,
+  internalQuery: undefined,
+🔐 Prioritizing admin: rocketelabs@gmail.com
+  internalQuery: undefined,
+  routine: undefined,
+  where: undefined,
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+  line: undefined,
+  where: undefined,
+❌ Webhook processing error: NeonDbError: Server error (HTTP status 500): {"message":"remaining connection slots are reserved for roles with the SUPERUSER attribute","code":"53300","detail":null,"hint":null,"position":null,"internalPosition":null,"internalQuery":null,"severity":"FATAL","where":null,"table":null,"column":null,"schema":null,"dataType":null,"constraint":null,"file":"postinit.c","line":"949","routine":"InitPostgres"}
+  schema: undefined,
+  schema: undefined,
+  sourceError: undefined
+    at execute (file:///app/node_modules/@neondatabase/serverless/index.mjs:1557:64)
+  table: undefined,
+}
+  table: undefined,
+  column: undefined,
+  column: undefined,
+  dataType: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  constraint: undefined,
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+  file: undefined,
+  line: undefined,
+    at async NeonHttpPreparedQuery.execute (/app/node_modules/src/neon-http/session.ts:68:18)
+  routine: undefined,
+    at async DatabaseStorage.getUserWhatsappConfig (/app/server/storage.ts:1609:22)
+  sourceError: undefined
+    at async <anonymous> (/app/server/routes/webhook-secure.ts:54:26) {
+  severity: undefined,
+}
+  code: undefined,
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+6:47:48 AM [express] POST /api/whatsapp/webhook 500 in 238ms :: {"error":"Webhook processing failed"}
+❌ Webhook processing error: NeonDbError: Server error (HTTP status 500): {"message":"remaining connection slots are reserved for roles with the SUPERUSER attribute","code":"53300","detail":null,"hint":null,"position":null,"internalPosition":null,"internalQuery":null,"severity":"FATAL","where":null,"table":null,"column":null,"schema":null,"dataType":null,"constraint":null,"file":"postinit.c","line":"949","routine":"InitPostgres"}
+    at execute (file:///app/node_modules/@neondatabase/serverless/index.mjs:1557:64)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async NeonHttpPreparedQuery.execute (/app/node_modules/src/neon-http/session.ts:68:18)
+    at async DatabaseStorage.getUserWhatsappConfig (/app/server/storage.ts:1609:22)
+    at async <anonymous> (/app/server/routes/webhook-secure.ts:54:26) {
+  severity: undefined,
+  code: undefined,
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+📨 Webhook: instance=6871232390D4E, event=received_message
+📨 Webhook: instance=6871232390D4E, event=contacts.update
+📨 Webhook: instance=6871232390D4E, event=messages.upsert
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'watch@parser.com (admin: false)',
+  'friend@gmail.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+❌ Webhook processing error: NeonDbError: Server error (HTTP status 500): {"message":"remaining connection slots are reserved for roles with the SUPERUSER attribute","code":"53300","detail":null,"hint":null,"position":null,"internalPosition":null,"internalQuery":null,"severity":"FATAL","where":null,"table":null,"column":null,"schema":null,"dataType":null,"constraint":null,"file":"postinit.c","line":"949","routine":"InitPostgres"}
+    at execute (file:///app/node_modules/@neondatabase/serverless/index.mjs:1557:64)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async NeonHttpPreparedQuery.execute (/app/node_modules/src/neon-http/session.ts:68:18)
+    at async DatabaseStorage.getUserIdByInstanceId (/app/server/storage.ts:1640:21)
+    at async <anonymous> (/app/server/routes/webhook-secure.ts:47:22) {
+  severity: undefined,
+  code: undefined,
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: undefined,
+  line: undefined,
+  routine: undefined,
+  sourceError: undefined
+}
+6:47:50 AM [express] POST /api/whatsapp/webhook 500 in 237ms :: {"error":"Webhook processing failed"}
+❌ Webhook processing error: NeonDbError: Server error (HTTP status 500): {"message":"remaining connection slots are reserved for roles with the SUPERUSER attribute","code":"53300","detail":null,"hint":null,"position":null,"internalPosition":null,"internalQuery":null,"severity":"FATAL","where":null,"table":null,"column":null,"schema":null,"dataType":null,"constraint":null,"file":"postinit.c","line":"949","routine":"InitPostgres"}
+    at execute (file:///app/node_modules/@neondatabase/serverless/index.mjs:1557:64)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
