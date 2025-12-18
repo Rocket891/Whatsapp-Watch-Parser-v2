@@ -118,9 +118,10 @@ export async function createWatchListingsAccessCondition(currentUser: AuthUser) 
     return inArraySafe(watchListings.userId, accessibleIds);
   }
 
-  // Shared data users with workspaceOwnerId: see workspace data BUT exclude others' inventory
-  if (currentUser.workspaceOwnerId && currentUser.useSharedData) {
-    console.log('📊 Shared data user with workspaceOwnerId detected');
+  // Users with workspaceOwnerId: see workspace data BUT exclude others' inventory
+  // NOTE: Having workspaceOwnerId is enough - useSharedData flag is now optional
+  if (currentUser.workspaceOwnerId) {
+    console.log('📊 Workspace member detected (workspaceOwnerId set)');
     // Get all users in workspace (for reference)
     const workspaceUsers = await db
       .select({ id: users.id })

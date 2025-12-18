@@ -1,11 +1,6 @@
 import { neon } from '@neondatabase/serverless';
 import { drizzle as drizzleHttp } from 'drizzle-orm/neon-http';
-import { Pool, neonConfig } from '@neondatabase/serverless';
-import { drizzle as drizzlePool } from 'drizzle-orm/neon-serverless';
-import ws from "ws";
 import * as schema from "@shared/schema";
-
-neonConfig.webSocketConstructor = ws;
 
 if (!process.env.DATABASE_URL) {
   throw new Error(
@@ -13,12 +8,21 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
+// Use ONLY HTTP driver - no connection pooling to avoid exhausting Neon connection limits
+// This is stateless and scales better for serverless/multi-environment setups
 const sql = neon(process.env.DATABASE_URL);
 export const db = drizzleHttp(sql, { schema });
 
-export const pool = new Pool({ 
-  connectionString: process.env.DATABASE_URL,
-  connectionTimeoutMillis: 60000,
-  idleTimeoutMillis: 30000,
-  max: 20
-});
+// Legacy pool export for compatibility - routes pool.query() to HTTP driver
+// This wraps the neon SQL function to provide pool.query() interface
+export const pool = {
+  async query(queryText: string, params?: any[]): Promise<{ rows: any[] }> {
+    try {
+      const result = await sql(queryText, params || []);
+      return { rows: result as any[] };
+    } catch (error) {
+      console.error('HTTP query error:', error);
+      throw error;
+    }
+  }
+};
