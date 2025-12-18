@@ -1,0 +1,121 @@
+        at Timeout.onTick [as _onTimeout] (node:internal/deps/undici/undici:2210:17)
+    at async <anonymous> (/app/server/routes/webhook-secure.ts:63:22) {
+        at listOnTimeout (node:internal/timers:581:17)
+        at process.processTimers (node:internal/timers:519:7) {
+      code: 'UND_ERR_HEADERS_TIMEOUT'
+    }
+  }
+}
+❌ [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] Error processing message with user context: NeonDbError: Error connecting to database: fetch failed
+    at execute (file:///app/node_modules/@neondatabase/serverless/index.mjs:1549:24)
+    at async DatabaseStorage.updateMessageLogStatus (/app/server/storage.ts:1589:5)
+  severity: undefined,
+  code: undefined,
+  line: undefined,
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: undefined,
+❤️‍🔥15202OR blue 21y HKD786k
+❤️‍🔥26715OR blue 24y HKD624k
+❤️‍🔥5396R white 17y HKD273k
+❤️‍🔥142.055  25y HKD1.66m
+❤️‍🔥15707CB ceramic, white 14y USDT380k
+❤️‍🔥15710ST white, leather 21y HKD145k
+❤️‍🔥26238ST blue, leather 25y HKD320k
+❤️‍🔥4910/1200A green  HKD100k
+❤️‍🔥5990/1A  20y HKD882k
+❤️‍🔥15467OR  21y HKD944k
+❤️‍🔥15202BA blue 19y HKD838k
+❤️‍🔥145.029  17y HKD717k
+⚠️ Multiple users share instance 6871232390D4E: [
+❤️‍🔥5168G  22y HKD667k
+  'rocketelabs@gmail.com (admin: true)',
+❤️‍🔥26684ST  25y HKD1.86m
+  'watch@parser.com (admin: false)',
+  'friend@gmail.com (admin: false)'
+]
+  'friend@gmail.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+⚠️ Multiple users share instance 6871232390D4E: [
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+❤️‍🔥7968/300R  25y HKD2.30m
+  'rocketelabs@gmail.com (admin: true)',
+✅ Saved 1/1 PIDs
+  'watch@parser.com (admin: false)',
+🔐 Prioritizing admin: rocketelabs@gmail.com
+❤️‍🔥5961P  13y HKD785k
+❤️‍🔥26240OR black, leather 23y USDT68k
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+❤️‍🔥126599  25y HKD8.20m
+❤️‍🔥4675R  15y HKD670k
+❤️‍🔥384.029  21y HKD161k
+❤️‍🔥5980R leather 19y HKD879k
+❤️‍🔥5396/1R white 13y HKD326k
+❤️‍🔥116508 black 21y HKD409k
+❤️‍🔥15407ST  21y HKD1.16m
+🔍 createMessageLog called with: {
+  "userId": "815cb980-b776-4053-8cef-6e69d3d6f0b8",
+  "messageId": "AC92C028BEA1FC313DBD1F8FBA877753",
+  "timestamp": "2025-12-18T07:45:41.000Z",
+  "groupId": "120363401815210648@g.us",
+  "groupName": "香港 (Rm PP AP Rolex FPJ)💖",
+  "sender": "qian",
+  "senderNumber": "+8619924188941",
+  "message": "7118/1r-001\n2025like new  naked\n904000HKD\n\n7118/1200R-001\n2025naked \n1295000HKD",
+  "status": "received",
+  "instanceId": "6871232390D4E"
+}
+❤️‍🔥26238ST blue, leather 25y HKD320k
+❤️‍🔥26420SO brown, leather 23y HKD283k
+❤️‍🔥USED2013   HKD73k
+❤️‍🔥5172G  22y HKD408k
+❤️‍🔥15467OR  19y HKD900k
+❤️‍🔥15202LP blue 19y HKD839k
+❤️‍🔥15510OR gold, blue 25y HKD743k
+❤️‍🔥5168G   HKD708k
+⚠️ Multiple users share instance 6871232390D4E: [
+  'rocketelabs@gmail.com (admin: true)',
+  'watch@parser.com (admin: false)',
+  'friend@gmail.com (admin: false)'
+]
+🔐 Prioritizing admin: rocketelabs@gmail.com
+🔐 Instance match: 6871232390D4E → User 815cb980-b776-4053-8cef-6e69d3d6f0b8 (rocketelabs@gmail.com)
+7:45:42 AM [express] POST /api/whatsapp/webhook 200 in 1578ms :: {"success":true,"processed":0,"skip…
+❤️‍🔥128238   HKD1.70m
+❤️‍🔥77350CE black 21y HKD353k
+❤️‍🔥26240OR gold, blue 22y USDT107k
+❤️‍🔥5980R leather 23y HKD1.01m
+❤️‍🔥384.032  22y HKD183k
+❤️‍🔥116508  22y HKD763k
+❤️‍🔥4910/1200A blue 25y HKD120k
+❤️‍🔥5905/1A  22y HKD363k
+7:45:42 AM [express] POST /api/whatsapp/webhook 200 in 1604ms :: {"success":true,"stored":true,"pars…
+❤️‍🔥145.032  16y HKD764k
+❤️‍🔥15407OR  22y HKD1.52m
+❌ [User 815cb980-b776-4053-8cef-6e69d3d6f0b8] Failed to save listing 5168G: NeonDbError: Server error (HTTP status 500): {"message":"remaining connection slots are reserved for roles with the SUPERUSER attribute","code":"53300","detail":null,"hint":null,"position":null,"internalPosition":null,"internalQuery":null,"severity":"FATAL","where":null,"table":null,"column":null,"schema":null,"dataType":null,"constraint":null,"file":"postinit.c","line":"949","routine":"InitPostgres"}
+    at execute (file:///app/node_modules/@neondatabase/serverless/index.mjs:1557:64)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async NeonHttpPreparedQuery.execute (/app/node_modules/src/neon-http/session.ts:68:18)
+    at async DatabaseStorage.createWatchListing (/app/server/storage.ts:448:28)
+    at async processMessageWithUserContext (/app/server/routes/webhook-secure.ts:482:13)
+    at async processMessagesUpsert (/app/server/routes/webhook-secure.ts:128:9)
+    at async processWebhookWithUserContext (/app/server/routes/webhook-secure.ts:86:16)
+    at async <anonymous> (/app/server/routes/webhook-secure.ts:63:22) {
+  severity: undefined,
+  code: undefined,
+  detail: undefined,
+  hint: undefined,
+  position: undefined,
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
