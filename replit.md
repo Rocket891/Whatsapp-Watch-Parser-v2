@@ -6,6 +6,34 @@ This project is a full-stack web application designed to automate the processing
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## CRITICAL: Database Configuration (December 2025)
+
+### Single Database Policy
+**IMPORTANT**: This application uses ONE external Neon PostgreSQL database for BOTH development and production:
+- **Host**: `ep-floral-tree-ahazp7b3.c-3.us-east-1.aws.neon.tech`
+- **Database**: `neondb`
+- **Contains**: 6.7M+ watch listings and all user data
+
+### Environment Variables (MUST ALL POINT TO SAME DATABASE)
+These secrets MUST be set consistently in both Replit Development and Production environments:
+- `DATABASE_URL` - Full connection string to ep-floral-tree
+- `PGHOST` - ep-floral-tree-ahazp7b3.c-3.us-east-1.aws.neon.tech
+- `PGDATABASE` - neondb
+- `PGUSER` - neondb_owner
+- `PGPASSWORD` - (your Neon password)
+- `PGPORT` - 5432
+
+### Deployment Notes
+- **No migrations needed**: Database schema is already set up in Neon
+- **Health endpoint**: `/health` returns `{"status":"ok"}` without hitting database
+- **Connection driver**: Uses `@neondatabase/serverless` HTTP driver (not pg Pool) to avoid connection exhaustion
+- **Do NOT run `drizzle-kit push` or migrations** - manage schema changes directly in Neon if needed
+
+### Common Issues
+- If "Migrations failed validation" during deploy: Database is already set up, no action needed
+- If login fails after deploy: Check that production DATABASE_URL points to ep-floral-tree
+- If queries timeout: Database has 6.7M+ rows, some dashboard queries take 200-300s
+
 ## Recent Critical Fixes (November 5, 2025)
 
 ### Webhook Processing Bug (RESOLVED)
