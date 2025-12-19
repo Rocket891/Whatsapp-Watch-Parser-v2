@@ -302,6 +302,19 @@ async function extractMessageFromPayload(payload: any, contactNameMap: Map<strin
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // ===========================================
+  // HEALTH CHECK ENDPOINT (for deployment)
+  // ===========================================
+  
+  // Fast health check that doesn't hit the database - for deployment health checks
+  app.get("/health", (_req, res) => {
+    res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+  
+  app.get("/api/health", (_req, res) => {
+    res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
+  });
+
+  // ===========================================
   // DASHBOARD & ANALYTICS ENDPOINTS
   // ===========================================
 
