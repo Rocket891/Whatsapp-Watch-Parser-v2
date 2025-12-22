@@ -314,6 +314,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.status(200).json({ status: "ok", timestamp: new Date().toISOString() });
   });
 
+  // Diagnostic endpoint to check database connection (temporary)
+  app.get("/api/db-check", async (_req, res) => {
+    try {
+      const result = await pool.query(`
+        SELECT current_database() as db, 
+               current_setting('server_version') as version,
+               (SELECT COUNT(*) FROM users) as user_count,
+               (SELECT COUNT(*) FROM watch_listings) as listing_count
+      `);
+      res.json({
+        status: "connected",
+        pghost: process.env.PGHOST?.substring(0, 20) + "...",
+        database: result.rows[0]?.db,
+        version: result.rows[0]?.version,
+        userCount: result.rows[0]?.user_count,
+        listingCount: result.rows[0]?.listing_count
+      });
+    } catch (error: any) {
+      res.status(500).json({
+        status: "error",
+        pghost: process.env.PGHOST?.substring(0, 20) + "...",
+        error: error.message
+      });
+    }
+  });
+
   // ===========================================
   // DASHBOARD & ANALYTICS ENDPOINTS
   // ===========================================
