@@ -9,18 +9,18 @@ Preferred communication style: Simple, everyday language.
 ## CRITICAL: Database Configuration (December 2025)
 
 ### Single Database Policy
-**IMPORTANT**: This application uses ONE external Neon PostgreSQL database for BOTH development and production:
-- **Host**: `ep-floral-tree-ahazp7b3.c-3.us-east-1.aws.neon.tech`
+**IMPORTANT**: This application uses ONE Replit-managed Neon PostgreSQL database for BOTH development and production:
+- **Host**: `ep-royal-poetry-ae4cqfti.c-2.us-east-2.aws.neon.tech`
 - **Database**: `neondb`
 - **Contains**: 6.7M+ watch listings and all user data
 
 ### Environment Variables (MUST ALL POINT TO SAME DATABASE)
-These secrets MUST be set consistently in both Replit Development and Production environments:
-- `DATABASE_URL` - Full connection string to ep-floral-tree
-- `PGHOST` - ep-floral-tree-ahazp7b3.c-3.us-east-1.aws.neon.tech
+These secrets are managed by Replit and should be consistent in both Development and Production:
+- `DATABASE_URL` - Full connection string to ep-royal-poetry
+- `PGHOST` - ep-royal-poetry-ae4cqfti.c-2.us-east-2.aws.neon.tech
 - `PGDATABASE` - neondb
 - `PGUSER` - neondb_owner
-- `PGPASSWORD` - (your Neon password)
+- `PGPASSWORD` - (managed by Replit)
 - `PGPORT` - 5432
 
 ### Deployment Notes
@@ -28,11 +28,12 @@ These secrets MUST be set consistently in both Replit Development and Production
 - **Health endpoint**: `/health` returns `{"status":"ok"}` without hitting database
 - **Connection driver**: Uses `@neondatabase/serverless` HTTP driver (not pg Pool) to avoid connection exhaustion
 - **Do NOT run `drizzle-kit push` or migrations** - manage schema changes directly in Neon if needed
+- **Diagnostic endpoint**: `/api/db-check` shows current database connection status
 
 ### Common Issues
-- If "Migrations failed validation" during deploy: Database is already set up, no action needed
-- If login fails after deploy: Check that production DATABASE_URL points to ep-floral-tree
+- If login fails after deploy: Delete old deployment and create fresh one (secrets sync automatically now)
 - If queries timeout: Database has 6.7M+ rows, some dashboard queries take 200-300s
+- If ep-floral-tree appears: Old cached deployment - delete and recreate
 
 ## Recent Critical Fixes (November 5, 2025)
 
