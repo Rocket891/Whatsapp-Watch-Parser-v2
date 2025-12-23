@@ -3,6 +3,15 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { initializePollingService } from "./polling-service";
 
+// Log database configuration at startup (for debugging production issues)
+const dbHost = process.env.PGHOST || 'not set';
+const dbUrl = process.env.DATABASE_URL || 'not set';
+console.log('=== DATABASE CONFIGURATION ===');
+console.log(`PGHOST: ${dbHost.substring(0, 25)}...`);
+console.log(`DATABASE_URL starts with: ${dbUrl.substring(0, 50)}...`);
+console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
+console.log('==============================');
+
 const app = express();
 
 // Trust proxy for Railway/production environments (fixes rate limiting and client IP detection)
