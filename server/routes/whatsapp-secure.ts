@@ -233,6 +233,44 @@ export function registerSecureWhatsAppRoutes(app: Express) {
     }
   });
 
+  /* ------------------------------------------------ REFRESH WEBHOOK (Authenticated) */
+  app.post("/api/whatsapp/refresh-webhook", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const config = await storage.getUserWhatsappConfig(req.user.userId);
+      if (!config || !config.instanceId || !config.accessToken) {
+        return res.status(401).json({ error: "WhatsApp not configured or missing credentials" });
+      }
+
+      // Use production URL from env var, fallback to req.headers.host
+      const publicAppUrl = process.env.PUBLIC_APP_URL || `https://${req.headers.host}`;
+      const webhookUrl = `${publicAppUrl}/api/whatsapp/webhook`;
+      
+      console.log(`🔄 [User ${req.user.userId}] Refreshing webhook to: ${webhookUrl}`);
+      
+      // Set webhook URL on mBlaster
+      await callMBSecure("set_webhook", {
+        webhook_url: webhookUrl,
+        enable: "true",
+      }, { instanceId: config.instanceId, accessToken: config.accessToken });
+      
+      // Reconnect instance to ensure connection is active
+      await callMBSecure("reconnect", {}, { instanceId: config.instanceId, accessToken: config.accessToken });
+      
+      console.log(`✅ [User ${req.user.userId}] Webhook refreshed and reconnected successfully`);
+      
+      return res.json({ 
+        success: true,
+        webhookUrl,
+        instanceId: config.instanceId,
+        message: "Webhook URL updated and connection refreshed"
+      });
+      
+    } catch (error: any) {
+      console.error("Error refreshing webhook:", error);
+      return res.status(500).json({ error: "Failed to refresh webhook", details: error.message });
+    }
+  });
+
   /* ------------------------------------------------ WHITELIST MANAGEMENT (Authenticated) */
   app.get("/api/whatsapp/whitelist", requireAuth, async (req: AuthRequest, res) => {
     try {

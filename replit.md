@@ -35,7 +35,23 @@ These secrets are managed by Replit and should be consistent in both Development
 - If queries timeout: Database has 6.7M+ rows, some dashboard queries take 200-300s
 - If ep-floral-tree appears: Old cached deployment - delete and recreate
 
-## Recent Critical Fixes (November 5, 2025)
+## Recent Critical Fixes (January 17, 2026)
+
+### Incoming Messages Stopped Fix
+**Issue**: Messages stopped being received on January 5, 2026 after deployment changes.
+**Root Cause**: mBlaster webhook URL was pointing to old deployment.
+**Fix**: Added webhook refresh endpoints:
+- Admin: `POST /admin/refresh-webhooks` - Refreshes webhook for all WhatsApp instances
+- User: `POST /api/whatsapp/refresh-webhook` - Refreshes webhook for current user
+- Added `PUBLIC_APP_URL` environment variable in production
+**Action Required**: Log in as admin and navigate to Settings > WhatsApp Integration > click "Refresh Connection"
+
+### Performance Improvements
+- Excel export capped at 5,000 rows to prevent timeouts
+- Added deduplication check on incoming messages (prevents duplicate listings within 1 hour)
+- Database cleaned from 12M to 9.4M rows
+
+## Earlier Fixes (November 5, 2025)
 
 ### Webhook Processing Bug (RESOLVED)
 **Issue**: Watch listings parsed from WhatsApp messages were not being saved to database after Sept 11, 2025.

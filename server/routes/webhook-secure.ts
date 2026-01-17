@@ -450,11 +450,12 @@ async function processMessageWithUserContext(messageData: any, userId: string, u
         firstFewPIDs: parseResults?.slice(0, 5).map(p => p.pid) || []
       });
 
-      // **CRITICAL FIX**: Save parsed listings to database
+      // **CRITICAL FIX**: Save parsed listings to database with DEDUPLICATION
       if (parseResults && parseResults.length > 0) {
         debugLog(`💾 [User ${userId}] Saving ${parseResults.length} parsed listings to database...`);
         
         let savedCount = 0;
+        let skippedCount = 0;
         let errorCount = 0;
         
         for (const parsed of parseResults) {
@@ -478,6 +479,14 @@ async function processMessageWithUserContext(messageData: any, userId: string, u
               date: new Date(validTimestamp * 1000).toISOString().split('T')[0],
               time: new Date(validTimestamp * 1000).toTimeString().split(' ')[0]
             };
+            
+            // DEDUPLICATION: Check if this exact listing already exists (same PID, sender, chatId, price within last hour)
+            const isDuplicate = await storage.checkDuplicateListing(userId, parsed.pid, senderInfo.senderDisplay, remoteJid, parsed.price);
+            if (isDuplicate) {
+              skippedCount++;
+              debugLog(`⏭️ [User ${userId}] Skipping duplicate: ${parsed.pid} from ${senderInfo.senderDisplay}`);
+              continue;
+            }
             
             await storage.createWatchListing(listingData);
             savedCount++;

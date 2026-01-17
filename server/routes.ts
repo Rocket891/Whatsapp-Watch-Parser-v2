@@ -671,7 +671,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { 
         offset = '0', 
-        limit = '10000',
+        limit = '5000',  // Reduced from 10000 for better performance
         pids,
         year,
         duration,
@@ -679,9 +679,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sortOrder
       } = req.query;
       
+      // PERFORMANCE: Hard cap export to 5000 rows to prevent timeouts
+      const requestedLimit = Math.min(parseInt(limit as string), 5000);
+      
       const filters: any = {
         offset: parseInt(offset as string),
-        limit: parseInt(limit as string)
+        limit: requestedLimit
       };
       
       if (pids) filters.pids = (pids as string).split(/[,\n\s]+/).filter(p => p.trim());

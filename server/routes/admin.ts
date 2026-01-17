@@ -3,8 +3,9 @@ import { requireAdmin } from '../middleware/auth';
 import { storage } from '../storage';
 import bcrypt from 'bcryptjs';
 import { db } from '../db';
-import { watchListings, watchRequirements, processingLogs, users } from '../../shared/schema';
+import { watchListings, watchRequirements, processingLogs, users, userWhatsappConfig } from '../../shared/schema';
 import { lt, sql, eq, and, inArray } from 'drizzle-orm';
+import { callMBSecure } from './whatsapp-secure';
 
 // Helper function to get all user IDs in deletion scope (admin + team members)
 async function getDeleteScopeUserIds(adminUserId: string): Promise<string[]> {
@@ -519,6 +520,108 @@ router.post('/impersonate/:userId', async (req, res) => {
   } catch (error) {
     console.error('Error impersonating user:', error);
     res.status(500).json({ error: 'Failed to impersonate user' });
+  }
+});
+
+// Refresh webhooks for all active WhatsApp configurations
+router.post('/refresh-webhooks', async (req, res) => {
+  try {
+    const adminUser = (req as any).user;
+    console.log(`🔄 [Admin ${adminUser.email}] Starting webhook refresh for all configurations...`);
+    
+    // Get all active WhatsApp configurations
+    const allConfigs = await db.select().from(userWhatsappConfig).where(eq(userWhatsappConfig.isActive, true));
+    
+    if (allConfigs.length === 0) {
+      return res.json({ message: "No active WhatsApp configurations found", updated: 0, failed: 0 });
+    }
+    
+    // Determine the production webhook URL
+    const publicAppUrl = process.env.PUBLIC_APP_URL || 'https://whatsapp-watch-parser-v-2.replit.app';
+    const webhookUrl = `${publicAppUrl}/api/whatsapp/webhook`;
+    
+    console.log(`📡 Setting webhook URL for all instances to: ${webhookUrl}`);
+    
+    const results = {
+      success: [] as string[],
+      failed: [] as { instanceId: string; error: string }[]
+    };
+    
+    for (const config of allConfigs) {
+      if (!config.instanceId || !config.accessToken) {
+        results.failed.push({ instanceId: config.instanceId || 'unknown', error: 'Missing instanceId or accessToken' });
+        continue;
+      }
+      
+      try {
+        // Set webhook URL
+        await callMBSecure("set_webhook", {
+          webhook_url: webhookUrl,
+          enable: "true",
+        }, { instanceId: config.instanceId, accessToken: config.accessToken });
+        
+        // Reconnect instance
+        await callMBSecure("reconnect", {}, { instanceId: config.instanceId, accessToken: config.accessToken });
+        
+        results.success.push(config.instanceId);
+        console.log(`✅ [${config.instanceId}] Webhook refreshed successfully`);
+        
+        // Add small delay to prevent rate limiting
+        await new Promise(r => setTimeout(r, 500));
+        
+      } catch (error: any) {
+        results.failed.push({ instanceId: config.instanceId, error: error.message || 'Unknown error' });
+        console.error(`❌ [${config.instanceId}] Failed to refresh webhook:`, error.message);
+      }
+    }
+    
+    res.json({
+      message: "Webhook refresh complete",
+      webhookUrl,
+      total: allConfigs.length,
+      updated: results.success.length,
+      failed: results.failed.length,
+      successInstances: results.success,
+      failedInstances: results.failed
+    });
+    
+  } catch (error) {
+    console.error('Error refreshing webhooks:', error);
+    res.status(500).json({ error: 'Failed to refresh webhooks' });
+  }
+});
+
+// Get webhook status for all configurations
+router.get('/webhook-status', async (req, res) => {
+  try {
+    // Get all active WhatsApp configurations with user info
+    const configs = await db
+      .select({
+        userId: userWhatsappConfig.userId,
+        instanceId: userWhatsappConfig.instanceId,
+        isActive: userWhatsappConfig.isActive,
+        email: users.email
+      })
+      .from(userWhatsappConfig)
+      .leftJoin(users, eq(userWhatsappConfig.userId, users.id))
+      .where(eq(userWhatsappConfig.isActive, true));
+    
+    const publicAppUrl = process.env.PUBLIC_APP_URL || 'https://whatsapp-watch-parser-v-2.replit.app';
+    const expectedWebhookUrl = `${publicAppUrl}/api/whatsapp/webhook`;
+    
+    res.json({
+      totalConfigs: configs.length,
+      expectedWebhookUrl,
+      configs: configs.map(c => ({
+        email: c.email,
+        instanceId: c.instanceId?.substring(0, 10) + '...',
+        isActive: c.isActive
+      }))
+    });
+    
+  } catch (error) {
+    console.error('Error getting webhook status:', error);
+    res.status(500).json({ error: 'Failed to get webhook status' });
   }
 });
 
