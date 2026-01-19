@@ -6,22 +6,40 @@ This project is a full-stack web application designed to automate the processing
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
-## CRITICAL: Database Configuration (December 2025)
+## CRITICAL: Database Configuration (January 2026)
 
-### Single Database Policy
-**IMPORTANT**: This application uses ONE Replit-managed Neon PostgreSQL database for BOTH development and production:
-- **Host**: `ep-royal-poetry-ae4cqfti.c-2.us-east-2.aws.neon.tech`
-- **Database**: `neondb`
-- **Contains**: 6.7M+ watch listings and all user data
+### Dual Database Policy
+**IMPORTANT**: This application uses SEPARATE databases for development and production:
 
-### Environment Variables (MUST ALL POINT TO SAME DATABASE)
-These secrets are managed by Replit and should be consistent in both Development and Production:
-- `DATABASE_URL` - Full connection string to ep-royal-poetry
-- `PGHOST` - ep-royal-poetry-ae4cqfti.c-2.us-east-2.aws.neon.tech
+| Environment | Database | Storage Limit | Purpose |
+|-------------|----------|---------------|---------|
+| Development | 10GB Dev Database | 10GB | Testing and development |
+| Production | 100GB Prod Database | 100GB | Live data with 9.4M+ watch listings |
+
+### Environment Variables (MUST BE SET SEPARATELY FOR EACH ENVIRONMENT)
+Configure these secrets in Replit's Secrets panel - set different values for Development vs Production:
+
+**Development Secrets:**
+- `DATABASE_URL` - Development Neon database connection string
+- `PGHOST` - Development database host
 - `PGDATABASE` - neondb
-- `PGUSER` - neondb_owner
-- `PGPASSWORD` - (managed by Replit)
+- `PGUSER` - Database user
+- `PGPASSWORD` - Database password
 - `PGPORT` - 5432
+
+**Production Secrets (in Deployments):**
+- `DATABASE_URL` - Production Neon database connection string (100GB)
+- `PGHOST` - Production database host
+- `PGDATABASE` - neondb
+- `PGUSER` - Database user
+- `PGPASSWORD` - Database password
+- `PGPORT` - 5432
+
+### How to Verify Which Database You're Using
+- Check `/api/db-check` endpoint - shows current PGHOST
+- Server logs on startup show `PGHOST: ep-xxx...` 
+- Development: Should show dev database host
+- Production: Should show prod database host (different from dev)
 
 ### Deployment Notes
 - **No migrations needed**: Database schema is already set up in Neon
