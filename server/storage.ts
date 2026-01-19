@@ -52,6 +52,7 @@ export interface IStorage {
   getWatchListingsByPid(pid: string, userId: string): Promise<WatchListing[]>;
   getRecentWatchListings(userId: string, limit?: number): Promise<WatchListing[]>;
   checkDuplicateListing(userId: string, pid: string, sender: string, chatId: string, price?: number | null): Promise<boolean>;
+  cleanupOldListings(retentionDays?: number): Promise<number>;
   
   // Processing log methods
   createProcessingLog(log: InsertProcessingLog): Promise<ProcessingLog>;
@@ -721,6 +722,46 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
     
     return !!existing;
+  }
+
+  async cleanupOldListings(retentionDays: number = 30): Promise<number> {
+    // Delete watch listings older than specified retention period
+    // This helps keep database size under 10GB limit
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
+    
+    console.log(`🧹 Starting cleanup - deleting listings older than ${cutoffDate.toISOString()}`);
+    
+    const batchSize = 50000;
+    let totalDeleted = 0;
+    
+    while (true) {
+      const result = await db.execute(sql`
+        DELETE FROM watch_listings 
+        WHERE id IN (
+          SELECT id FROM watch_listings 
+          WHERE created_at < ${cutoffDate}
+          LIMIT ${batchSize}
+        )
+      `);
+      
+      const deleted = Number(result.rowCount) || 0;
+      totalDeleted += deleted;
+      
+      if (deleted > 0) {
+        console.log(`🧹 Deleted batch of ${deleted} records - Total: ${totalDeleted}`);
+      }
+      
+      if (deleted < batchSize) {
+        break;
+      }
+      
+      // Small delay to prevent overwhelming the database
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
+    
+    console.log(`🧹 Cleanup complete! Deleted ${totalDeleted} old listings`);
+    return totalDeleted;
   }
 
   async createProcessingLog(log: InsertProcessingLog): Promise<ProcessingLog> {

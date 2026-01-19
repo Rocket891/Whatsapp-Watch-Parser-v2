@@ -8,38 +8,35 @@ Preferred communication style: Simple, everyday language.
 
 ## CRITICAL: Database Configuration (January 2026)
 
-### Dual Database Policy
-**IMPORTANT**: This application uses SEPARATE databases for development and production:
+### Single Database with Automatic Cleanup
+**CURRENT SETUP**: Using Replit's built-in 10GB PostgreSQL database for both development and production.
 
-| Environment | Database | Storage Limit | Purpose |
-|-------------|----------|---------------|---------|
-| Development | 10GB Dev Database | 10GB | Testing and development |
-| Production | 100GB Prod Database | 100GB | Live data with 9.4M+ watch listings |
+| Setting | Value |
+|---------|-------|
+| Storage Limit | 10GB |
+| Data Retention | 30 days |
+| Automatic Cleanup | Daily (removes listings older than 30 days) |
+| Current Size | ~6.3GB |
 
-### Environment Variables (MUST BE SET SEPARATELY FOR EACH ENVIRONMENT)
-Configure these secrets in Replit's Secrets panel - set different values for Development vs Production:
+### Automatic Data Management
+- **Daily cleanup**: Server automatically deletes watch listings older than 30 days
+- **Runs on startup**: First cleanup runs 1 minute after server start
+- **Repeats daily**: Cleanup runs every 24 hours
+- **Preserves**: Contacts, groups, users, and all non-listing data
 
-**Development Secrets:**
-- `DATABASE_URL` - Development Neon database connection string
-- `PGHOST` - Development database host
+### Environment Variables (Managed by Replit)
+- `DATABASE_URL` - Connection string to Replit's PostgreSQL
+- `PGHOST` - Database host
 - `PGDATABASE` - neondb
-- `PGUSER` - Database user
+- `PGUSER` - Database user  
 - `PGPASSWORD` - Database password
 - `PGPORT` - 5432
 
-**Production Secrets (in Deployments):**
-- `DATABASE_URL` - Production Neon database connection string (100GB)
-- `PGHOST` - Production database host
-- `PGDATABASE` - neondb
-- `PGUSER` - Database user
-- `PGPASSWORD` - Database password
-- `PGPORT` - 5432
-
-### How to Verify Which Database You're Using
-- Check `/api/db-check` endpoint - shows current PGHOST
-- Server logs on startup show `PGHOST: ep-xxx...` 
-- Development: Should show dev database host
-- Production: Should show prod database host (different from dev)
+### Future Upgrade Path
+If 10GB becomes insufficient, you can:
+1. Create a separate Neon database with larger storage (e.g., 100GB plan)
+2. Set production deployment secrets to point to the larger database
+3. Keep development using Replit's 10GB database for testing
 
 ### Deployment Notes
 - **No migrations needed**: Database schema is already set up in Neon
