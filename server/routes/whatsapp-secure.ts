@@ -178,8 +178,10 @@ export function registerSecureWhatsAppRoutes(app: Express) {
       console.log(`🧹 [User ${req.user.userId}] Cleared group and contact caches for fresh data fetch`);
       
       // Set up webhook for this user's instance
+      // IMPORTANT: Always use production URL when available to ensure messages work after deploy
       try {
-        const currentWebhook = `https://${req.headers.host}/api/whatsapp/webhook`;
+        const baseUrl = process.env.PUBLIC_APP_URL || `https://${req.headers.host}`;
+        const currentWebhook = `${baseUrl}/api/whatsapp/webhook`;
         console.log(`🔄 [User ${req.user.userId}] Setting webhook for instance ${instanceId}: ${currentWebhook}`);
         
         await callMBSecure("set_webhook", {

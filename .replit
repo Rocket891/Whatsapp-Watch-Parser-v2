@@ -47,3 +47,6 @@ integrations = ["javascript_websocket:1.0.0", "javascript_database:1.0.0", "java
 
 [userenv.production]
 PUBLIC_APP_URL = "https://whatsapp-watch-parser-v-2.replit.app"
+
+[userenv.development]
+PUBLIC_APP_URL = "https://whatsapp-watch-parser-v-2.replit.app"
