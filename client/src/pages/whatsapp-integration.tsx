@@ -631,9 +631,35 @@ export default function WhatsAppIntegration() {
     }
   };
 
-  // Update webhook URL for Railway deployment
+  // Update webhook URL
   const [updatingWebhook, setUpdatingWebhook] = useState(false);
-  
+  const [checkingWebhook, setCheckingWebhook] = useState(false);
+  const [currentWebhookUrl, setCurrentWebhookUrl] = useState<string | null>(null);
+
+  const checkCurrentWebhookUrl = async () => {
+    setCheckingWebhook(true);
+    try {
+      const res = await fetch("/api/whatsapp/verify-webhook", {
+        headers: { Authorization: `Bearer ${localStorage.getItem("auth_token")}` }
+      });
+      const result = await res.json();
+      if (res.ok) {
+        setCurrentWebhookUrl(result.currentWebhook || "Not set");
+        toast({
+          title: "Current Webhook URL",
+          description: result.currentWebhook || "Not set",
+          duration: 8000
+        });
+      } else {
+        toast({ title: "Could not fetch webhook URL", description: result.error, variant: "destructive" });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to check webhook URL", variant: "destructive" });
+    } finally {
+      setCheckingWebhook(false);
+    }
+  };
+
   const updateWebhookUrl = async () => {
     const data = form.getValues();
     if (!data.instanceId || !data.accessToken) {
@@ -767,34 +793,56 @@ export default function WhatsAppIntegration() {
                 </Button>
               </div>
               
-              {/* Update Webhook URL - Railway Deployment Fix */}
+              {/* Update Webhook URL - Fix Incoming Messages */}
               <div className="border-t pt-4">
                 <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-4">
                   <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">
-                    🚀 Railway Deployment
+                    🔗 Fix Incoming Messages
                   </h4>
                   <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">
-                    Click below to point mBlaster webhook to Railway URL. This fixes incoming message delivery!
+                    Use these buttons to diagnose and fix why messages stopped arriving. First check what URL mBlaster currently has, then update it to the correct production URL.
                   </p>
-                  <Button
-                    type="button"
-                    onClick={updateWebhookUrl}
-                    disabled={updatingWebhook}
-                    className="w-full"
-                    variant="default"
-                    data-testid="button-update-webhook"
-                  >
-                    {updatingWebhook ? (
-                      <>
-                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                        Updating Webhook...
-                      </>
-                    ) : (
-                      <>
-                        🔗 Update Webhook URL to Railway
-                      </>
-                    )}
-                  </Button>
+                  {currentWebhookUrl && (
+                    <div className={`text-xs p-2 rounded mb-3 font-mono break-all ${currentWebhookUrl.includes('replit.app') ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'}`}>
+                      {currentWebhookUrl.includes('replit.app') ? '✅' : '❌'} mBlaster has: {currentWebhookUrl}
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      onClick={checkCurrentWebhookUrl}
+                      disabled={checkingWebhook}
+                      variant="outline"
+                      className="flex-1"
+                      data-testid="button-check-webhook"
+                    >
+                      {checkingWebhook ? (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                          Checking...
+                        </>
+                      ) : (
+                        <>🔍 Check Current URL</>
+                      )}
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={updateWebhookUrl}
+                      disabled={updatingWebhook}
+                      className="flex-1"
+                      variant="default"
+                      data-testid="button-update-webhook"
+                    >
+                      {updatingWebhook ? (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                          Updating...
+                        </>
+                      ) : (
+                        <>🔗 Fix Webhook URL</>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </div>
               

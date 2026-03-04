@@ -184,10 +184,12 @@ export function registerSecureWhatsAppRoutes(app: Express) {
         const currentWebhook = `${baseUrl}/api/whatsapp/webhook`;
         console.log(`🔄 [User ${req.user.userId}] Setting webhook for instance ${instanceId}: ${currentWebhook}`);
         
-        await callMBSecure("set_webhook", {
+        const webhookResult = await callMBSecure("set_webhook", {
           webhook_url: currentWebhook,
           enable: "true",
         }, { instanceId, accessToken });
+        
+        console.log(`🔗 [User ${req.user.userId}] mBlaster set_webhook response:`, JSON.stringify(webhookResult?.json));
         
         // Immediately call reconnect to establish connection
         await callMBSecure("reconnect", {}, { instanceId, accessToken });

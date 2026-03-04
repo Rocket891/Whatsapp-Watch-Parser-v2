@@ -1414,10 +1414,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`🔗 Updating webhook URL for instance: ${instanceId}`);
       
-      // Use Railway URL or fallback to environment
-      const publicUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
-        ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
-        : process.env.PUBLIC_URL || 'https://whatsapp-watch-parser-v2-production.up.railway.app';
+      // Always use the Replit production URL
+      const publicUrl = process.env.PUBLIC_APP_URL || 'https://whatsapp-watch-parser-v-2.replit.app';
       
       const webhookUrl = `${publicUrl}/api/whatsapp/webhook`;
       
