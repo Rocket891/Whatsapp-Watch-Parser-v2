@@ -28,14 +28,15 @@ export function registerSecureWebhookRoutes(app: Express) {
     try {
       const payload = req.body;
       const instanceId = payload?.instance_id;
-      const eventType = payload?.data?.event;
+      // mBlaster may put event at top level OR inside data
+      const eventType = payload?.data?.event || payload?.event;
 
-      // PRODUCTION: Only log essential info, not full payload
-      if (isProduction && !isDebugMode) {
-        console.log(`📨 Webhook: instance=${instanceId}, event=${eventType}`);
+      // ALWAYS log full payload in production for diagnosis (can be removed later)
+      console.log(`📨 Webhook RAW: instance=${instanceId}, event=${eventType}, keys=${Object.keys(payload || {}).join(',')}, dataKeys=${Object.keys(payload?.data || {}).join(',')}`);
+      if (isProduction) {
+        console.log(`📨 Webhook FULL PAYLOAD:`, JSON.stringify(payload).substring(0, 1000));
       } else {
         console.log(`🔔 Incoming Webhook Payload:`, JSON.stringify(payload, null, 2));
-        console.log("[WEBHOOK-SECURE v1] event=", eventType);
       }
 
       if (!instanceId) {
@@ -78,11 +79,15 @@ export async function processWebhookWithUserContext(payload: any, userId: string
   const { instanceId } = userConfig;
   
   try {
-    // Handle different event types with user context
-    const eventType = payload?.data?.event;
+    // mBlaster may put event at top level OR inside data
+    const eventType = payload?.data?.event || payload?.event;
+    
+    console.log(`🔀 [User ${userId}] Routing event type: "${eventType}"`);
 
     switch (eventType) {
       case "messages.upsert":
+      case "messages":        // mBlaster also sends "messages" as event type
+      case "message":         // handle singular form too
         return await processMessagesUpsert(payload, userId, userConfig);
       
       case "received_message": 
@@ -95,7 +100,13 @@ export async function processWebhookWithUserContext(payload: any, userId: string
         return await processNewSubscriber(payload, userId, userConfig);
         
       default:
-        debugLog(`📋 [User ${userId}] Unhandled event type: ${eventType}`);
+        // Last resort: if payload has messages array anywhere, try to process it
+        const topLevelMessages = payload?.data?.messages || payload?.messages;
+        if (topLevelMessages && Array.isArray(topLevelMessages) && topLevelMessages.length > 0) {
+          console.log(`🔀 [User ${userId}] Unknown event "${eventType}" but found messages array - attempting to process`);
+          return await processMessagesUpsert(payload, userId, userConfig);
+        }
+        console.log(`📋 [User ${userId}] Unhandled event type: "${eventType}" - payload keys: ${Object.keys(payload || {}).join(', ')}`);
         return { success: true, handled: false, eventType };
     }
 
@@ -109,7 +120,15 @@ export async function processWebhookWithUserContext(payload: any, userId: string
    USER-AWARE MESSAGE PROCESSING FUNCTIONS
    ---------------------------------------------------------------- */
 async function processMessagesUpsert(payload: any, userId: string, userConfig: UserWhatsappConfig) {
-  const messages = payload?.data?.data?.messages || [];
+  // mBlaster uses different nesting depending on event type:
+  // "messages.upsert": payload.data.data.messages
+  // "messages": payload.data.messages  OR  payload.messages
+  const messages = payload?.data?.data?.messages 
+    || payload?.data?.messages 
+    || payload?.messages 
+    || [];
+  
+  console.log(`📩 [User ${userId}] processMessagesUpsert: found ${messages.length} messages, payload structure: data.data.messages=${!!(payload?.data?.data?.messages)}, data.messages=${!!(payload?.data?.messages)}, messages=${!!(payload?.messages)}`);
   
   if (!Array.isArray(messages) || messages.length === 0) {
     return { success: true, processed: false, reason: "No messages in upsert" };
