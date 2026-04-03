@@ -194,6 +194,14 @@ export default function IncomingMessages() {
     return <MessageSquare className="h-4 w-4 text-gray-400" />;
   };
 
+  const getStatusLabel = (status?: string, message?: string) => {
+    const pidCount = message ? (message.match(/\b([A-Z0-9]{4,8}|\d{3}\.\d{3})\b/g) || []).length : 0;
+    if ((status === 'processed' || status === 'requirement') && pidCount > 0) {
+      return `${status} (${pidCount})`;
+    }
+    return status || '';
+  };
+
   const exportToCSV = () => {
     const headers = ['Timestamp', 'Group', 'Sender', 'Sender Number', 'Message', 'Status'];
     const rows = filteredMessages.map(msg => [
@@ -202,7 +210,7 @@ export default function IncomingMessages() {
       msg.sender,
       msg.senderNumber || '',
       msg.message.replace(/"/g, '""').replace(/\n/g, ' '),
-      msg.status || ''
+      getStatusLabel(msg.status, msg.message)
     ]);
 
     const csv = [
