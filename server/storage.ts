@@ -51,8 +51,6 @@ export interface IStorage {
   getWatchListingById(id: number, userId: string): Promise<WatchListing | undefined>;
   getWatchListingsByPid(pid: string, userId: string): Promise<WatchListing[]>;
   getRecentWatchListings(userId: string, limit?: number): Promise<WatchListing[]>;
-  checkDuplicateListing(userId: string, pid: string, sender: string, chatId: string, price?: number | null): Promise<boolean>;
-  cleanupOldListings(retentionDays?: number): Promise<number>;
   
   // Processing log methods
   createProcessingLog(log: InsertProcessingLog): Promise<ProcessingLog>;
@@ -536,18 +534,10 @@ export class DatabaseStorage implements IStorage {
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
-    // PERFORMANCE OPTIMIZATION: Skip expensive COUNT for large result sets
-    // Use an estimate or quick count with limit for better UX
-    const limit = filters.limit || 50;
-    const offset = filters.offset || 0;
-    
-    // Always do actual count for proper pagination
-    // The query is optimized with indexes on user_id + created_at
     const [totalResult] = await db
       .select({ count: count() })
       .from(watchListings)
       .where(whereClause);
-    const totalCount = totalResult.count;
 
     let query = db
       .select()
@@ -604,12 +594,15 @@ export class DatabaseStorage implements IStorage {
     } else {
       query = query.orderBy(desc(watchListings.createdAt));
     }
+
+    const limit = filters.limit || 50;
+    const offset = filters.offset || 0;
     
     const listings = await query.limit(limit).offset(offset);
 
     return {
       listings,
-      total: totalCount,
+      total: totalResult.count,
     };
   }
 
@@ -694,74 +687,6 @@ export class DatabaseStorage implements IStorage {
       .where(whereClause)
       .orderBy(desc(watchListings.createdAt))
       .limit(limit);
-  }
-
-  async checkDuplicateListing(userId: string, pid: string, sender: string, chatId: string, price?: number | null): Promise<boolean> {
-    // Check for duplicate listings within the last hour
-    // Uses indexed fields for fast lookup
-    // Note: For webhook processing, userId is already the workspace owner ID
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    
-    const conditions = [
-      eq(watchListings.userId, userId),
-      eq(watchListings.pid, pid),
-      eq(watchListings.sender, sender),
-      eq(watchListings.chatId, chatId),
-      gte(watchListings.createdAt, oneHourAgo)
-    ];
-    
-    // If price is provided, also match on price
-    if (price !== null && price !== undefined) {
-      conditions.push(eq(watchListings.price, price));
-    }
-    
-    const [existing] = await db
-      .select({ id: watchListings.id })
-      .from(watchListings)
-      .where(and(...conditions))
-      .limit(1);
-    
-    return !!existing;
-  }
-
-  async cleanupOldListings(retentionDays: number = 30): Promise<number> {
-    // Delete watch listings older than specified retention period
-    // This helps keep database size under 10GB limit
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - retentionDays);
-    
-    console.log(`🧹 Starting cleanup - deleting listings older than ${cutoffDate.toISOString()}`);
-    
-    const batchSize = 50000;
-    let totalDeleted = 0;
-    
-    while (true) {
-      const result = await db.execute(sql`
-        DELETE FROM watch_listings 
-        WHERE id IN (
-          SELECT id FROM watch_listings 
-          WHERE created_at < ${cutoffDate}
-          LIMIT ${batchSize}
-        )
-      `);
-      
-      const deleted = Number(result.rowCount) || 0;
-      totalDeleted += deleted;
-      
-      if (deleted > 0) {
-        console.log(`🧹 Deleted batch of ${deleted} records - Total: ${totalDeleted}`);
-      }
-      
-      if (deleted < batchSize) {
-        break;
-      }
-      
-      // Small delay to prevent overwhelming the database
-      await new Promise(resolve => setTimeout(resolve, 200));
-    }
-    
-    console.log(`🧹 Cleanup complete! Deleted ${totalDeleted} old listings`);
-    return totalDeleted;
   }
 
   async createProcessingLog(log: InsertProcessingLog): Promise<ProcessingLog> {

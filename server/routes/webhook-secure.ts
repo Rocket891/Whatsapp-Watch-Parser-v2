@@ -28,15 +28,14 @@ export function registerSecureWebhookRoutes(app: Express) {
     try {
       const payload = req.body;
       const instanceId = payload?.instance_id;
-      // mBlaster may put event at top level OR inside data
-      const eventType = payload?.data?.event || payload?.event;
+      const eventType = payload?.data?.event;
 
-      // ALWAYS log full payload in production for diagnosis (can be removed later)
-      console.log(`📨 Webhook RAW: instance=${instanceId}, event=${eventType}, keys=${Object.keys(payload || {}).join(',')}, dataKeys=${Object.keys(payload?.data || {}).join(',')}`);
-      if (isProduction) {
-        console.log(`📨 Webhook FULL PAYLOAD:`, JSON.stringify(payload).substring(0, 1000));
+      // PRODUCTION: Only log essential info, not full payload
+      if (isProduction && !isDebugMode) {
+        console.log(`📨 Webhook: instance=${instanceId}, event=${eventType}`);
       } else {
         console.log(`🔔 Incoming Webhook Payload:`, JSON.stringify(payload, null, 2));
+        console.log("[WEBHOOK-SECURE v1] event=", eventType);
       }
 
       if (!instanceId) {
@@ -79,15 +78,11 @@ export async function processWebhookWithUserContext(payload: any, userId: string
   const { instanceId } = userConfig;
   
   try {
-    // mBlaster may put event at top level OR inside data
-    const eventType = payload?.data?.event || payload?.event;
-    
-    console.log(`🔀 [User ${userId}] Routing event type: "${eventType}"`);
+    // Handle different event types with user context
+    const eventType = payload?.data?.event;
 
     switch (eventType) {
       case "messages.upsert":
-      case "messages":        // mBlaster also sends "messages" as event type
-      case "message":         // handle singular form too
         return await processMessagesUpsert(payload, userId, userConfig);
       
       case "received_message": 
@@ -100,13 +95,7 @@ export async function processWebhookWithUserContext(payload: any, userId: string
         return await processNewSubscriber(payload, userId, userConfig);
         
       default:
-        // Last resort: if payload has messages array anywhere, try to process it
-        const topLevelMessages = payload?.data?.messages || payload?.messages;
-        if (topLevelMessages && Array.isArray(topLevelMessages) && topLevelMessages.length > 0) {
-          console.log(`🔀 [User ${userId}] Unknown event "${eventType}" but found messages array - attempting to process`);
-          return await processMessagesUpsert(payload, userId, userConfig);
-        }
-        console.log(`📋 [User ${userId}] Unhandled event type: "${eventType}" - payload keys: ${Object.keys(payload || {}).join(', ')}`);
+        debugLog(`📋 [User ${userId}] Unhandled event type: ${eventType}`);
         return { success: true, handled: false, eventType };
     }
 
@@ -120,15 +109,7 @@ export async function processWebhookWithUserContext(payload: any, userId: string
    USER-AWARE MESSAGE PROCESSING FUNCTIONS
    ---------------------------------------------------------------- */
 async function processMessagesUpsert(payload: any, userId: string, userConfig: UserWhatsappConfig) {
-  // mBlaster uses different nesting depending on event type:
-  // "messages.upsert": payload.data.data.messages
-  // "messages": payload.data.messages  OR  payload.messages
-  const messages = payload?.data?.data?.messages 
-    || payload?.data?.messages 
-    || payload?.messages 
-    || [];
-  
-  console.log(`📩 [User ${userId}] processMessagesUpsert: found ${messages.length} messages, payload structure: data.data.messages=${!!(payload?.data?.data?.messages)}, data.messages=${!!(payload?.data?.messages)}, messages=${!!(payload?.messages)}`);
+  const messages = payload?.data?.data?.messages || [];
   
   if (!Array.isArray(messages) || messages.length === 0) {
     return { success: true, processed: false, reason: "No messages in upsert" };
@@ -469,12 +450,11 @@ async function processMessageWithUserContext(messageData: any, userId: string, u
         firstFewPIDs: parseResults?.slice(0, 5).map(p => p.pid) || []
       });
 
-      // **CRITICAL FIX**: Save parsed listings to database with DEDUPLICATION
+      // **CRITICAL FIX**: Save parsed listings to database
       if (parseResults && parseResults.length > 0) {
         debugLog(`💾 [User ${userId}] Saving ${parseResults.length} parsed listings to database...`);
         
         let savedCount = 0;
-        let skippedCount = 0;
         let errorCount = 0;
         
         for (const parsed of parseResults) {
@@ -498,14 +478,6 @@ async function processMessageWithUserContext(messageData: any, userId: string, u
               date: new Date(validTimestamp * 1000).toISOString().split('T')[0],
               time: new Date(validTimestamp * 1000).toTimeString().split(' ')[0]
             };
-            
-            // DEDUPLICATION: Check if this exact listing already exists (same PID, sender, chatId, price within last hour)
-            const isDuplicate = await storage.checkDuplicateListing(userId, parsed.pid, senderInfo.senderDisplay, remoteJid, parsed.price);
-            if (isDuplicate) {
-              skippedCount++;
-              debugLog(`⏭️ [User ${userId}] Skipping duplicate: ${parsed.pid} from ${senderInfo.senderDisplay}`);
-              continue;
-            }
             
             await storage.createWatchListing(listingData);
             savedCount++;

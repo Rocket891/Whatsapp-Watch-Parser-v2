@@ -18,8 +18,6 @@ import {
   AlertCircle, 
   RefreshCw, 
   Smartphone, 
-  Plus,
-  QrCode,
   Users,
   Settings,
   Save,
@@ -30,7 +28,8 @@ import {
   Search,
   CheckSquare,
   Square,
-  Check
+  Check,
+  RotateCcw
 } from "lucide-react";
 import { loadConfig, saveConfig } from "@/utils/config";
 import { useAuth } from "@/contexts/auth-context";
@@ -631,35 +630,9 @@ export default function WhatsAppIntegration() {
     }
   };
 
-  // Update webhook URL
+  // Update webhook URL for Railway deployment
   const [updatingWebhook, setUpdatingWebhook] = useState(false);
-  const [checkingWebhook, setCheckingWebhook] = useState(false);
-  const [currentWebhookUrl, setCurrentWebhookUrl] = useState<string | null>(null);
-
-  const checkCurrentWebhookUrl = async () => {
-    setCheckingWebhook(true);
-    try {
-      const res = await fetch("/api/whatsapp/verify-webhook", {
-        headers: { Authorization: `Bearer ${localStorage.getItem("auth_token")}` }
-      });
-      const result = await res.json();
-      if (res.ok) {
-        setCurrentWebhookUrl(result.currentWebhook || "Not set");
-        toast({
-          title: "Current Webhook URL",
-          description: result.currentWebhook || "Not set",
-          duration: 8000
-        });
-      } else {
-        toast({ title: "Could not fetch webhook URL", description: result.error, variant: "destructive" });
-      }
-    } catch (error) {
-      toast({ title: "Error", description: "Failed to check webhook URL", variant: "destructive" });
-    } finally {
-      setCheckingWebhook(false);
-    }
-  };
-
+  
   const updateWebhookUrl = async () => {
     const data = form.getValues();
     if (!data.instanceId || !data.accessToken) {
@@ -687,7 +660,7 @@ export default function WhatsAppIntegration() {
       if (res.ok && result.success) {
         toast({ 
           title: "Webhook Updated! 🎉", 
-          description: `mBlaster now sends messages to: ${result.webhookUrl}`,
+          description: `WhatsApp API now sends messages to: ${result.webhookUrl}`,
           duration: 6000
         });
       } else {
@@ -793,103 +766,35 @@ export default function WhatsAppIntegration() {
                 </Button>
               </div>
               
-              {/* Update Webhook URL - Fix Incoming Messages */}
+              {/* Update Webhook URL - Railway Deployment Fix */}
               <div className="border-t pt-4">
                 <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-4">
                   <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">
-                    🔗 Fix Incoming Messages
+                    🚀 Railway Deployment
                   </h4>
                   <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">
-                    Use these buttons to diagnose and fix why messages stopped arriving. First check what URL mBlaster currently has, then update it to the correct production URL.
+                    Click below to point WhatsApp API webhook to Railway URL. This fixes incoming message delivery!
                   </p>
-                  {currentWebhookUrl && (
-                    <div className={`text-xs p-2 rounded mb-3 font-mono break-all ${currentWebhookUrl.includes('replit.app') ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'}`}>
-                      {currentWebhookUrl.includes('replit.app') ? '✅' : '❌'} mBlaster has: {currentWebhookUrl}
-                    </div>
-                  )}
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      onClick={checkCurrentWebhookUrl}
-                      disabled={checkingWebhook}
-                      variant="outline"
-                      className="flex-1"
-                      data-testid="button-check-webhook"
-                    >
-                      {checkingWebhook ? (
-                        <>
-                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                          Checking...
-                        </>
-                      ) : (
-                        <>🔍 Check Current URL</>
-                      )}
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={updateWebhookUrl}
-                      disabled={updatingWebhook}
-                      className="flex-1"
-                      variant="default"
-                      data-testid="button-update-webhook"
-                    >
-                      {updatingWebhook ? (
-                        <>
-                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                          Updating...
-                        </>
-                      ) : (
-                        <>🔗 Fix Webhook URL</>
-                      )}
-                    </Button>
-                  </div>
+                  <Button
+                    type="button"
+                    onClick={updateWebhookUrl}
+                    disabled={updatingWebhook}
+                    className="w-full"
+                    variant="default"
+                    data-testid="button-update-webhook"
+                  >
+                    {updatingWebhook ? (
+                      <>
+                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                        Updating Webhook...
+                      </>
+                    ) : (
+                      <>
+                        🔗 Update Webhook URL to Railway
+                      </>
+                    )}
+                  </Button>
                 </div>
-              </div>
-              
-              <div className="flex gap-2 border-t pt-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={async () => {
-                    try {
-                      const res = await fetch("/api/whatsapp/reconnect", { method: "POST", headers: { Authorization: `Bearer ${localStorage.getItem("auth_token")}` } });
-                      const data = await res.json();
-                      if (res.ok) {
-                        toast({ title: "Reconnect triggered", description: "Instance is reconnecting. Check status in a few seconds." });
-                        setTimeout(checkStatus, 5000);
-                      } else {
-                        toast({ title: "Reconnect failed", description: data.error || "Unknown error", variant: "destructive" });
-                      }
-                    } catch (error) {
-                      toast({ title: "Reconnect failed", variant: "destructive" });
-                    }
-                  }}
-                  className="flex-1"
-                >
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Reconnect
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={async () => {
-                    try {
-                      const res = await fetch("/api/whatsapp/reboot", { method: "POST", headers: { Authorization: `Bearer ${localStorage.getItem("auth_token")}` } });
-                      const data = await res.json();
-                      if (res.ok) {
-                        toast({ title: "Reboot triggered", description: "Instance is rebooting. This may take a moment." });
-                        setTimeout(checkStatus, 10000);
-                      } else {
-                        toast({ title: "Reboot failed", description: data.error || "Unknown error", variant: "destructive" });
-                      }
-                    } catch (error) {
-                      toast({ title: "Reboot failed", variant: "destructive" });
-                    }
-                  }}
-                  className="flex-1"
-                >
-                  🔁 Reboot
-                </Button>
               </div>
             </CardContent>
           </Card>
@@ -1091,10 +996,68 @@ export default function WhatsAppIntegration() {
                     </Button>
                   </div>
                 </form>
+
+                {/* Connection Recovery */}
+                <div className="border-t pt-4 mt-4">
+                  <h4 className="font-medium mb-2">Connection Recovery</h4>
+                  <p className="text-sm text-gray-600 mb-3">
+                    If your WhatsApp connection drops, try these recovery options:
+                  </p>
+                  <div className="flex gap-2">
+                    <Button 
+                      size="sm"
+                      variant="outline"
+                      onClick={async () => {
+                        try {
+                          const response = await fetch('/api/whatsapp/reconnect', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                          });
+                          const data = await response.json();
+                          if (data.success) {
+                            toast({ title: "Reconnecting", description: "Soft reconnect initiated. Please wait a moment." });
+                          } else {
+                            toast({ title: "Error", description: data.error || "Reconnect failed", variant: "destructive" });
+                          }
+                        } catch (error) {
+                          toast({ title: "Error", description: "Failed to reconnect", variant: "destructive" });
+                        }
+                      }}
+                    >
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                      Reconnect
+                    </Button>
+                    <Button 
+                      size="sm"
+                      variant="destructive"
+                      onClick={async () => {
+                        if (!confirm("Reboot will hard-restart your WhatsApp instance. You may need to re-scan QR on wapi24.in. Continue?")) return;
+                        try {
+                          const response = await fetch('/api/whatsapp/reboot', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                          });
+                          const data = await response.json();
+                          if (data.success) {
+                            toast({ title: "Rebooting", description: "Hard reboot initiated. Check wapi24.in to re-scan QR if needed." });
+                          } else {
+                            toast({ title: "Error", description: data.error || "Reboot failed", variant: "destructive" });
+                          }
+                        } catch (error) {
+                          toast({ title: "Error", description: "Failed to reboot", variant: "destructive" });
+                        }
+                      }}
+                    >
+                      <RotateCcw className="w-4 h-4 mr-2" />
+                      Reboot Instance
+                    </Button>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
           </div>
+
 
           {/* Groups Management with Tabs */}
           <Card>
@@ -1584,94 +1547,8 @@ export default function WhatsAppIntegration() {
                   </CardContent>
                 </Card>
 
-                {/* Create & Scan Sending QR Card */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <QrCode className="h-5 w-5" />
-                      Create & Scan Sending QR Code
-                    </CardTitle>
-                    <CardDescription>
-                      Generate sending instance and scan QR code
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        onClick={createSendingInstance}
-                        variant="outline"
-                        className="flex-1"
-                      >
-                        <Plus className="mr-2 h-4 w-4" />
-                        Create New Sending Instance
-                      </Button>
-                      <Button
-                        type="button"
-                        onClick={generateSendingQR}
-                        disabled={!form.getValues("sendingInstanceId") || !form.getValues("sendingAccessToken")}
-                        className="flex-1"
-                      >
-                        <QrCode className="mr-2 h-4 w-4" />
-                        Generate Sending QR
-                      </Button>
-                    </div>
-
-                    {qrSending && (
-                      <div className="flex justify-center p-4 bg-white rounded-lg border">
-                        <img src={qrSending} alt="Sending QR Code" className="max-w-[200px]" />
-                      </div>
-                    )}
-
-                    {!qrSending && (
-                      <div className="flex justify-center p-8 bg-gray-50 rounded-lg border-2 border-dashed">
-                        <div className="text-center">
-                          <QrCode className="h-12 w-12 mx-auto text-gray-400 mb-2" />
-                          <p className="text-sm text-gray-600">
-                            Sending QR code will appear here
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
               </div>
 
-              {/* Sending QR Code Display Section */}
-              {qrSending && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <QrCode className="h-5 w-5" />
-                      Sending Instance QR Code
-                    </CardTitle>
-                    <CardDescription>
-                      Scan this QR code with your sending WhatsApp mobile app
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="text-center">
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 bg-white">
-                      <img 
-                        src={qrSending} 
-                        alt="Sending WhatsApp QR Code" 
-                        className="max-w-full h-auto mx-auto"
-                        style={{ maxWidth: "250px", maxHeight: "250px" }}
-                      />
-                      <p className="text-sm text-gray-600 mt-3">
-                        Open WhatsApp on your sending phone → Settings → Linked Devices → Link a Device
-                      </p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setQrSending("")}
-                        className="mt-3"
-                      >
-                        Clear Sending QR Code
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
             </TabsContent>
           </Tabs>
 

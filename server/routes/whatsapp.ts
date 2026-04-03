@@ -10,7 +10,7 @@ import type { AuthRequest } from "../middleware/auth";
 export const groupNameCache = new Map<string, string>();
 export const contactNameCache = new Map<string, string>();
 
-/* ---------- universal mBlaster caller with retry -------------------- */
+/* ---------- universal WhatsApp API caller with retry -------------------- */
 export async function callMB(
   endpoint: string,
   params: Record<string, string|number>,
@@ -285,7 +285,7 @@ export function registerWhatsAppRoutes(app: Express) {
       let mode: 'webhook' | 'api' | 'none' = fresh ? 'webhook' : 'none';
       let connected = fresh;
 
-      // Only if !connected, then try the mBlaster status
+      // Only if !connected, then try the WhatsApp API status
       if (!connected) {
         try {
           const alive = await ensureAlive(instanceId, accessToken);
@@ -295,7 +295,7 @@ export function registerWhatsAppRoutes(app: Express) {
           }
         } catch (err: any) {
           if (err.message === "IP_REJECTED") {
-            console.log("📡 mBlaster API IP-rejected, but webhook health is authoritative");
+            console.log("📡 WhatsApp API API IP-rejected, but webhook health is authoritative");
           }
         }
       }
@@ -532,7 +532,7 @@ export function registerWhatsAppRoutes(app: Express) {
       let mode: 'webhook' | 'api' | 'none' = fresh ? 'webhook' : 'none';
       let connected = fresh;
 
-      // Only if !connected, then try the mBlaster APIs as fallback
+      // Only if !connected, then try the WhatsApp API APIs as fallback
       if (!connected) {
         const { instanceId, accessToken } = waConfig;
         

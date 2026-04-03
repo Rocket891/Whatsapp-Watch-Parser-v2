@@ -34,10 +34,10 @@ class ConnectionMonitor {
     this.status.instanceId = config.waConfig.instanceId || '';
     this.status.accessToken = config.waConfig.accessToken || '';
 
-    // Start ping monitoring every 5 minutes (reduced frequency)
+    // Start ping monitoring every 15 seconds for immediate status updates
     this.pingInterval = setInterval(() => {
       this.checkConnection();
-    }, 5 * 60 * 1000); // 5 minutes
+    }, 5 * 60 * 1000); // 5 minutes - REDUCED TO PREVENT IP BLOCKING
 
     // Initial connection check
     this.checkConnection();

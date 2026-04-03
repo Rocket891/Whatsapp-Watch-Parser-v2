@@ -157,14 +157,14 @@ async function stopPolling(userId: string) {
 }
 
 /* ----------------------------------------------------------------
-   Poll Messages from mBlaster API
+   Poll Messages from WhatsApp API API
    ---------------------------------------------------------------- */
 async function pollMessages(userId: string, userConfig: UserWhatsappConfig) {
   const state = userPollingStates.get(userId);
   if (!state) return;
 
   try {
-    console.log(`📡 [User ${userId}] Polling mBlaster for new messages...`);
+    console.log(`📡 [User ${userId}] Polling WhatsApp API for new messages...`);
     
     // Validate config has required fields
     if (!userConfig.instanceId || !userConfig.accessToken) {
@@ -172,10 +172,10 @@ async function pollMessages(userId: string, userConfig: UserWhatsappConfig) {
       return;
     }
 
-    // NOTE: mBlaster API is webhook-based only - no message fetching endpoint exists
-    // Polling is disabled as per mBlaster API documentation
-    // All messages come through webhooks: mBlaster → Cloudflare Worker → Replit App
-    console.log(`ℹ️ [User ${userId}] mBlaster uses webhook-only architecture - polling not available`);
+    // NOTE: WhatsApp API API is webhook-based only - no message fetching endpoint exists
+    // Polling is disabled as per WhatsApp API API documentation
+    // All messages come through webhooks: WhatsApp API → Cloudflare Worker → Replit App
+    console.log(`ℹ️ [User ${userId}] WhatsApp API uses webhook-only architecture - polling not available`);
     state.lastPollTime = new Date();
     return;
 
@@ -217,7 +217,7 @@ async function processPolledMessage(message: any, userId: string, userConfig: Us
 }
 
 /* ----------------------------------------------------------------
-   Convert mBlaster API Message to Webhook Format
+   Convert WhatsApp API API Message to Webhook Format
    ---------------------------------------------------------------- */
 function convertToWebhookFormat(message: any, instanceId: string | null): any {
   return {

@@ -6,67 +6,35 @@ This project is a full-stack web application designed to automate the processing
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
-## CRITICAL: Database Configuration (January 2026)
+## CRITICAL: Database Configuration (December 2025)
 
-### Single Database with Automatic Cleanup
-**CURRENT SETUP**: Using Replit's built-in 10GB PostgreSQL database for both development and production.
+### Single Database Policy
+**IMPORTANT**: This application uses ONE external Neon PostgreSQL database for BOTH development and production:
+- **Host**: `ep-floral-tree-ahazp7b3.c-3.us-east-1.aws.neon.tech`
+- **Database**: `neondb`
+- **Contains**: 6.7M+ watch listings and all user data
 
-| Setting | Value |
-|---------|-------|
-| Storage Limit | 10GB |
-| Data Retention | 30 days |
-| Automatic Cleanup | Daily (removes listings older than 30 days) |
-| Current Size | ~6.3GB |
-
-### Automatic Data Management
-- **Daily cleanup**: Server automatically deletes watch listings older than 30 days
-- **Runs on startup**: First cleanup runs 1 minute after server start
-- **Repeats daily**: Cleanup runs every 24 hours
-- **Preserves**: Contacts, groups, users, and all non-listing data
-
-### Environment Variables (Managed by Replit)
-- `DATABASE_URL` - Connection string to Replit's PostgreSQL
-- `PGHOST` - Database host
+### Environment Variables (MUST ALL POINT TO SAME DATABASE)
+These secrets MUST be set consistently in both Replit Development and Production environments:
+- `DATABASE_URL` - Full connection string to ep-floral-tree
+- `PGHOST` - ep-floral-tree-ahazp7b3.c-3.us-east-1.aws.neon.tech
 - `PGDATABASE` - neondb
-- `PGUSER` - Database user  
-- `PGPASSWORD` - Database password
+- `PGUSER` - neondb_owner
+- `PGPASSWORD` - (your Neon password)
 - `PGPORT` - 5432
-
-### Future Upgrade Path
-If 10GB becomes insufficient, you can:
-1. Create a separate Neon database with larger storage (e.g., 100GB plan)
-2. Set production deployment secrets to point to the larger database
-3. Keep development using Replit's 10GB database for testing
 
 ### Deployment Notes
 - **No migrations needed**: Database schema is already set up in Neon
 - **Health endpoint**: `/health` returns `{"status":"ok"}` without hitting database
 - **Connection driver**: Uses `@neondatabase/serverless` HTTP driver (not pg Pool) to avoid connection exhaustion
 - **Do NOT run `drizzle-kit push` or migrations** - manage schema changes directly in Neon if needed
-- **Diagnostic endpoint**: `/api/db-check` shows current database connection status
 
 ### Common Issues
-- If login fails after deploy: Delete old deployment and create fresh one (secrets sync automatically now)
+- If "Migrations failed validation" during deploy: Database is already set up, no action needed
+- If login fails after deploy: Check that production DATABASE_URL points to ep-floral-tree
 - If queries timeout: Database has 6.7M+ rows, some dashboard queries take 200-300s
-- If ep-floral-tree appears: Old cached deployment - delete and recreate
 
-## Recent Critical Fixes (January 17, 2026)
-
-### Incoming Messages Stopped Fix
-**Issue**: Messages stopped being received on January 5, 2026 after deployment changes.
-**Root Cause**: mBlaster webhook URL was pointing to old deployment.
-**Fix**: Added webhook refresh endpoints:
-- Admin: `POST /admin/refresh-webhooks` - Refreshes webhook for all WhatsApp instances
-- User: `POST /api/whatsapp/refresh-webhook` - Refreshes webhook for current user
-- Added `PUBLIC_APP_URL` environment variable in production
-**Action Required**: Log in as admin and navigate to Settings > WhatsApp Integration > click "Refresh Connection"
-
-### Performance Improvements
-- Excel export capped at 5,000 rows to prevent timeouts
-- Added deduplication check on incoming messages (prevents duplicate listings within 1 hour)
-- Database cleaned from 12M to 9.4M rows
-
-## Earlier Fixes (November 5, 2025)
+## Recent Critical Fixes (November 5, 2025)
 
 ### Webhook Processing Bug (RESOLVED)
 **Issue**: Watch listings parsed from WhatsApp messages were not being saved to database after Sept 11, 2025.
@@ -125,7 +93,7 @@ The system's data model comprises five primary tables:
 
 ### Core Services & Libraries
 -   **Database**: Neon PostgreSQL (serverless).
--   **WhatsApp Integration**: wapi24.in API for sending/receiving WhatsApp messages and managing instances (migrated from mblaster.in).
+-   **WhatsApp Integration**: mblaster.in API for sending/receiving WhatsApp messages and managing instances.
 -   **UI Components**: Radix UI (primitives) and shadcn/ui (styled components).
 -   **Form Management**: React Hook Form with Zod for validation.
 -   **Date Manipulation**: `date-fns`.

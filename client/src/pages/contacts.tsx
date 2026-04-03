@@ -1087,7 +1087,7 @@ export default function Contacts() {
                 <DialogHeader>
                   <DialogTitle>Upload Contact Data</DialogTitle>
                   <DialogDescription>
-                    {user?.isAdmin ? "Upload contact data exported from mBlaster groups. Supports multiple formats." : "Upload contact data from WhatsApp groups. Supports multiple formats."}
+                    {user?.isAdmin ? "Upload contact data exported from WhatsApp groups. Supports multiple formats." : "Upload contact data from WhatsApp groups. Supports multiple formats."}
                   </DialogDescription>
                 </DialogHeader>
                 
@@ -1100,7 +1100,7 @@ export default function Contacts() {
                       onChange={(e) => setUploadText(e.target.value)}
                       placeholder={`Paste contact data here. Supported formats:
 
-{user?.isAdmin ? "mBlaster Group Export (Auto-detected):" : "WhatsApp Group Export (Auto-detected):"}
+{user?.isAdmin ? "WhatsApp Group Export (Auto-detected):" : "WhatsApp Group Export (Auto-detected):"}
 120363417668189591\tOne World Dealers Group
 12136231456@c.us\tAlan G Los Angeles
 91XXXXXXXXXX@c.us\tExample Contact

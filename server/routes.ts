@@ -41,14 +41,14 @@ function getWhitelistSet() {
   );
 }
 
-// Helper: safe JSON test (mBlaster sometimes returns HTML when IP blocked)
+// Helper: safe JSON test (WhatsApp API sometimes returns HTML when IP blocked)
 async function fetchJSON(url: string, init?: RequestInit, retries = 2) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      console.log(`🔄 mBlaster API attempt ${attempt}/${retries}: ${url}`);
+      console.log(`🔄 WhatsApp API API attempt ${attempt}/${retries}: ${url}`);
       
       const res = await fetch(url, {
-        method: "GET", // mBlaster works reliably with GET
+        method: "GET", // WhatsApp API works reliably with GET
         headers: {
           "Accept": "application/json",
           "User-Agent":
@@ -62,7 +62,7 @@ async function fetchJSON(url: string, init?: RequestInit, retries = 2) {
       
       // Check for HTML response (IP blocked)
       if (text.trim().startsWith("<!DOCTYPE") || text.trim().startsWith("<html")) {
-        console.log(`🔄 mBlaster API attempt ${attempt}/${retries} failed: IP_REJECTED_HTML`);
+        console.log(`🔄 WhatsApp API API attempt ${attempt}/${retries} failed: IP_REJECTED_HTML`);
         if (attempt === retries) {
           const err: any = new Error("IP_REJECTED_HTML");
           err.code = "IP_REJECTED_HTML";
@@ -77,7 +77,7 @@ async function fetchJSON(url: string, init?: RequestInit, retries = 2) {
       return JSON.parse(text);
       
     } catch (error: any) {
-      console.log(`🔄 mBlaster API attempt ${attempt}/${retries} failed: ${error.message}`);
+      console.log(`🔄 WhatsApp API API attempt ${attempt}/${retries} failed: ${error.message}`);
       if (attempt === retries) {
         throw error;
       }
@@ -153,7 +153,7 @@ async function sendPidAlertNotification(alert: any, listing: any, userConfig?: {
   }
 }
 
-// Helper function to extract message details from mblaster payload
+// Helper function to extract message details from WhatsApp API payload
 async function extractMessageFromPayload(payload: any, contactNameMap: Map<string, string>, groupNameMap: Map<string, string>, userWhitelistedGroups?: string) {
   // 🔧 DYNAMIC INSTANCE ID DETECTION - Temporarily disabled (user-scoped config needed)
   if (payload.instance_id) {
@@ -218,7 +218,7 @@ async function extractMessageFromPayload(payload: any, contactNameMap: Map<strin
     );
   }
   
-  // 3) Direct data format from mblaster
+  // 3) Direct data format from WhatsApp API
   else if (root.data?.event === "messages.upsert") {
     m = root.data?.data?.messages?.[0];
     isValidMessage = Boolean(
@@ -671,7 +671,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { 
         offset = '0', 
-        limit = '5000',  // Reduced from 10000 for better performance
+        limit = '10000',
         pids,
         year,
         duration,
@@ -679,12 +679,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         sortOrder
       } = req.query;
       
-      // PERFORMANCE: Hard cap export to 5000 rows to prevent timeouts
-      const requestedLimit = Math.min(parseInt(limit as string), 5000);
-      
       const filters: any = {
         offset: parseInt(offset as string),
-        limit: requestedLimit
+        limit: parseInt(limit as string)
       };
       
       if (pids) filters.pids = (pids as string).split(/[,\n\s]+/).filter(p => p.trim());
@@ -1281,7 +1278,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ===========================================
-  // MBLASTER API PROXY - BACKEND HANDLES CORS
+  // WHATSAPP API PROXY - BACKEND HANDLES CORS
   // ===========================================
 
   // Auto-recover expired instances
@@ -1305,7 +1302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ===========================================
-  // MBLASTER API PROXY - BACKEND HANDLES CORS
+  // WHATSAPP API PROXY - BACKEND HANDLES CORS
   // ===========================================
 
   // Test access token / create instance
@@ -1377,7 +1374,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`🔍 Getting QR code for instance: ${instanceId}`);
       
-      const response = await fetch(`https://wapi24.in/api/qr_code?access_token=${accessToken}&instance_id=${instanceId}`, {
+      const response = await fetch(`https://wapi24.in/api/get_qrcode?access_token=${accessToken}&instance_id=${instanceId}`, {
         method: 'GET',
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -1414,8 +1411,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`🔗 Updating webhook URL for instance: ${instanceId}`);
       
-      // Always use the Replit production URL
-      const publicUrl = process.env.PUBLIC_APP_URL || 'https://whatsapp-watch-parser-v-2.replit.app';
+      // Use Railway URL or fallback to environment
+      const publicUrl = process.env.RAILWAY_PUBLIC_DOMAIN 
+        ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+        : process.env.PUBLIC_URL || 'https://whatsapp-watch-parser-v2-production.up.railway.app';
       
       const webhookUrl = `${publicUrl}/api/whatsapp/webhook`;
       
@@ -2147,7 +2146,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Send message to WhatsApp group directly using correct wapi24.in API
+  // Send message to WhatsApp group directly using correct WhatsApp API.in API
   app.post("/api/whatsapp/send-to-group", async (req, res) => {
     try {
       const { groupId, message } = req.body;
@@ -2167,7 +2166,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         access_token: accessToken
       });
       
-      // Try URL-encoded format first (as per wapi24.in docs)
+      // Try URL-encoded format first (as per WhatsApp API.in docs)
       const urlParams = new URLSearchParams({
         group_id: groupId,
         type: 'text',
@@ -2413,7 +2412,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let detectedGroupJid = groupJid;
       let detectedGroupName = groupName;
       
-      // Check if this is mBlaster group export format (first line is group info)
+      // Check if this is WhatsApp API group export format (first line is group info)
       if (lines.length > 0 && lines[0].includes('\t')) {
         const firstLine = lines[0];
         const parts = firstLine.split('\t');
@@ -2422,7 +2421,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (parts.length >= 2 && /^\d+$/.test(parts[0].trim()) && !parts[0].trim().includes('@')) {
           detectedGroupJid = `${parts[0].trim()}@g.us`;
           detectedGroupName = parts[1].trim();
-          console.log(`📋 Detected mBlaster group format: ${detectedGroupJid} - ${detectedGroupName}`);
+          console.log(`📋 Detected WhatsApp API group format: ${detectedGroupJid} - ${detectedGroupName}`);
           
           // Remove the first line (group info) from processing
           lines.shift();
@@ -2437,7 +2436,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         let phoneNumber = "";
         let isAdmin = false;
         
-        // Check for mBlaster tab-separated format first: "jid@c.us\tContact Name"
+        // Check for WhatsApp API tab-separated format first: "jid@c.us\tContact Name"
         if (line.includes('\t')) {
           const parts = line.split('\t');
           if (parts.length >= 2) {
@@ -2963,7 +2962,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { waCache } = await import('./state/waCache');
       waCache.markWebhookNow();
       
-      // Log the complete payload to understand mblaster's format
+      // Log the complete payload to understand WhatsApp API's format
       console.log("🔔 Incoming Webhook Payload:", JSON.stringify(req.body, null, 2));
       
       // 🔧 CRITICAL FIX: DYNAMIC INSTANCE ID VALIDATION
@@ -3031,7 +3030,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Handle mblaster webhook format - check for messages.upsert events
+      // Handle WhatsApp API webhook format - check for messages.upsert events
       let messageData = "";
       let senderData = "unknown";
       let groupData = "unknown";
@@ -3039,7 +3038,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let messageIdData = `msg_${Date.now()}`;
       let senderNumberData = "";
       
-      // Check if this is a mblaster message event
+      // Check if this is a WhatsApp API message event
       if (req.body?.data?.event === "messages.upsert") {
         let msgEvent = null;
         
@@ -4422,7 +4421,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let mode: 'webhook' | 'api' | 'none' = fresh ? 'webhook' : 'none';
       let connected = fresh;
 
-      // Only if !connected, then try the mBlaster APIs
+      // Only if !connected, then try the WhatsApp API APIs
       if (!connected) {
         const { waConfig } = await import('./waConfig');
         

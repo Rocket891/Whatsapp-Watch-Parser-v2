@@ -1,15 +1,31 @@
-// server/whatsapp-api-config.ts
-// Centralized WhatsApp API configuration - wapi24.in
+// WhatsApp API Provider Configuration
+// Single source of truth - change these to switch providers
+export const WHATSAPP_API_BASE = "https://wapi24.in/api";
+export const WHATSAPP_API_PROVIDER = "wapi24";
 
-// Cloudflare Worker Proxy URL (bypasses IP blocking)
-export const PROXY_URL = process.env.CLOUDFLARE_PROXY_URL || "https://wapi24-proxy.rocketelabs.workers.dev";
+// Cloudflare proxy (optional, for IP bypass)
+export const WHATSAPP_PROXY_URL = process.env.CLOUDFLARE_PROXY_URL || "";
+export const USE_PROXY = process.env.USE_PROXY === "true"; // disabled by default for wapi24
 
-export const USE_PROXY = process.env.USE_PROXY !== "false"; // Enabled by default
-
-// Base URL for the wapi24 API (direct)
-export const WAPI24_BASE_URL = "https://wapi24.in/api";
-
-// Get the full API URL for an endpoint (proxy or direct)
+// Build full URL for an endpoint
 export function getApiUrl(endpoint: string): string {
-  return USE_PROXY ? `${PROXY_URL}/api/${endpoint}` : `${WAPI24_BASE_URL}/${endpoint}`;
+  if (USE_PROXY && WHATSAPP_PROXY_URL) {
+    return `${WHATSAPP_PROXY_URL}/api/${endpoint}`;
+  }
+  return `${WHATSAPP_API_BASE}/${endpoint}`;
 }
+
+// Endpoint name mapping (handles differences between providers)
+export const ENDPOINTS = {
+  createInstance: "create_instance",
+  getQrCode: "get_qrcode",
+  getStatus: "get_status",
+  getInstanceStatus: "get_instance_status",
+  setWebhook: "set_webhook",
+  reconnect: "reconnect",
+  reboot: "reboot",
+  resetInstance: "reset_instance",
+  send: "send",
+  sendGroup: "send_group",
+  getGroups: "get_groups",
+} as const;

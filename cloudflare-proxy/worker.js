@@ -1,7 +1,7 @@
 /* ================================================================
-   CLOUDFLARE WORKER - mBlaster API Proxy
+   CLOUDFLARE WORKER - wapi24 API Proxy
    ================================================================
-   This proxy solves IP blocking by routing all mBlaster traffic 
+   This proxy solves IP blocking by routing all wapi24 traffic 
    through Cloudflare's network instead of Replit's blocked IP.
    ================================================================ */
 
@@ -22,12 +22,12 @@ export default {
     }
 
     try {
-      /* ========== WEBHOOK RELAY: mBlaster → Your Replit App ========== */
+      /* ========== WEBHOOK RELAY: wapi24 → Your Replit App ========== */
       if (url.pathname === '/webhook') {
-        // Get webhook payload from mBlaster
+        // Get webhook payload from wapi24
         const payload = await request.json();
         
-        console.log('📨 Webhook received from mBlaster, forwarding to Replit...');
+        console.log('📨 Webhook received from wapi24, forwarding to Replit...');
         
         // Forward to your Replit app
         const replitResponse = await fetch(`${env.REPLIT_APP_URL}/api/whatsapp/webhook`, {
@@ -46,23 +46,23 @@ export default {
         });
       }
 
-      /* ========== API PROXY: Your Replit App → mBlaster ========== */
+      /* ========== API PROXY: Your Replit App → wapi24 ========== */
       if (url.pathname.startsWith('/api/')) {
-        // Extract the mBlaster API endpoint
-        const mblasterEndpoint = url.pathname.replace('/api/', '');
+        // Extract the wapi24 API endpoint
+        const apiEndpoint = url.pathname.replace('/api/', '');
         
-        // Build mBlaster URL with all query parameters
-        const mblasterUrl = new URL(`https://wapi24.in/api/${mblasterEndpoint}`);
+        // Build wapi24 URL with all query parameters
+        const targetUrl = new URL(`https://wapi24.in/api/${apiEndpoint}`);
         
         // Copy all query parameters
         url.searchParams.forEach((value, key) => {
-          mblasterUrl.searchParams.set(key, value);
+          targetUrl.searchParams.set(key, value);
         });
 
-        console.log(`🔄 Proxying API call to mBlaster: ${mblasterEndpoint}`);
+        console.log(`🔄 Proxying API call to wapi24: ${apiEndpoint}`);
 
-        // Forward the request to mBlaster
-        const mblasterResponse = await fetch(mblasterUrl.toString(), {
+        // Forward the request to wapi24
+        const apiResponse = await fetch(targetUrl.toString(), {
           method: request.method,
           headers: {
             'Accept': 'application/json',
@@ -72,15 +72,15 @@ export default {
           body: request.method !== 'GET' ? await request.text() : undefined,
         });
 
-        // Get response from mBlaster
-        const responseText = await mblasterResponse.text();
+        // Get response from wapi24
+        const responseText = await apiResponse.text();
         
-        // Check if mBlaster returned HTML (IP block indicator)
+        // Check if wapi24 returned HTML (IP block indicator)
         if (responseText.includes('<!DOCTYPE html') || responseText.includes('<html')) {
-          console.error('❌ mBlaster returned HTML - possible IP block on Cloudflare too');
+          console.error('❌ wapi24 returned HTML - possible IP block on Cloudflare too');
           return new Response(JSON.stringify({ 
-            error: 'MBLASTER_BLOCKED',
-            message: 'mBlaster returned HTML instead of JSON' 
+            error: 'WAPI24_BLOCKED',
+            message: 'wapi24 returned HTML instead of JSON' 
           }), {
             status: 503,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -91,14 +91,14 @@ export default {
         try {
           const jsonResponse = JSON.parse(responseText);
           return new Response(JSON.stringify(jsonResponse), {
-            status: mblasterResponse.status,
+            status: apiResponse.status,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           });
         } catch (parseError) {
-          console.error('Failed to parse mBlaster response:', responseText);
+          console.error('Failed to parse wapi24 response:', responseText);
           return new Response(JSON.stringify({ 
             error: 'INVALID_RESPONSE',
-            message: 'mBlaster response is not valid JSON' 
+            message: 'wapi24 response is not valid JSON' 
           }), {
             status: 502,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },

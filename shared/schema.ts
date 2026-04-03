@@ -270,7 +270,7 @@ export const contactMappings = pgTable("contact_mappings", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Contacts database for uploaded contact data from mBlaster exports
+// Contacts database for uploaded contact data from WhatsApp exports
 export const contacts = pgTable("contacts", {
   id: serial("id").primaryKey(),
   userId: uuid("user_id").references(() => users.id), // Data isolation

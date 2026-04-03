@@ -2,16 +2,6 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { initializePollingService } from "./polling-service";
-import { storage } from "./storage";
-
-// Log database configuration at startup (for debugging production issues)
-const dbHost = process.env.PGHOST || 'not set';
-const dbUrl = process.env.DATABASE_URL || 'not set';
-console.log('=== DATABASE CONFIGURATION ===');
-console.log(`PGHOST: ${dbHost.substring(0, 25)}...`);
-console.log(`DATABASE_URL starts with: ${dbUrl.substring(0, 50)}...`);
-console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
-console.log('==============================');
 
 const app = express();
 
@@ -89,26 +79,6 @@ async function startServer() {
     // Polling service disabled - causes constant DB timeouts from cross-region connections
     // The webhooks work fine without it
     // await initializePollingService();
-    
-    // Schedule daily cleanup of old listings to stay under 10GB database limit
-    // Runs every 24 hours, keeps last 30 days of data
-    const RETENTION_DAYS = 30;
-    const CLEANUP_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours
-    
-    async function runScheduledCleanup() {
-      try {
-        log(`🧹 Running scheduled cleanup (retention: ${RETENTION_DAYS} days)`);
-        const deleted = await storage.cleanupOldListings(RETENTION_DAYS);
-        log(`🧹 Cleanup complete: ${deleted} old listings removed`);
-      } catch (error) {
-        console.error('❌ Scheduled cleanup failed:', error);
-      }
-    }
-    
-    // Run cleanup once on startup (after 1 minute to let server stabilize)
-    setTimeout(runScheduledCleanup, 60000);
-    // Then run every 24 hours
-    setInterval(runScheduledCleanup, CLEANUP_INTERVAL);
   });
 }
 
