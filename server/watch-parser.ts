@@ -173,17 +173,28 @@ export class WatchMessageParser {
 
   // MONTH EXTRACTION: Extract N1-N12 month notation
   private extractMonth(text: string): string | undefined {
-    const monthPattern = /\bN(\d{1,2})\b/i;
-    const match = text.match(monthPattern);
-    
-    if (match) {
-      const monthNum = parseInt(match[1]);
+    // N-notation: N1, N2, N12
+    const nPattern = /\bN(\d{1,2})\b/i;
+    const nMatch = text.match(nPattern);
+    if (nMatch) {
+      const monthNum = parseInt(nMatch[1]);
       if (monthNum >= 1 && monthNum <= 12) {
         debugLog(`📅 Month extracted: N${monthNum}`);
         return `N${monthNum}`;
       }
     }
-    
+
+    // M/YY format: 3/26, 8/24, 12/25
+    const myPattern = /\b(\d{1,2})\/(\d{2})\b/;
+    const myMatch = text.match(myPattern);
+    if (myMatch) {
+      const monthNum = parseInt(myMatch[1]);
+      if (monthNum >= 1 && monthNum <= 12) {
+        debugLog(`📅 Month extracted from M/YY: ${monthNum}`);
+        return `N${monthNum}`;
+      }
+    }
+
     return undefined;
   }
 
@@ -674,6 +685,9 @@ export class WatchMessageParser {
       // Additional patterns for special formats
       /\b(Q\d{7})\b/i,                                     // Q3523490 format
       
+      // Long numeric PIDs (7-8 digits, sometimes with trailing letter) e.g., 5267200A, 52684616
+      /\b(\d{7,8}[A-Z]?)(?!\d)\b/i,
+
       // Generic patterns (least specific)
       /\b([A-Z0-9]{4,}-[A-Z0-9]{3,})\b/i,
       /\b(\d{5}[A-Z]{1,3})(?!\d)/i,
@@ -779,6 +793,16 @@ export class WatchMessageParser {
       return year < 50 ? `20${year.toString().padStart(2, '0')}` : `19${year.toString().padStart(2, '0')}`;
     }
     
+    // M/YY format (3/26 = March 2026, 8/24 = August 2024)
+    match = text.match(/\b(\d{1,2})\/(\d{2})\b/);
+    if (match) {
+      const month = parseInt(match[1]);
+      const yr = parseInt(match[2]);
+      if (month >= 1 && month <= 12) {
+        return yr < 50 ? `20${yr.toString().padStart(2, '0')}` : `19${yr}`;
+      }
+    }
+
     // N2/25, N3/25 notation (month/year from watch papers)
     match = text.match(/\bN\d{1,2}\/(\d{2})\b/);
     if (match) {
