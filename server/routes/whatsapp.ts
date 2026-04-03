@@ -17,7 +17,7 @@ export async function callMB(
   method: "GET" | "POST" = "GET",
   retries = 1
 ) {
-  const url = new URL(`https://mblaster.in/api/${endpoint}`);
+  const url = new URL(`https://wapi24.in/api/${endpoint}`);
   
   // Remove any trailing dots from hostname to prevent TLS CN mismatch
   url.hostname = url.hostname.replace(/\.$/, '');

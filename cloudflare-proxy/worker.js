@@ -52,7 +52,7 @@ export default {
         const mblasterEndpoint = url.pathname.replace('/api/', '');
         
         // Build mBlaster URL with all query parameters
-        const mblasterUrl = new URL(`https://mblaster.in/api/${mblasterEndpoint}`);
+        const mblasterUrl = new URL(`https://wapi24.in/api/${mblasterEndpoint}`);
         
         // Copy all query parameters
         url.searchParams.forEach((value, key) => {

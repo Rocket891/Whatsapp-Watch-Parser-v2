@@ -120,7 +120,7 @@ async function sendPidAlertNotification(alert: any, listing: any, userConfig?: {
 📱 Source: Watch Parser System
 🚀 Check your dashboard for full details!`;
 
-    const url = 'https://mblaster.in/api/send';
+    const url = 'https://wapi24.in/api/send';
     
     const requestBody = {
       number: alert.notificationPhone,
@@ -1319,7 +1319,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`🧪 Testing access token: ${accessToken}`);
       
-      const response = await fetch(`https://mblaster.in/api/create_instance?access_token=${accessToken}`, {
+      const response = await fetch(`https://wapi24.in/api/create_instance?access_token=${accessToken}`, {
         method: 'GET',
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -1339,7 +1339,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const webhookUrl = `${publicUrl}/api/whatsapp/webhook`;
           
           try {
-            const webhookResponse = await fetch(`https://mblaster.in/api/set_webhook?webhook_url=${encodeURIComponent(webhookUrl)}&enable=true&instance_id=${jsonData.instance_id}&access_token=${accessToken}`, {
+            const webhookResponse = await fetch(`https://wapi24.in/api/set_webhook?webhook_url=${encodeURIComponent(webhookUrl)}&enable=true&instance_id=${jsonData.instance_id}&access_token=${accessToken}`, {
               method: 'GET',
               headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -1377,7 +1377,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`🔍 Getting QR code for instance: ${instanceId}`);
       
-      const response = await fetch(`https://mblaster.in/api/qr_code?access_token=${accessToken}&instance_id=${instanceId}`, {
+      const response = await fetch(`https://wapi24.in/api/qr_code?access_token=${accessToken}&instance_id=${instanceId}`, {
         method: 'GET',
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -1422,7 +1422,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`🔗 Setting webhook to: ${webhookUrl}`);
       
       const response = await fetch(
-        `https://mblaster.in/api/set_webhook?webhook_url=${encodeURIComponent(webhookUrl)}&enable=true&instance_id=${instanceId}&access_token=${accessToken}`,
+        `https://wapi24.in/api/set_webhook?webhook_url=${encodeURIComponent(webhookUrl)}&enable=true&instance_id=${instanceId}&access_token=${accessToken}`,
         {
           method: 'GET',
           headers: {
@@ -2147,7 +2147,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Send message to WhatsApp group directly using correct mblaster.in API
+  // Send message to WhatsApp group directly using correct wapi24.in API
   app.post("/api/whatsapp/send-to-group", async (req, res) => {
     try {
       const { groupId, message } = req.body;
@@ -2167,7 +2167,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         access_token: accessToken
       });
       
-      // Try URL-encoded format first (as per mblaster.in docs)
+      // Try URL-encoded format first (as per wapi24.in docs)
       const urlParams = new URLSearchParams({
         group_id: groupId,
         type: 'text',
@@ -2176,7 +2176,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         access_token: accessToken
       });
       
-      const response = await fetch(`https://mblaster.in/api/send_group?${urlParams.toString()}`, {
+      const response = await fetch(`https://wapi24.in/api/send_group?${urlParams.toString()}`, {
         method: 'POST'
       });
       
@@ -3230,7 +3230,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               if (!groupName || groupName === "Unknown Group") {
                 console.log(`🔄 Fetching fresh group names from WhatsApp API...`);
                 try {
-                  const response = await fetch(`https://mblaster.in/api/get_groups?instance_id=${waConfig.instanceId}&access_token=${waConfig.accessToken}`);
+                  const response = await fetch(`https://wapi24.in/api/get_groups?instance_id=${waConfig.instanceId}&access_token=${waConfig.accessToken}`);
                   if (response.ok) {
                     const groupsData = await response.json();
                     console.log(`📋 WhatsApp API response:`, groupsData);
@@ -3667,7 +3667,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (waConfig.accessToken && waConfig.instanceId) {
           try {
             console.log(`🔄 Fetching fresh group names from WhatsApp API...`);
-            const response = await fetch(`https://mblaster.in/api/get_groups?access_token=${waConfig.accessToken}&instance_id=${waConfig.instanceId}`);
+            const response = await fetch(`https://wapi24.in/api/get_groups?access_token=${waConfig.accessToken}&instance_id=${waConfig.instanceId}`);
             const data = await response.json();
             console.log(`📋 WhatsApp API response:`, data);
             
@@ -4347,7 +4347,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`📞 Cleaned phone: ${cleanPhone}`);
       
       // Build URL with parameters (as shown in API docs)
-      const url = new URL('https://mblaster.in/api/send');
+      const url = new URL('https://wapi24.in/api/send');
       url.searchParams.set('number', cleanPhone);
       url.searchParams.set('type', 'text');
       url.searchParams.set('message', message);
@@ -4438,7 +4438,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Primary test: Try to get groups (proves full functionality)
         try {
-          const groupsResponse = await fetch(`https://mblaster.in/api/get_groups?instance_id=${waConfig.instanceId}&access_token=${waConfig.accessToken}`, {
+          const groupsResponse = await fetch(`https://wapi24.in/api/get_groups?instance_id=${waConfig.instanceId}&access_token=${waConfig.accessToken}`, {
             method: 'GET',
             timeout: 8000
           });
@@ -4474,7 +4474,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Fallback: Check status endpoint
         try {
-          const statusResponse = await fetch(`https://mblaster.in/api/get_instance_status?instance_id=${waConfig.instanceId}&access_token=${waConfig.accessToken}`, {
+          const statusResponse = await fetch(`https://wapi24.in/api/get_instance_status?instance_id=${waConfig.instanceId}&access_token=${waConfig.accessToken}`, {
             method: 'GET',
             timeout: 5000
           });

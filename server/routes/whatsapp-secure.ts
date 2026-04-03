@@ -25,12 +25,12 @@ function getUserCaches(userId: string) {
   };
 }
 
-/* ---------- universal mBlaster caller with retry (per-user) -------------------- */
+/* ---------- universal wapi24 caller with retry (per-user) -------------------- */
 // Cloudflare Worker Proxy URL (bypasses IP blocking)
-const PROXY_URL = process.env.CLOUDFLARE_PROXY_URL || "https://mblaster-proxy.rocketelabs.workers.dev";
+const PROXY_URL = process.env.CLOUDFLARE_PROXY_URL || "https://wapi24-proxy.rocketelabs.workers.dev";
 const USE_PROXY = process.env.USE_PROXY !== "false"; // Enabled by default
 
-export async function callMBSecure(
+export async function callWhatsAppAPI(
   endpoint: string,
   params: Record<string, string|number>,
   userConfig: { instanceId: string; accessToken: string },
@@ -38,7 +38,7 @@ export async function callMBSecure(
   retries = 1
 ) {
   // Use Cloudflare Worker proxy to bypass IP blocking
-  const baseUrl = USE_PROXY ? `${PROXY_URL}/api/${endpoint}` : `https://mblaster.in/api/${endpoint}`;
+  const baseUrl = USE_PROXY ? `${PROXY_URL}/api/${endpoint}` : `https://wapi24.in/api/${endpoint}`;
   const url = new URL(baseUrl);
   
   // Remove any trailing dots from hostname to prevent TLS CN mismatch
@@ -84,10 +84,10 @@ export async function callMBSecure(
       return { ok: resp.ok, json };
       
     } catch (error: any) {
-      console.log(`🔄 [User ${userConfig.instanceId}] mBlaster API attempt ${attempt + 1}/${retries + 1} failed:`, error.message);
+      console.log(`🔄 [User ${userConfig.instanceId}] wapi24 API attempt ${attempt + 1}/${retries + 1} failed:`, error.message);
       
       if (attempt === retries) {
-        const err = new Error("MBLASTER_API_FAILED");
+        const err = new Error("WHATSAPP_API_FAILED");
         // @ts-ignore
         err.originalError = error;
         throw err;
@@ -105,6 +105,9 @@ export async function callMBSecure(
     }
   }
 }
+
+// Backward compatibility alias
+export const callMBSecure = callWhatsAppAPI;
 
 /* ---------- SECURITY: Get user's WhatsApp config or return 401 ------------- */
 async function getUserWhatsAppConfig(req: AuthRequest): Promise<{ instanceId: string; accessToken: string } | null> {
@@ -184,15 +187,15 @@ export function registerSecureWhatsAppRoutes(app: Express) {
         const currentWebhook = `${baseUrl}/api/whatsapp/webhook`;
         console.log(`🔄 [User ${req.user.userId}] Setting webhook for instance ${instanceId}: ${currentWebhook}`);
         
-        const webhookResult = await callMBSecure("set_webhook", {
+        const webhookResult = await callWhatsAppAPI("set_webhook", {
           webhook_url: currentWebhook,
           enable: "true",
         }, { instanceId, accessToken });
         
-        console.log(`🔗 [User ${req.user.userId}] mBlaster set_webhook response:`, JSON.stringify(webhookResult?.json));
+        console.log(`🔗 [User ${req.user.userId}] wapi24 set_webhook response:`, JSON.stringify(webhookResult?.json));
         
         // Immediately call reconnect to establish connection
-        await callMBSecure("reconnect", {}, { instanceId, accessToken });
+        await callWhatsAppAPI("reconnect", {}, { instanceId, accessToken });
         
         console.log(`✅ [User ${req.user.userId}] Webhook set and reconnected successfully for ${instanceId}`);
       } catch (error) {
@@ -220,17 +223,17 @@ export function registerSecureWhatsAppRoutes(app: Express) {
       }
 
       // Call mBlaster API to get current webhook configuration
-      const result = await callMBSecure("get_webhook", {}, userConfig, "GET", 3);
+      const result = await callWhatsAppAPI("get_webhook", {}, userConfig, "GET", 3);
       
       if (result.ok && result.json) {
         return res.json({ 
           currentWebhook: result.json.webhook_url || "Not set",
           enabled: result.json.enabled || false,
-          mBlasterResponse: result.json
+          wapi24Response: result.json
         });
       }
       
-      return res.status(500).json({ error: "Failed to fetch webhook from mBlaster", details: result });
+      return res.status(500).json({ error: "Failed to fetch webhook from wapi24", details: result });
     } catch (error: any) {
       console.error("Error verifying webhook:", error);
       return res.status(500).json({ error: "Failed to verify webhook", details: error.message });
@@ -251,14 +254,14 @@ export function registerSecureWhatsAppRoutes(app: Express) {
       
       console.log(`🔄 [User ${req.user.userId}] Refreshing webhook to: ${webhookUrl}`);
       
-      // Set webhook URL on mBlaster
-      await callMBSecure("set_webhook", {
+      // Set webhook URL on wapi24
+      await callWhatsAppAPI("set_webhook", {
         webhook_url: webhookUrl,
         enable: "true",
       }, { instanceId: config.instanceId, accessToken: config.accessToken });
       
       // Reconnect instance to ensure connection is active
-      await callMBSecure("reconnect", {}, { instanceId: config.instanceId, accessToken: config.accessToken });
+      await callWhatsAppAPI("reconnect", {}, { instanceId: config.instanceId, accessToken: config.accessToken });
       
       console.log(`✅ [User ${req.user.userId}] Webhook refreshed and reconnected successfully`);
       
@@ -346,7 +349,7 @@ export function registerSecureWhatsAppRoutes(app: Express) {
 
       // Only try API check if webhooks aren't recent
       try {
-        const result = await callMBSecure("get_groups", {}, userConfig, "POST", 3);
+        const result = await callWhatsAppAPI("get_groups", {}, userConfig, "POST", 3);
         const connected = result && result.ok && result.json.status === "success";
         
         return res.json({ 
@@ -433,7 +436,7 @@ export function registerSecureWhatsAppRoutes(app: Express) {
         return res.status(400).json({ error: "WhatsApp not configured" });
       }
 
-      const result = await callMBSecure("get_qr", {}, userConfig);
+      const result = await callWhatsAppAPI("get_qrcode", {}, userConfig);
       
       if (result?.json?.qr) {
         return res.json({ qrCode: result.json.qr });
@@ -467,6 +470,44 @@ export function registerSecureWhatsAppRoutes(app: Express) {
     }
   });
 
+  /* ------------------------------------------------ RECONNECT (Authenticated) */
+  app.post("/api/whatsapp/reconnect", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const userConfig = await getUserWhatsAppConfig(req);
+      if (!userConfig) {
+        return res.status(401).json({ error: "WhatsApp not configured" });
+      }
+
+      console.log(`🔄 [User ${req.user.userId}] Reconnecting instance ${userConfig.instanceId}`);
+      const result = await callWhatsAppAPI("reconnect", {}, userConfig, "GET", 1);
+      console.log(`✅ [User ${req.user.userId}] Reconnect result:`, JSON.stringify(result?.json));
+
+      return res.json({ success: true, message: "Reconnect triggered", details: result?.json });
+    } catch (error: any) {
+      console.error(`❌ [User ${req.user.userId}] Reconnect error:`, error);
+      return res.status(500).json({ error: "Failed to reconnect", details: error.message });
+    }
+  });
+
+  /* ------------------------------------------------ REBOOT (Authenticated) */
+  app.post("/api/whatsapp/reboot", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const userConfig = await getUserWhatsAppConfig(req);
+      if (!userConfig) {
+        return res.status(401).json({ error: "WhatsApp not configured" });
+      }
+
+      console.log(`🔁 [User ${req.user.userId}] Rebooting instance ${userConfig.instanceId}`);
+      const result = await callWhatsAppAPI("reboot", {}, userConfig, "GET", 1);
+      console.log(`✅ [User ${req.user.userId}] Reboot result:`, JSON.stringify(result?.json));
+
+      return res.json({ success: true, message: "Reboot triggered", details: result?.json });
+    } catch (error: any) {
+      console.error(`❌ [User ${req.user.userId}] Reboot error:`, error);
+      return res.status(500).json({ error: "Failed to reboot", details: error.message });
+    }
+  });
+
   /* ------------------------------------------------ SECURE MESSAGE SENDING (Authenticated) */
   app.post("/api/whatsapp/send", requireAuth, async (req: AuthRequest, res) => {
     try {
@@ -490,8 +531,8 @@ export function registerSecureWhatsAppRoutes(app: Express) {
       const cleanPhone = phone.replace(/[\s\-\(\)]/g, '').replace(/^\+/, '');
       console.log(`📞 [User ${req.user.userId}] Cleaned phone: ${cleanPhone}`);
       
-      // Use mBlaster API exactly as documented
-      const result = await callMBSecure("send", {
+      // Use wapi24 API to send message
+      const result = await callWhatsAppAPI("send", {
         number: cleanPhone,
         type: "text",
         message: message
@@ -517,11 +558,11 @@ export function registerSecureWhatsAppRoutes(app: Express) {
       console.error(`❌ [User ${req.user.userId}] Send message error:`, error);
       
       // Handle IP rejection specifically
-      if (error.message === "MBLASTER_API_FAILED" && error.originalError?.message === "IP_REJECTED_HTML") {
+      if (error.message === "WHATSAPP_API_FAILED" && error.originalError?.message === "IP_REJECTED_HTML") {
         return res.status(403).json({ 
-          error: "WhatsApp API rejected this server's IP address. Please contact mBlaster.in support to whitelist IP: 34.14.222.247",
+          error: "WhatsApp API rejected this server's IP address. Please contact wapi24.in support to whitelist the server IP.",
           technical_details: "IP_REJECTED_HTML",
-          suggested_solution: "Contact mBlaster.in support or consider using WhatsApp Cloud API as an alternative"
+          suggested_solution: "Contact wapi24.in support or use the Cloudflare proxy."
         });
       }
       

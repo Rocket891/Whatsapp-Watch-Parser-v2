@@ -125,7 +125,7 @@ The system's data model comprises five primary tables:
 
 ### Core Services & Libraries
 -   **Database**: Neon PostgreSQL (serverless).
--   **WhatsApp Integration**: mblaster.in API for sending/receiving WhatsApp messages and managing instances.
+-   **WhatsApp Integration**: wapi24.in API for sending/receiving WhatsApp messages and managing instances (migrated from mblaster.in).
 -   **UI Components**: Radix UI (primitives) and shadcn/ui (styled components).
 -   **Form Management**: React Hook Form with Zod for validation.
 -   **Date Manipulation**: `date-fns`.

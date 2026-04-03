@@ -846,168 +846,51 @@ export default function WhatsAppIntegration() {
                 </div>
               </div>
               
-              {/* Instance Diagnostic Tool */}
-              <div className="border-t pt-4">
-                <h4 className="font-medium mb-2">Instance Diagnostic Tool</h4>
-                <p className="text-sm text-gray-600 mb-3">
-                  {"Test if your WhatsApp instance is still active:"}
-                </p>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Enter existing Instance ID"
-                    className="flex-1 px-3 py-2 border rounded-md text-sm"
-                    id="diagnostic-instance"
-                  />
-                  <Button 
-                    size="sm" 
-                    onClick={async () => {
-                      const input = document.getElementById('diagnostic-instance') as HTMLInputElement;
-                      const testId = input.value.trim();
-                      if (!testId) {
-                        toast({ title: "Error", description: "Please enter an instance ID" });
-                        return;
-                      }
-                      
-                      try {
-                        const response = await fetch('/api/whatsapp/test-instance', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ instanceId: testId })
-                        });
-                        const data = await response.json();
-                        
-                        if (data.error) {
-                          toast({ 
-                            title: "Instance Not Found", 
-                            description: data.error,
-                            variant: "destructive"
-                          });
-                        } else {
-                          toast({ 
-                            title: "Instance Found!", 
-                            description: `Status: ${data.state || data.status || 'Active'}` 
-                          });
-                          // Auto-fill the form if instance is found
-                          form.setValue('receivingInstanceId', testId);
-                        }
-                      } catch (error) {
-                        toast({ title: "Error", description: "Failed to test instance" });
-                      }
-                    }}
-                  >
-                    Test Instance
-                  </Button>
-                </div>
-                
-                <div className="mt-3 flex gap-2">
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    onClick={async () => {
-                      const currentInstance = form.getValues('receivingInstanceId');
-                      if (!currentInstance) {
-                        toast({ title: "Error", description: "Please enter a receiving instance ID first" });
-                        return;
-                      }
-                      
-                      try {
-                        const response = await fetch('/api/whatsapp/recover-instance', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ instanceId: currentInstance })
-                        });
-                        const data = await response.json();
-                        
-                        if (data.success && data.newInstanceId) {
-                          toast({ 
-                            title: "Instance Recovered!", 
-                            description: `Created new instance: ${data.newInstanceId}`,
-                            duration: 5000
-                          });
-                          form.setValue('receivingInstanceId', data.newInstanceId);
-                          await checkStatus();
-                        } else if (data.success && data.instanceExists) {
-                          toast({ 
-                            title: "Instance Active", 
-                            description: `Instance is working: ${data.status}` 
-                          });
-                        } else {
-                          toast({ 
-                            title: "Recovery Failed", 
-                            description: data.error || "Failed to recover instance",
-                            variant: "destructive"
-                          });
-                        }
-                      } catch (error) {
-                        toast({ title: "Error", description: "Failed to recover instance" });
-                      }
-                    }}
-                    className="flex-1"
-                  >
-                    🔄 Auto-Recover Expired Instance
-                  </Button>
-                </div>
-                
-                <div className="mt-3 p-3 bg-yellow-50 rounded-md">
-                  <p className="text-sm text-yellow-700">
-                    <strong>Instance expired?</strong> Click "Auto-Recover" to automatically create a new instance if your current one has been deleted
-                  </p>
-                </div>
-                
-                {user?.isAdmin && (
-                  <div className="mt-2 p-3 bg-blue-50 rounded-md">
-                    <p className="text-sm text-blue-700">
-                      <strong>Find your instances:</strong> Contact your WhatsApp API provider to see all your active instances.
-                    </p>
-                  </div>
-                )}
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={async () => {
-                  const { instanceId, accessToken } = form.getValues();
-                  if (instanceId && accessToken) {
+              <div className="flex gap-2 border-t pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={async () => {
                     try {
-                      // First reconnect/reboot the instance
-                      await fetch("/api/whatsapp/reconnect", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ instanceId, accessToken }),
-                      });
-                      
-                      // Then try to get QR code after reconnect
-                      setTimeout(async () => {
-                        try {
-                          const qrResponse = await fetch("/api/whatsapp/qr-code", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ instanceId, accessToken }),
-                          });
-                          const qrData = await qrResponse.json();
-                          if (qrData.qrCode) {
-                            setQr(qrData.qrCode);
-                            toast({ title: "QR code ready", description: "Instance reconnected - scan QR code to authenticate" });
-                          }
-                        } catch (error) {
-                          toast({ title: "QR code fetch failed", variant: "destructive" });
-                        }
-                      }, 2000);
-                      
-                      toast({ title: "Reconnect initiated", description: "Instance is being reconnected" });
-                      setTimeout(checkStatus, 5000);
+                      const res = await fetch("/api/whatsapp/reconnect", { method: "POST", headers: { Authorization: `Bearer ${localStorage.getItem("auth_token")}` } });
+                      const data = await res.json();
+                      if (res.ok) {
+                        toast({ title: "Reconnect triggered", description: "Instance is reconnecting. Check status in a few seconds." });
+                        setTimeout(checkStatus, 5000);
+                      } else {
+                        toast({ title: "Reconnect failed", description: data.error || "Unknown error", variant: "destructive" });
+                      }
                     } catch (error) {
                       toast({ title: "Reconnect failed", variant: "destructive" });
                     }
-                  }
-                }}
-                disabled={!form.getValues("instanceId") || !form.getValues("accessToken")}
-                className="flex-1"
-              >
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Reconnect Instance
-              </Button>
+                  }}
+                  className="flex-1"
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Reconnect
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={async () => {
+                    try {
+                      const res = await fetch("/api/whatsapp/reboot", { method: "POST", headers: { Authorization: `Bearer ${localStorage.getItem("auth_token")}` } });
+                      const data = await res.json();
+                      if (res.ok) {
+                        toast({ title: "Reboot triggered", description: "Instance is rebooting. This may take a moment." });
+                        setTimeout(checkStatus, 10000);
+                      } else {
+                        toast({ title: "Reboot failed", description: data.error || "Unknown error", variant: "destructive" });
+                      }
+                    } catch (error) {
+                      toast({ title: "Reboot failed", variant: "destructive" });
+                    }
+                  }}
+                  className="flex-1"
+                >
+                  🔁 Reboot
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
@@ -1211,94 +1094,7 @@ export default function WhatsAppIntegration() {
               </CardContent>
             </Card>
 
-            {/* Create & Scan QR Card */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <QrCode className="h-5 w-5" />
-                  Create & Scan QR Code
-                </CardTitle>
-                <CardDescription>
-                  Generate a new WhatsApp instance and scan QR code
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    onClick={createInstance}
-                    variant="outline"
-                    className="flex-1"
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create New Instance
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={generateQR}
-                    disabled={!form.getValues("instanceId") || !form.getValues("accessToken")}
-                    className="flex-1"
-                  >
-                    <QrCode className="mr-2 h-4 w-4" />
-                    Generate QR
-                  </Button>
-                </div>
-
-                {qr && (
-                  <div className="flex justify-center p-4 bg-white rounded-lg border">
-                    <img src={qr} alt="QR Code" className="max-w-[200px]" />
-                  </div>
-                )}
-
-                {!qr && (
-                  <div className="flex justify-center p-8 bg-gray-50 rounded-lg border-2 border-dashed">
-                    <div className="text-center">
-                      <QrCode className="h-12 w-12 mx-auto text-gray-400 mb-2" />
-                      <p className="text-sm text-gray-600">
-                        QR code will appear here
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
           </div>
-
-          {/* QR Code Display Section */}
-          {qr && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <QrCode className="h-5 w-5" />
-                  WhatsApp QR Code
-                </CardTitle>
-                <CardDescription>
-                  Scan this QR code with your WhatsApp mobile app
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-center">
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 bg-white">
-                  <img 
-                    src={qr} 
-                    alt="WhatsApp QR Code" 
-                    className="max-w-full h-auto mx-auto"
-                    style={{ maxWidth: "250px", maxHeight: "250px" }}
-                  />
-                  <p className="text-sm text-gray-600 mt-3">
-                    Open WhatsApp on your phone → Settings → Linked Devices → Link a Device
-                  </p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setQr("")}
-                    className="mt-3"
-                  >
-                    Clear QR Code
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {/* Groups Management with Tabs */}
           <Card>

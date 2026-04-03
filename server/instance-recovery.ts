@@ -3,7 +3,7 @@ import { saveConfig } from './waConfig';
 export async function checkAndRecoverInstance(accessToken: string, instanceId: string) {
   try {
     // Test if the instance exists
-    const response = await fetch(`https://mblaster.in/api/get_status?access_token=${accessToken}&instance_id=${instanceId}`, {
+    const response = await fetch(`https://wapi24.in/api/get_status?access_token=${accessToken}&instance_id=${instanceId}`, {
       method: 'GET',
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -19,7 +19,7 @@ export async function checkAndRecoverInstance(accessToken: string, instanceId: s
       // Try to create a new instance
       console.log(`🔄 Attempting to create new instance with token: ${accessToken}`);
       
-      const createResponse = await fetch(`https://mblaster.in/api/create_instance?access_token=${accessToken}`, {
+      const createResponse = await fetch(`https://wapi24.in/api/create_instance?access_token=${accessToken}`, {
         method: 'GET',
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -38,7 +38,7 @@ export async function checkAndRecoverInstance(accessToken: string, instanceId: s
           const webhookUrl = `${publicUrl}/api/whatsapp/webhook`;
           
           try {
-            await fetch(`https://mblaster.in/api/set_webhook?webhook_url=${encodeURIComponent(webhookUrl)}&enable=true&instance_id=${jsonData.instance_id}&access_token=${accessToken}`, {
+            await fetch(`https://wapi24.in/api/set_webhook?webhook_url=${encodeURIComponent(webhookUrl)}&enable=true&instance_id=${jsonData.instance_id}&access_token=${accessToken}`, {
               method: 'GET'
             });
             console.log(`🔗 Webhook configured for new instance: ${jsonData.instance_id}`);

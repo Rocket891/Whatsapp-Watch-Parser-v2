@@ -34,10 +34,10 @@ class ConnectionMonitor {
     this.status.instanceId = config.waConfig.instanceId || '';
     this.status.accessToken = config.waConfig.accessToken || '';
 
-    // Start ping monitoring every 15 seconds for immediate status updates
+    // Start ping monitoring every 5 minutes (reduced frequency)
     this.pingInterval = setInterval(() => {
       this.checkConnection();
-    }, 15000); // 15 seconds
+    }, 5 * 60 * 1000); // 5 minutes
 
     // Initial connection check
     this.checkConnection();
@@ -63,7 +63,7 @@ class ConnectionMonitor {
 
     try {
       // Secondary check: Try to get groups list (proves connection works)
-      const groupsResponse = await fetch(`https://mblaster.in/api/get_groups?instance_id=${this.status.instanceId}&access_token=${this.status.accessToken}`, {
+      const groupsResponse = await fetch(`https://wapi24.in/api/get_groups?instance_id=${this.status.instanceId}&access_token=${this.status.accessToken}`, {
         method: 'GET',
         timeout: 8000
       });
@@ -90,7 +90,7 @@ class ConnectionMonitor {
       }
 
       // Tertiary check: Instance status (least reliable due to invalidation)
-      const statusResponse = await fetch(`https://mblaster.in/api/get_instance_status?instance_id=${this.status.instanceId}&access_token=${this.status.accessToken}`, {
+      const statusResponse = await fetch(`https://wapi24.in/api/get_instance_status?instance_id=${this.status.instanceId}&access_token=${this.status.accessToken}`, {
         method: 'GET',
         timeout: 5000
       });
@@ -158,7 +158,7 @@ class ConnectionMonitor {
   private async attemptReconnection() {
     try {
       // Try to create a new instance or reconnect
-      const response = await fetch(`https://mblaster.in/api/create_instance?access_token=${this.status.accessToken}&instance_name=auto_reconnect_${Date.now()}`);
+      const response = await fetch(`https://wapi24.in/api/create_instance?access_token=${this.status.accessToken}&instance_name=auto_reconnect_${Date.now()}`);
       
       if (response.ok) {
         const data = await response.json();
