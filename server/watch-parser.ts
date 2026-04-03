@@ -270,12 +270,23 @@ export class WatchMessageParser {
     
     // Enhanced multi-PID detection for complex formats with various symbols
     // Don't clean message yet - work with original to detect symbols
-    const symbols = ['🍁', '❤️', '⭐', '✅', '🔥', '💎', '🚀', '⚡', '🌹'];
+    const symbols = ['🍁', '❤️', '⭐', '✅', '🔥', '💎', '🚀', '⚡', '🌹', '💝', '👑', '🎉', '💘', '🍎', '💗', '☃️'];
     let multiPidMatches: RegExpMatchArray[] = [];
     
     for (const symbol of symbols) {
       // Check original message for symbols
       if (message.includes(symbol)) {
+        // BUG FIX: Only use symbol splitting when symbol is used as per-line prefix
+        // not just as header decoration (e.g., emojis around "PP used fullset")
+        const msgLines = message.split('\n');
+        const linesWithSymbol = msgLines.filter(l => l.trim().startsWith(symbol)).length;
+        const totalContentLines = msgLines.filter(l => l.trim().length > 5).length;
+
+        if (linesWithSymbol < Math.max(3, totalContentLines * 0.3)) {
+          debugLog('Symbol ' + symbol + ' in ' + linesWithSymbol + '/' + totalContentLines + ' lines - skipping (header decoration)');
+          continue;
+        }
+
         const parts = message.split(symbol).filter(part => part.trim().length > 0);
         debugLog(`🔍 Symbol ${symbol} found, split into ${parts.length} parts:`, parts.map(p => p.substring(0, 50)));
         if (parts.length > 1) {
@@ -353,20 +364,30 @@ export class WatchMessageParser {
         debugLog(`✅ Found A.Lange&Sohne PID in line: ${langeMatch[1]}`);
       }
       
-      // Handle cases where price is on separate line (like Q3523490 + 258000hkd)
+      // Handle cases where price is on separate line or multi-line format (2 or 3 lines per watch)
       let combinedLine = line;
       const nextLine = parseLines[i + 1];
+      const nextNextLine = parseLines[i + 2];
       
-      // If current line has PID but no price, and next line has price/currency
+      // If current line has PID but no price, try combining with next 1-2 lines
       if (this.extractPID(line) && !this.extractPrice(line) && nextLine) {
-        const nextLinePrice = this.extractPrice(nextLine);
         const nextLinePid = this.extractPID(nextLine);
         
-        // If next line has price but no PID (or only a price-like number), combine them
-        if (nextLinePrice && (!nextLinePid || /^\d{5,6}(hkd|usd|eur)?$/i.test(nextLine.trim()))) {
+        // Only combine if next line doesn't have its own PID (it's continuation data)
+        if (!nextLinePid || /^\d{5,6}(hkd|usd|eur)?$/i.test(nextLine.trim())) {
           combinedLine = `${line} ${nextLine}`;
-          debugLog(`🔗 Combining lines: "${line}" + "${nextLine}"`);
-          i++; // Skip the next line since we've processed it
+          debugLog(`Combining 2 lines: "${line}" + "${nextLine}"`);
+          i++; // Skip the next line
+          
+          // Check if still no price, try adding third line (3-line format: PID / year+condition / price)
+          if (!this.extractPrice(combinedLine) && nextNextLine) {
+            const nextNextPid = this.extractPID(nextNextLine);
+            if (!nextNextPid || /^\d{5,6}(hkd|usd|eur)?$/i.test(nextNextLine.trim())) {
+              combinedLine = `${combinedLine} ${nextNextLine}`;
+              debugLog(`Combining 3rd line: + "${nextNextLine}"`);
+              i++; // Skip the third line too
+            }
+          }
         }
       }
       
@@ -734,20 +755,32 @@ export class WatchMessageParser {
   }
 
   private extractYear(text: string): string | undefined {
-    // Year patterns - handle full years with Y suffix first
-    let match = text.match(/\b(20\d{2})[yY]?\b/i);
+    // Year patterns - handle full years with Y/Year suffix first (most specific)
+    let match = text.match(/\b(20\d{2})\s*[yY](?:ear)?\b/i);
     if (match) return match[1];
     
-    match = text.match(/\b(19\d{2})[yY]?\b/i);
+    // Bare 4-digit year (2000-2099)
+    match = text.match(/\b(20\d{2})\b/);
+    if (match) return match[1];
+    
+    match = text.match(/\b(19\d{2})\s*[yY]?(?:ear)?\b/i);
     if (match) return match[1];
     
     match = text.match(/\b(20\d{2})\/\d{1,2}\b/);
     if (match) return match[1];
     
-    match = text.match(/\b(\d{1,2})[yY]\b/);
+    // Short year with Y/Year suffix: 25Y, 25Year, 22y
+    match = text.match(/\b(\d{1,2})\s*[yY](?:ear)?\b/);
     if (match) {
       const year = parseInt(match[1]);
       return year < 50 ? `20${year.toString().padStart(2, '0')}` : `19${year.toString().padStart(2, '0')}`;
+    }
+    
+    // N2/25, N3/25 notation (month/year from watch papers)
+    match = text.match(/\bN\d{1,2}\/(\d{2})\b/);
+    if (match) {
+      const yr = parseInt(match[1]);
+      return yr < 50 ? `20${yr.toString().padStart(2, '0')}` : `19${yr}`;
     }
     
     return undefined;
@@ -758,7 +791,7 @@ export class WatchMessageParser {
     const metals = text.match(/\b(steel|stainless|ss|gold|rose\s*gold|yellow\s*gold|white\s*gold|platinum|titanium|ceramic)\b/gi);
     if (metals) variants.push(...metals.map(m => m.toLowerCase().replace(/\s+/g, ' ')));
     
-    const colors = text.match(/\b(black|white|blue|green|red|silver|champagne|slate|panda|pepsi|batman|hulk|kermit|brown|pink)\b/gi);
+    const colors = text.match(/\b(black|white|blue|green|red|silver|champagne|slate|panda|pepsi|batman|hulk|kermit|brown|pink|grey|gray|salmon|choco|coffee|purple|tiffany|ice\s*blue|roman|sundust|olive|mete|onyx|carnelian|ombre|eisen|blk|champ|mop|pave)\b/gi);
     if (colors) variants.push(...colors.map(c => c.toLowerCase()));
     
     const bracelets = text.match(/\b(oyster|jubilee|president|nato|leather|rubber|milanese|mesh)\b/gi);
@@ -770,13 +803,18 @@ export class WatchMessageParser {
   private extractCondition(text: string): string | undefined {
     const lowerText = text.toLowerCase();
     
+    // Combined conditions FIRST (most specific before general)
+    if (/(?:brand\s*)?new\s+full\s*set/.test(lowerText)) return 'New Full Set';
+    if (/100%\s*new/.test(lowerText)) return 'Brand New';
     if (/brand\s*new\s*in\s*box|bnib/.test(lowerText)) return 'Brand New';
     if (/like\s*new\s*in\s*box|lnib/.test(lowerText)) return 'Like New';
-    if (/brand\s*new|new/.test(lowerText)) return 'Brand New';
+    if (/brand\s*new/.test(lowerText)) return 'Brand New';
     if (/\b(unworn|unused)\b/.test(lowerText)) return 'Unworn';
     if (/like\s*new/.test(lowerText)) return 'Like New';
+    if (/both\s*tags?/.test(lowerText)) return 'Both Tags';
+    if (/\bnos\b/.test(lowerText)) return 'NOS';
     if (/full\s*set|fullset/.test(lowerText)) return 'Full Set';
-    if (/only\s*watch/.test(lowerText)) return 'Only Watch';
+    if (/watch\s*only|only\s*watch/.test(lowerText)) return 'Watch Only';
     if (/mint/.test(lowerText)) return 'Mint';
     if (/excellent/.test(lowerText)) return 'Excellent';
     if (/very\s*good/.test(lowerText)) return 'Very Good';
@@ -789,7 +827,7 @@ export class WatchMessageParser {
 
   private extractPrice(text: string): { amount: number; currency: string } | null {
     // Based on reference code parse_price function
-    const t = text.replace(',', '').toLowerCase();
+    const t = text.replace(/[$,]/g, '').toLowerCase();
     
     // Handle decimal + k/m formats
     let match = t.match(/(\d+\.\d+)\s*k/);
