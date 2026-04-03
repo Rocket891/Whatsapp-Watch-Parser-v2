@@ -361,7 +361,7 @@ export default function IncomingMessages() {
                   disabled={filteredMessages.length === 0}
                 >
                   <Download className="h-4 w-4 mr-1" />
-                  Export CSV
+                  Export CSV ({filteredMessages.length})
                 </Button>
               </div>
             </CardContent>
