@@ -184,17 +184,26 @@ export function registerSecureWhatsAppRoutes(app: Express) {
         const currentWebhook = `https://${req.headers.host}/api/whatsapp/webhook`;
         console.log(`🔄 [User ${req.user.userId}] Setting webhook for instance ${instanceId}: ${currentWebhook}`);
         
-        await callWhatsAppAPI("set_webhook", {
+        const webhookResult = await callWhatsAppAPI("set_webhook", {
           webhook_url: currentWebhook,
-          enable: "true",
+          webhook_uri: currentWebhook, // Some providers use different field names
+          status: "Enable",            // wapi24 uses status=Enable/Disable
+          enable: "true",              // Fallback for other providers
         }, { instanceId, accessToken });
         
-        // Immediately call reconnect to establish connection
-        await callWhatsAppAPI("reconnect", {}, { instanceId, accessToken });
+        console.log(`📋 [User ${req.user.userId}] set_webhook response:`, JSON.stringify(webhookResult?.json));
         
-        console.log(`✅ [User ${req.user.userId}] Webhook set and reconnected successfully for ${instanceId}`);
+        // Immediately call reconnect to establish connection
+        try {
+          const reconnectResult = await callWhatsAppAPI("reconnect", {}, { instanceId, accessToken });
+          console.log(`📋 [User ${req.user.userId}] reconnect response:`, JSON.stringify(reconnectResult?.json));
+        } catch (reconnectError: any) {
+          console.log(`⚠️ [User ${req.user.userId}] reconnect failed (non-critical):`, reconnectError.message);
+        }
+        
+        console.log(`✅ [User ${req.user.userId}] Webhook set successfully for ${instanceId}`);
       } catch (error) {
-        console.error(`❌ [User ${req.user.userId}] Failed to set webhook/reconnect:`, error);
+        console.error(`❌ [User ${req.user.userId}] Failed to set webhook:`, error);
       }
       
       return res.json({ 
