@@ -1637,6 +1637,8 @@ export class DatabaseStorage implements IStorage {
   async getUserIdByInstanceId(instanceId: string): Promise<string | undefined> {
     // CRITICAL FIX: When multiple users share the same instance ID, always prefer the admin user
     // This ensures webhook messages route to the correct workspace owner
+    // Trim whitespace/tabs to handle data entry issues
+    const cleanInstanceId = instanceId.trim();
     const configs = await db
       .select({ 
         userId: userWhatsappConfig.userId,
@@ -1645,7 +1647,7 @@ export class DatabaseStorage implements IStorage {
       })
       .from(userWhatsappConfig)
       .innerJoin(users, eq(userWhatsappConfig.userId, users.id))
-      .where(eq(userWhatsappConfig.instanceId, instanceId))
+      .where(eq(userWhatsappConfig.instanceId, cleanInstanceId))
       .orderBy(desc(users.isAdmin)); // Admin users first
     
     if (configs.length > 0) {

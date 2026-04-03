@@ -22,24 +22,32 @@ const groupNameCache = new Map<string, string>(); // "${userId}:${groupJid}" -> 
 // CRITICAL: User-aware webhook processing instead of global waConfig
 export function registerSecureWebhookRoutes(app: Express) {
   /* ----------------------------------------------------------------
+     DEBUG ENDPOINT - Captures raw webhook payloads for analysis
+     (Safe to leave in: only logs, no auth needed, returns 200)
+     ---------------------------------------------------------------- */
+  app.post("/api/webhook-debug", async (req, res) => {
+    console.log("🔍 [WEBHOOK-DEBUG] Headers:", JSON.stringify(req.headers, null, 2));
+    console.log("🔍 [WEBHOOK-DEBUG] Body:", JSON.stringify(req.body, null, 2));
+    return res.json({ received: true, timestamp: new Date().toISOString() });
+  });
+
+  /* ----------------------------------------------------------------
      SECURE WEBHOOK ENDPOINT - Maps instanceId to userId
      ---------------------------------------------------------------- */
   app.post("/api/whatsapp/webhook", async (req, res) => {
     try {
       const payload = req.body;
-      const instanceId = payload?.instance_id;
-      const eventType = payload?.data?.event;
+      // Trim whitespace/tab chars from instance_id (wapi24 safety)
+      const instanceId = (payload?.instance_id || payload?.data?.instance_id || "").trim() || undefined;
+      // wapi24 sends event at top level OR under data
+      const eventType = payload?.event || payload?.data?.event;
 
-      // PRODUCTION: Only log essential info, not full payload
-      if (isProduction && !isDebugMode) {
-        console.log(`📨 Webhook: instance=${instanceId}, event=${eventType}`);
-      } else {
-        console.log(`🔔 Incoming Webhook Payload:`, JSON.stringify(payload, null, 2));
-        console.log("[WEBHOOK-SECURE v1] event=", eventType);
-      }
+      // ALWAYS log full payload in production for debugging wapi24 integration
+      console.log(`📨 [WEBHOOK] instance=${instanceId}, event=${eventType}`);
+      console.log(`📦 [WEBHOOK] Full payload:`, JSON.stringify(payload, null, 2));
 
       if (!instanceId) {
-        console.error("❌ No instance_id in webhook payload");
+        console.error("❌ No instance_id in webhook payload. Keys:", Object.keys(payload || {}));
         return res.status(400).json({ error: "Missing instance_id" });
       }
 
@@ -79,7 +87,8 @@ export async function processWebhookWithUserContext(payload: any, userId: string
   
   try {
     // Handle different event types with user context
-    const eventType = payload?.data?.event;
+    // wapi24 sends event at top level OR under data
+    const eventType = payload?.event || payload?.data?.event;
 
     switch (eventType) {
       case "messages.upsert":
@@ -109,9 +118,11 @@ export async function processWebhookWithUserContext(payload: any, userId: string
    USER-AWARE MESSAGE PROCESSING FUNCTIONS
    ---------------------------------------------------------------- */
 async function processMessagesUpsert(payload: any, userId: string, userConfig: UserWhatsappConfig) {
-  const messages = payload?.data?.data?.messages || [];
+  // wapi24 puts messages at data.messages; fallback to data.data.messages for legacy
+  const messages = payload?.data?.messages || payload?.data?.data?.messages || payload?.messages || [];
   
   if (!Array.isArray(messages) || messages.length === 0) {
+    console.log(`[WEBHOOK] No messages found. payload keys: ${Object.keys(payload || {})}, data keys: ${Object.keys(payload?.data || {})}`);
     return { success: true, processed: false, reason: "No messages in upsert" };
   }
 

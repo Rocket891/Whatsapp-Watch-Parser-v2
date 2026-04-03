@@ -144,7 +144,9 @@ export function registerSecureWhatsAppRoutes(app: Express) {
   /* ------------------------------------------------ CONFIGURE USER WHATSAPP (Authenticated) */
   app.post("/api/whatsapp/configure", requireAuth, async (req: AuthRequest, res) => {
     try {
-      const { instanceId, accessToken, mobileNumber, whitelistedGroups } = req.body || {};
+      const { instanceId: rawInstanceId, accessToken, mobileNumber, whitelistedGroups } = req.body || {};
+      // Trim whitespace/tabs to prevent data entry issues
+      const instanceId = (rawInstanceId || "").trim();
       
       if (!accessToken || !instanceId) {
         return res.status(400).json({ error: "Instance ID and access token are required" });
