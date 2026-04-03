@@ -20,6 +20,7 @@ interface ParsedListing {
   family?: string;
   name?: string;
   month?: string; // N1-N12 month notation
+  messageType?: 'selling' | 'looking_for';
   rawLine: string;
 }
 
@@ -80,9 +81,69 @@ export default function MessageTesting() {
     }
   };
 
-  const loadSampleMessage = () => {
-    const sample = `🇭🇰 *PATEK* 🇭🇰 🍁7118/1R Champ 05/2025 New $798 000HKD 🍁5712/1A 2016 (New Style Certificate) Used $805,000HKD 🍁6119R 09/2024 New $200 000HKD 🍁6007G Blue 04/2025 New $228 000HKD 🍁5226G 05/2025 New $288 000HKD 🍁5738R 04/2025 New $255 000HKD 🍁5396G Blue 07/2025 New $382 000HKD 🍁5231G 2024 Used $758 000HKD 🍁4910/1201R 07/2025 New $288 000HKD 🍁7128/1R 05/2025 New $1 128 000HKD`;
-    setTestMessage(sample);
+  // Real chat format sample messages for testing
+  const sampleMessages: Record<string, { label: string; description: string; message: string }> = {
+    pp_list: {
+      label: "PP List (line-per-watch)",
+      description: "Patek Philippe fullset list - tests header emoji + line-by-line format",
+      message: `🔥🔥PP used fullset🔥🔥
+5146J white 2007Y 188k
+5146J white 2011Y 197k
+5167A 2017 270k
+5712R salmon 2020 650k
+5968A blue N3/25 New full set HKD935k
+5224R N3/25 $345,000.00HKD
+5396G blue 2022 382k
+5205R white 2019 255k
+5960/01G 2013 used 420k
+7234R rose 2024 210k`
+    },
+    rolex_emoji: {
+      label: "Rolex Emoji List",
+      description: "Emoji-prefixed Rolex listings - tests symbol splitting",
+      message: `💝126528LN-Lemans Both Tag N2/25Year $1,820,000HKD
+💝126710BLNR Batman jubilee 2024 fullset 118k
+💝126610LV Green sub 2023 used 105k
+💝116500LN Panda 2022 fullset 198k
+💝126334 blue jubilee 41mm N1/25 new 79k
+💝228235 sundust roman 2024 new 258k
+💝126710BLRO Pepsi oyster NOS 135k`
+    },
+    multiline: {
+      label: "Multi-line Format",
+      description: "3-line-per-watch AP format - tests multi-line combining",
+      message: `AP Used Full Set
+15400OR white gold
+2017 fullset
+HKD 480000
+15500ST blue
+2022 both tags
+HKD 398000
+26331OR panda
+2020 full set
+HKD 520000
+26606TI skeleton
+2024 brand new
+HKD 1280000`
+    },
+    multi_brand: {
+      label: "Multi-Brand Mixed",
+      description: "Mixed brands with various formats - stress test",
+      message: `👑5968G Blue N3/25 New full set HKD935k
+RM055 white ceramic 2023 mint $880,000USD
+116500LN white panda 22y fullset 198k
+15202ST blue 2019 watch only 650000hkd
+5711/1A Tiffany 2022 NOS 3.8m
+326934 pepsi jubilee 100%New N2/25 HKD145000`
+    }
+  };
+
+  const loadSampleMessage = (key?: string) => {
+    const msgKey = key || 'pp_list';
+    const sample = sampleMessages[msgKey];
+    if (sample) {
+      setTestMessage(sample.message);
+    }
   };
 
   return (
@@ -113,7 +174,7 @@ export default function MessageTesting() {
                 />
                 
                 <div className="flex gap-2">
-                  <Button 
+                  <Button
                     onClick={handleTestParsing}
                     disabled={isLoading}
                     className="flex-1"
@@ -121,12 +182,23 @@ export default function MessageTesting() {
                     <Play className="mr-2" size={16} />
                     {isLoading ? "Parsing..." : "Test Parsing"}
                   </Button>
-                  <Button 
-                    variant="outline" 
-                    onClick={loadSampleMessage}
-                  >
-                    Load Multi-PID Sample
-                  </Button>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-xs font-medium text-gray-500 uppercase">Load Real Chat Samples</div>
+                  <div className="grid grid-cols-2 gap-2">
+                    {Object.entries(sampleMessages).map(([key, sample]) => (
+                      <Button
+                        key={key}
+                        variant="outline"
+                        size="sm"
+                        className="text-xs h-auto py-2 justify-start"
+                        onClick={() => loadSampleMessage(key)}
+                        title={sample.description}
+                      >
+                        {sample.label}
+                      </Button>
+                    ))}
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -157,15 +229,26 @@ export default function MessageTesting() {
                       </div>
                     </div>
                     
-                    {parseResult.success ? (
-                      <Badge variant="default" className="bg-green-100 text-green-800">
-                        Parsing Successful
-                      </Badge>
-                    ) : (
-                      <Badge variant="destructive">
-                        Parsing Failed
-                      </Badge>
-                    )}
+                    <div className="flex gap-2 flex-wrap">
+                      {parseResult.success ? (
+                        <Badge variant="default" className="bg-green-100 text-green-800">
+                          Parsing Successful
+                        </Badge>
+                      ) : (
+                        <Badge variant="destructive">
+                          Parsing Failed
+                        </Badge>
+                      )}
+                      {parseResult.listings.length > 0 && parseResult.listings[0].messageType && (
+                        <Badge variant="outline" className={
+                          parseResult.listings[0].messageType === 'selling'
+                            ? 'bg-blue-50 text-blue-700 border-blue-200'
+                            : 'bg-orange-50 text-orange-700 border-orange-200'
+                        }>
+                          {parseResult.listings[0].messageType === 'selling' ? 'Selling' : 'Looking For'}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <div className="text-center text-gray-500 py-8">
@@ -222,8 +305,12 @@ export default function MessageTesting() {
                           )}
                         </TableCell>
                         <TableCell>{listing.variant || "-"}</TableCell>
-                        <TableCell className="font-mono text-xs max-w-xs truncate">
-                          {listing.rawLine}
+                        <TableCell className="font-mono text-xs max-w-xs">
+                          <div className="cursor-pointer group" title={listing.rawLine}>
+                            <span className="block truncate group-hover:whitespace-normal group-hover:break-all">
+                              {listing.rawLine}
+                            </span>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
