@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { MessageSquare, Filter, Clock, Hash, Phone, Eye, Copy } from 'lucide-react';
+import { MessageSquare, Filter, Clock, Hash, Phone, Eye, Copy, Download } from 'lucide-react';
 import ConnectionStatus from '@/components/connection-status';
 import { formatDistanceToNow } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -194,6 +194,32 @@ export default function IncomingMessages() {
     return <MessageSquare className="h-4 w-4 text-gray-400" />;
   };
 
+  const exportToCSV = () => {
+    const headers = ['Timestamp', 'Group', 'Sender', 'Sender Number', 'Message', 'Status'];
+    const rows = filteredMessages.map(msg => [
+      new Date(msg.timestamp).toLocaleString(),
+      msg.groupName || msg.groupId,
+      msg.sender,
+      msg.senderNumber || '',
+      msg.message.replace(/"/g, '""').replace(/\n/g, ' '),
+      msg.status || ''
+    ]);
+
+    const csv = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `incoming-messages-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: 'Exported', description: `${filteredMessages.length} messages exported to CSV` });
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar />
@@ -328,6 +354,14 @@ export default function IncomingMessages() {
                   }}
                 >
                   Clear
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={exportToCSV}
+                  disabled={filteredMessages.length === 0}
+                >
+                  <Download className="h-4 w-4 mr-1" />
+                  Export CSV
                 </Button>
               </div>
             </CardContent>
