@@ -373,8 +373,9 @@ export class WatchMessageParser {
       if (this.extractPID(line) && !this.extractPrice(line) && nextLine) {
         const nextLinePid = this.extractPID(nextLine);
         
-        // Only combine if next line doesn't have its own PID (it's continuation data)
-        if (!nextLinePid || /^\d{5,6}(hkd|usd|eur)?$/i.test(nextLine.trim())) {
+        // Only combine if next line doesn't have its own PID, or it's a price-only line
+        const nextLineHasPrice = this.extractPrice(nextLine);
+        if (!nextLinePid || nextLineHasPrice || /^\d{5,6}(hkd|usd|eur)?$/i.test(nextLine.trim())) {
           combinedLine = `${line} ${nextLine}`;
           debugLog(`Combining 2 lines: "${line}" + "${nextLine}"`);
           i++; // Skip the next line
@@ -382,7 +383,9 @@ export class WatchMessageParser {
           // Check if still no price, try adding third line (3-line format: PID / year+condition / price)
           if (!this.extractPrice(combinedLine) && nextNextLine) {
             const nextNextPid = this.extractPID(nextNextLine);
-            if (!nextNextPid || /^\d{5,6}(hkd|usd|eur)?$/i.test(nextNextLine.trim())) {
+            const nextNextHasPrice = this.extractPrice(nextNextLine);
+            // Combine if: no PID in next line, OR it has a price (e.g., "HKD 480000"), OR it's just a number+currency
+            if (!nextNextPid || nextNextHasPrice || /^\d{5,6}(hkd|usd|eur)?$/i.test(nextNextLine.trim())) {
               combinedLine = `${combinedLine} ${nextNextLine}`;
               debugLog(`Combining 3rd line: + "${nextNextLine}"`);
               i++; // Skip the third line too
