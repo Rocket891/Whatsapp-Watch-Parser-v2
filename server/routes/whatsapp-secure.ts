@@ -180,18 +180,22 @@ export function registerSecureWhatsAppRoutes(app: Express) {
       console.log(`🧹 [User ${req.user.userId}] Cleared group and contact caches for fresh data fetch`);
       
       // Set up webhook for this user's instance
+      let webhookAutoSetup = false;
+      const webhookUrl = `https://whatsapp-watch-parser-v-2.replit.app/api/whatsapp/webhook`;
       try {
-        const currentWebhook = `https://${req.headers.host}/api/whatsapp/webhook`;
-        console.log(`🔄 [User ${req.user.userId}] Setting webhook for instance ${instanceId}: ${currentWebhook}`);
+        console.log(`🔄 [User ${req.user.userId}] Setting webhook for instance ${instanceId}: ${webhookUrl}`);
         
         const webhookResult = await callWhatsAppAPI("set_webhook", {
-          webhook_url: currentWebhook,
-          webhook_uri: currentWebhook, // Some providers use different field names
-          status: "Enable",            // wapi24 uses status=Enable/Disable
-          enable: "true",              // Fallback for other providers
+          webhook_url: webhookUrl,
+          webhook_uri: webhookUrl,
+          status: "Enable",
+          enable: "true",
         }, { instanceId, accessToken });
         
         console.log(`📋 [User ${req.user.userId}] set_webhook response:`, JSON.stringify(webhookResult?.json));
+        
+        const responseText = JSON.stringify(webhookResult?.json || '').toLowerCase();
+        webhookAutoSetup = responseText.includes('success') || responseText.includes('saved');
         
         // Immediately call reconnect to establish connection
         try {
@@ -203,13 +207,15 @@ export function registerSecureWhatsAppRoutes(app: Express) {
         
         console.log(`✅ [User ${req.user.userId}] Webhook set successfully for ${instanceId}`);
       } catch (error) {
-        console.error(`❌ [User ${req.user.userId}] Failed to set webhook:`, error);
+        console.error(`❌ [User ${req.user.userId}] Failed to set webhook (manual setup required):`, error);
       }
       
       return res.json({ 
         status: "configured", 
         instanceId: config.instanceId,
         isActive: config.isActive,
+        webhookAutoSetup,
+        webhookUrl,
         message: "WhatsApp configuration updated successfully" 
       });
     } catch (error) {

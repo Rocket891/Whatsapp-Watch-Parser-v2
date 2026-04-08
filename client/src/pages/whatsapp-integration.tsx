@@ -29,7 +29,9 @@ import {
   CheckSquare,
   Square,
   Check,
-  RotateCcw
+  RotateCcw,
+  Copy,
+  ExternalLink
 } from "lucide-react";
 import { loadConfig, saveConfig } from "@/utils/config";
 import { useAuth } from "@/contexts/auth-context";
@@ -99,6 +101,8 @@ export default function WhatsAppIntegration() {
   const [groupsDatabase, setGroupsDatabase] = useState<any[]>([]);
   const [loadingGroupsDB, setLoadingGroupsDB] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [webhookSetupRequired, setWebhookSetupRequired] = useState(false);
+  const [savedWebhookUrl, setSavedWebhookUrl] = useState("");
   const { toast } = useToast();
 
   const form = useForm<WhatsAppConfig>({
@@ -441,7 +445,15 @@ export default function WhatsAppIntegration() {
       });
       
       if (res.ok) {
-        toast({ title: "Receiving instance saved", description: "WhatsApp receiving instance configured successfully" });
+        const result = await res.json();
+        if (result.webhookAutoSetup) {
+          toast({ title: "Instance saved & webhook configured", description: "Messages will start flowing from the new instance." });
+          setWebhookSetupRequired(false);
+        } else {
+          toast({ title: "Instance saved", description: "Please set the webhook URL manually in wapi24 — see instructions below." });
+          setWebhookSetupRequired(true);
+          setSavedWebhookUrl(result.webhookUrl || `https://whatsapp-watch-parser-v-2.replit.app/api/whatsapp/webhook`);
+        }
         await checkStatus();
       } else {
         const error = await res.json();
@@ -916,6 +928,40 @@ export default function WhatsAppIntegration() {
                     </Button>
                   </div>
                 </form>
+
+                {/* Webhook Setup Required Banner */}
+                {webhookSetupRequired && savedWebhookUrl && (
+                  <div className="mt-4 p-4 bg-amber-50 border border-amber-300 rounded-lg">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="font-semibold text-amber-800">Action Required: Set webhook in wapi24</p>
+                        <p className="text-sm text-amber-700 mt-1 mb-3">
+                          Your instance was saved, but the webhook could not be configured automatically. 
+                          You must set this URL in your <strong>wapi24 dashboard</strong> under your instance's webhook settings:
+                        </p>
+                        <div className="flex items-center gap-2 bg-white border border-amber-200 rounded px-3 py-2">
+                          <code className="text-sm text-gray-800 flex-1 break-all">{savedWebhookUrl}</code>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-shrink-0"
+                            onClick={() => {
+                              navigator.clipboard.writeText(savedWebhookUrl);
+                              toast({ title: "Copied!", description: "Webhook URL copied to clipboard" });
+                            }}
+                          >
+                            <Copy className="h-4 w-4 mr-1" />
+                            Copy
+                          </Button>
+                        </div>
+                        <p className="text-xs text-amber-600 mt-2">
+                          Steps: wapi24 dashboard → select your instance → Webhook → paste the URL above → Save
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Connection Recovery */}
                 <div className="border-t pt-4 mt-4">
