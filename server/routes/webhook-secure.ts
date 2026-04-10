@@ -33,8 +33,11 @@ export function registerSecureWebhookRoutes(app: Express) {
 
   /* ----------------------------------------------------------------
      SECURE WEBHOOK ENDPOINT - Maps instanceId to userId
+     Registered on two paths to cover URL typos in wapi24 dashboard:
+       /api/whatsapp/webhook  (primary)
+       /api/webhook           (alias)
      ---------------------------------------------------------------- */
-  app.post("/api/whatsapp/webhook", async (req, res) => {
+  const handleWebhook = async (req: any, res: any) => {
     try {
       const payload = req.body;
       // Trim whitespace/tab chars from instance_id (wapi24 safety)
@@ -76,6 +79,12 @@ export function registerSecureWebhookRoutes(app: Express) {
       console.error("❌ Webhook processing error:", error);
       return res.status(500).json({ error: "Webhook processing failed" });
     }
+  };
+
+  app.post("/api/whatsapp/webhook", handleWebhook);
+  app.post("/api/webhook", (req: any, res: any) => {
+    console.log(`📨 [WEBHOOK-ALIAS] Hit /api/webhook — processing same as /api/whatsapp/webhook`);
+    return handleWebhook(req, res);
   });
 }
 

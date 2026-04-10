@@ -1639,6 +1639,7 @@ export class DatabaseStorage implements IStorage {
     // This ensures webhook messages route to the correct workspace owner
     // Trim whitespace/tabs to handle data entry issues
     const cleanInstanceId = instanceId.trim();
+    // Case-insensitive match to handle wapi24 sending different case
     const configs = await db
       .select({ 
         userId: userWhatsappConfig.userId,
@@ -1647,7 +1648,7 @@ export class DatabaseStorage implements IStorage {
       })
       .from(userWhatsappConfig)
       .innerJoin(users, eq(userWhatsappConfig.userId, users.id))
-      .where(eq(userWhatsappConfig.instanceId, cleanInstanceId))
+      .where(sql`LOWER(${userWhatsappConfig.instanceId}) = LOWER(${cleanInstanceId})`)
       .orderBy(desc(users.isAdmin)); // Admin users first
     
     if (configs.length > 0) {
@@ -1683,7 +1684,8 @@ export class DatabaseStorage implements IStorage {
       
       // SECURITY CHECK: Only route if the unknown instance is actually an admin instance
       const adminInstanceIds = adminInstances.map(ai => ai.instanceId).filter(id => id); // Remove nulls
-      const isAdminInstance = adminInstanceIds.includes(instanceId);
+      // Case-insensitive check to handle wapi24 sending different case
+      const isAdminInstance = adminInstanceIds.some(id => id.toLowerCase() === instanceId.toLowerCase());
       
       if (!isAdminInstance) {
         console.log(`🚫 Security: Instance ${instanceId} is not an admin instance. Admin instances: [${adminInstanceIds.join(', ')}]`);
@@ -1694,7 +1696,7 @@ export class DatabaseStorage implements IStorage {
       // SECURITY FIX: Find the admin who owns this specific instance, then only look for shared users within that admin's workspace
       console.log(`🔍 Finding admin owner for instance ${instanceId} to ensure proper tenant isolation...`);
       
-      const adminOwner = adminInstances.find(ai => ai.instanceId === instanceId);
+      const adminOwner = adminInstances.find(ai => ai.instanceId?.toLowerCase() === instanceId.toLowerCase());
       
       if (!adminOwner) {
         console.log(`❌ Admin instance ${instanceId} found in list but no owner identified - security error`);
