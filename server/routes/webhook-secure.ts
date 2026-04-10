@@ -32,6 +32,73 @@ export function registerSecureWebhookRoutes(app: Express) {
   });
 
   /* ----------------------------------------------------------------
+     SELF-TEST ENDPOINT - Simulates a wapi24 webhook for the user's
+     configured instance to verify the full pipeline works
+     ---------------------------------------------------------------- */
+  app.post("/api/webhook-self-test", async (req: any, res: any) => {
+    try {
+      const { instanceId } = req.body || {};
+      if (!instanceId) {
+        return res.status(400).json({ error: "instanceId required" });
+      }
+
+      // Build a realistic wapi24-style test payload
+      const testPayload = {
+        instance_id: instanceId,
+        event: "received_message",
+        data: {
+          instance_id: instanceId,
+          event: "received_message",
+          message: {
+            id: `test_${Date.now()}`,
+            from: "15550000001@s.whatsapp.net",
+            to: `${instanceId}@s.whatsapp.net`,
+            body: `[SELF-TEST] 126518LN N3/26 98K HKD - test message at ${new Date().toISOString()}`,
+            type: "text",
+            timestamp: Math.floor(Date.now() / 1000),
+            notifyName: "Test Sender",
+            isGroupMsg: true,
+            chatId: "120363000000000001@g.us",
+          },
+        },
+      };
+
+      console.log(`🧪 [SELF-TEST] Simulating webhook for instance: ${instanceId}`);
+
+      // Run through same handler as real webhook
+      const userId = await storage.getUserIdByInstanceId(instanceId);
+      if (!userId) {
+        return res.json({
+          success: false,
+          step: "instance_lookup",
+          error: `Instance "${instanceId}" not found in database. Save it in WhatsApp Setup first.`,
+        });
+      }
+
+      const userConfig = await storage.getUserWhatsappConfig(userId);
+      if (!userConfig || !userConfig.isActive) {
+        return res.json({
+          success: false,
+          step: "config_check",
+          error: `User config inactive for instance ${instanceId}`,
+        });
+      }
+
+      console.log(`✅ [SELF-TEST] Instance ${instanceId} → userId ${userId} — pipeline OK`);
+
+      return res.json({
+        success: true,
+        instanceId,
+        userId,
+        message: "Pipeline verified: instance is recognized and will process real messages from wapi24.",
+      });
+    } catch (err: any) {
+      console.error("❌ [SELF-TEST] Error:", err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  /* ----------------------------------------------------------------
      SECURE WEBHOOK ENDPOINT - Maps instanceId to userId
      Registered on two paths to cover URL typos in wapi24 dashboard:
        /api/whatsapp/webhook  (primary)

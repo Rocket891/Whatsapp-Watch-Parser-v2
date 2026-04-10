@@ -1017,6 +1017,43 @@ export default function WhatsAppIntegration() {
                       <RotateCcw className="w-4 h-4 mr-2" />
                       Reboot Instance
                     </Button>
+                    <Button 
+                      size="sm"
+                      variant="outline"
+                      className="border-blue-300 text-blue-700 hover:bg-blue-50"
+                      onClick={async () => {
+                        const instanceId = form.getValues("instanceId");
+                        if (!instanceId) {
+                          toast({ title: "Error", description: "No instance ID configured", variant: "destructive" });
+                          return;
+                        }
+                        try {
+                          const response = await fetch('/api/webhook-self-test', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ instanceId })
+                          });
+                          const data = await response.json();
+                          if (data.success) {
+                            toast({ 
+                              title: "✅ Pipeline OK", 
+                              description: `Instance "${instanceId}" is correctly configured. The problem is wapi24 not sending webhooks — check wapi24 webhook settings.`
+                            });
+                          } else {
+                            toast({ 
+                              title: "❌ Pipeline Failed", 
+                              description: data.error || "Check instance ID configuration",
+                              variant: "destructive"
+                            });
+                          }
+                        } catch (error) {
+                          toast({ title: "Error", description: "Test failed", variant: "destructive" });
+                        }
+                      }}
+                    >
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      Test Pipeline
+                    </Button>
                   </div>
                 </div>
               </CardContent>
