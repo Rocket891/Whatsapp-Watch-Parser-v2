@@ -162,8 +162,9 @@ export default function IncomingMessages() {
   });
 
   const getStatusBadge = (status?: string, message?: string) => {
-    // Count PIDs in message for processed status
-    const pidCount = message ? (message.match(/\b([A-Z0-9]{4,8}|\d{3}\.\d{3})\b/g) || []).length : 0;
+    // Count PIDs using the same pattern as the server-side watch parser
+    const pidPattern = /\b\d{6,8}\b|\b\d{4}[A-Z]+\b|\b\d{4}[A-Z]?[-/]\d{1,3}[A-Z]?\b|\b\d{5}[A-Z]+\b|\b\d{3}\.\d{3}\b|\b[A-Z]\d{6,8}\b|\b[A-Z]\d[A-Z]\d{4,5}\b|\bQ\d{7}\b/gi;
+    const pidCount = message ? (message.match(pidPattern) || []).length : 0;
     
     switch (status) {
       case 'processed':
@@ -195,7 +196,8 @@ export default function IncomingMessages() {
   };
 
   const getStatusLabel = (status?: string, message?: string) => {
-    const pidCount = message ? (message.match(/\b([A-Z0-9]{4,8}|\d{3}\.\d{3})\b/g) || []).length : 0;
+    const pidPattern = /\b\d{6,8}\b|\b\d{4}[A-Z]+\b|\b\d{4}[A-Z]?[-/]\d{1,3}[A-Z]?\b|\b\d{5}[A-Z]+\b|\b\d{3}\.\d{3}\b|\b[A-Z]\d{6,8}\b|\b[A-Z]\d[A-Z]\d{4,5}\b|\bQ\d{7}\b/gi;
+    const pidCount = message ? (message.match(pidPattern) || []).length : 0;
     if ((status === 'processed' || status === 'requirement') && pidCount > 0) {
       return `${status} (${pidCount})`;
     }
