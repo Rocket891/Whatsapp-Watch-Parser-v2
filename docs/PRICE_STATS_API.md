@@ -62,6 +62,8 @@ Response (count ≥ 3, stats returned):
   "max": 750000,
   "avg_90d": 512300,
   "median_90d": 498000,
+  "median_14d": 510000,
+  "median_120d": 495000,
   "trend": "stable",
   "last_seen": "2026-04-12T08:30:00.000Z",
   "first_seen": "2024-09-01T15:22:00.000Z"
@@ -78,10 +80,16 @@ Response (count < 3, nulled stats but `count`/`count_90d` preserved):
   "count_90d": 0,
   "median": null, "min": null, "max": null,
   "avg_90d": null, "median_90d": null,
+  "median_14d": null, "median_120d": null,
   "trend": null,
   "last_seen": "...", "first_seen": "..."
 }
 ```
+
+> `median_14d` and `median_120d` are the underlying values that feed the
+> `trend` classification. Each is independently nulled if its own window
+> has fewer than 3 listings, so either can be null while the other is
+> populated.
 
 ### 2.3 `POST /api/price-stats/bulk` — up to 1000 PIDs per request
 
@@ -167,8 +175,9 @@ base64 images). If your file is larger, split it into multiple requests.
 - Min sample: if `count < 3`, all numeric stats are returned as `null`
   (but `count` / `count_90d` / `first_seen` / `last_seen` remain).
 - Time windows:
-  - 90d: `created_at > NOW() - INTERVAL '90 days'`
-  - 14d / 120d: used internally for `trend`
+  - 90d: `created_at > NOW() - INTERVAL '90 days'` (powers `median_90d`, `avg_90d`, `count_90d`)
+  - 14d: `created_at > NOW() - INTERVAL '14 days'` (powers `median_14d`)
+  - 120d: `created_at > NOW() - INTERVAL '120 days'` (powers `median_120d`)
 - Trend: `median_14d / median_120d`
   - `>= 1.05` → `"up"`
   - `<= 0.95` → `"down"`
