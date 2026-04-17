@@ -1,8 +1,9 @@
-# Price-Stats & Reference-Database Import API
+# Price-Stats, Demand-Stats & Reference-Database Import API
 
-External-facing endpoints used by the local Watch Sales Database viewer
-to (a) import rich reference data into `reference_database`, and
-(b) query aggregated dealer prices from `watch_listings` for enrichment.
+External-facing endpoints used by the local Watch Sales Database viewer to:
+(a) import rich reference data into `reference_database`,
+(b) query aggregated dealer **prices** from `watch_listings` ("selling" messages),
+(c) query aggregated dealer **demand** from `watch_listings` ("looking_for" messages).
 
 The `watch_listings` table (6.7M rows of real dealer listings) is read-only
 from these endpoints — **nothing writes to it**.
@@ -104,7 +105,76 @@ curl -X POST \
 Response: an **array** of stat objects (one per input PID, in input order,
 with same shape as single lookup).
 
-### 2.4 `POST /api/reference-database/import` — upsert rich rows
+### 2.4 `GET /api/demand-stats/message-types` — diagnostic: which message_type values are treated as demand
+
+```bash
+curl -H "X-API-Key: $KEY" \
+  https://whatsapp-watch-parser-v-2.replit.app/api/demand-stats/message-types
+```
+
+Response:
+```json
+{
+  "demand_whitelist": ["looking_for","looking-for","looking for","looking","wanted","wtb","request","req","requested","buying","buy","looking_to_buy","looking-to-buy"],
+  "distribution": [
+    { "message_type": "selling",     "count": 6700000, "treated_as_demand": false },
+    { "message_type": "looking_for", "count":   42000, "treated_as_demand": true  },
+    { "message_type": "(null)",      "count":     100, "treated_as_demand": false }
+  ]
+}
+```
+
+Use this once after deploy to confirm the whitelist captures everything you want.
+
+### 2.5 `GET /api/demand-stats/:pid?days=90` — single PID demand lookup
+
+```bash
+curl -H "X-API-Key: $KEY" \
+  "https://whatsapp-watch-parser-v-2.replit.app/api/demand-stats/15202ST?days=90"
+```
+
+Response:
+```json
+{
+  "pid": "15202ST",
+  "req_count": 47,
+  "req_count_14d": 8,
+  "req_count_90d": 47,
+  "first_seen_request": "2026-01-22T11:04:12.000Z",
+  "last_seen_request": "2026-04-15T09:32:00.000Z",
+  "unique_dealers": 23,
+  "popularity": "HOT 🔥"
+}
+```
+
+Every response returns a complete object — zero-demand PIDs get `req_count: 0` and `popularity: "Low"`, never null.
+
+### 2.6 `POST /api/demand-stats/bulk` — up to 1000 PIDs per request
+
+```bash
+curl -X POST \
+  -H "X-API-Key: $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"pids":["15202ST","116500","5711/1A","RM055"],"days":90}' \
+  https://whatsapp-watch-parser-v-2.replit.app/api/demand-stats/bulk
+```
+
+Response: array in input order, same per-item shape as single lookup.
+
+**Popularity tiers** (based on `req_count` within the active window):
+
+| `req_count` in window | `popularity` |
+|-----------------------|--------------|
+| ≥ 30                  | `"HOT 🔥"`   |
+| ≥ 10                  | `"High Demand"` |
+| ≥ 3                   | `"Standard"` |
+| < 3                   | `"Low"`      |
+
+The `days` parameter (default 90, 1–3650 allowed) controls the window feeding `req_count` and the tier classification. `req_count_14d` and `req_count_90d` are always computed relative to NOW regardless of `days`.
+
+**Dealers-distinct count:** `unique_dealers` is `COUNT(DISTINCT sender_number)` (fallback `sender` when `sender_number` is null/blank), so a single noisy dealer re-posting the same request doesn't inflate the tier.
+
+### 2.7 `POST /api/reference-database/import` — upsert rich rows
 
 Upserts by `LOWER(pid)`. If a row has no `pid` it falls back to `ref`.
 Existing rows stay (COALESCE preserves previous non-null fields when the
