@@ -19,6 +19,8 @@ interface PriceStatsRow {
   max: number | null;
   avg_90d: number | null;
   median_90d: number | null;
+  median_14d: number | null;
+  median_120d: number | null;
   trend: "up" | "down" | "stable" | null;
   last_seen: string | null;
   first_seen: string | null;
@@ -62,6 +64,8 @@ async function queryStats(pidsUpper: string[], currency: string): Promise<Map<st
         pid_upper,
         COUNT(*)::int AS count,
         COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '90 days')::int AS count_90d,
+        COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '14 days')::int AS count_14d,
+        COUNT(*) FILTER (WHERE created_at > NOW() - INTERVAL '120 days')::int AS count_120d,
         PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price)::numeric AS median,
         MIN(price)::numeric AS min,
         MAX(price)::numeric AS max,
@@ -79,8 +83,10 @@ async function queryStats(pidsUpper: string[], currency: string): Promise<Map<st
     )
     SELECT
       i.pid_upper,
-      COALESCE(s.count, 0)    AS count,
-      COALESCE(s.count_90d,0) AS count_90d,
+      COALESCE(s.count, 0)     AS count,
+      COALESCE(s.count_90d, 0) AS count_90d,
+      COALESCE(s.count_14d, 0) AS count_14d,
+      COALESCE(s.count_120d,0) AS count_120d,
       s.median, s.min, s.max,
       s.avg_90d, s.median_90d,
       s.median_14d, s.median_120d,
@@ -95,11 +101,15 @@ async function queryStats(pidsUpper: string[], currency: string): Promise<Map<st
   for (const row of result.rows as any[]) {
     const count = Number(row.count) || 0;
     const count_90d = Number(row.count_90d) || 0;
+    const count_14d = Number(row.count_14d) || 0;
+    const count_120d = Number(row.count_120d) || 0;
+
+    // Per-window medians: null when that window has < 3 listings
+    const m14 = count_14d >= 3 && row.median_14d !== null ? Number(row.median_14d) : null;
+    const m120 = count_120d >= 3 && row.median_120d !== null ? Number(row.median_120d) : null;
 
     // Trend classification: 14d vs 120d median, ±5% threshold
     let trend: "up" | "down" | "stable" | null = null;
-    const m14 = row.median_14d !== null ? Number(row.median_14d) : null;
-    const m120 = row.median_120d !== null ? Number(row.median_120d) : null;
     if (count >= 3 && m14 !== null && m120 !== null && m120 > 0) {
       const ratio = m14 / m120;
       if (ratio >= 1.05) trend = "up";
@@ -117,6 +127,8 @@ async function queryStats(pidsUpper: string[], currency: string): Promise<Map<st
       max: row.max !== null ? Number(row.max) : null,
       avg_90d: row.avg_90d !== null ? Number(row.avg_90d) : null,
       median_90d: row.median_90d !== null ? Number(row.median_90d) : null,
+      median_14d: m14,
+      median_120d: m120,
       trend,
       last_seen: row.last_seen ? new Date(row.last_seen).toISOString() : null,
       first_seen: row.first_seen ? new Date(row.first_seen).toISOString() : null,
@@ -156,6 +168,7 @@ export function registerPriceStatsRoutes(app: Express) {
           count_90d: 0,
           median: null, min: null, max: null,
           avg_90d: null, median_90d: null,
+          median_14d: null, median_120d: null,
           trend: null, last_seen: null, first_seen: null,
         });
       }
@@ -168,6 +181,7 @@ export function registerPriceStatsRoutes(app: Express) {
         count_90d: raw.count_90d,
         median: null, min: null, max: null,
         avg_90d: null, median_90d: null,
+        median_14d: null, median_120d: null,
         trend: null,
         last_seen: raw.last_seen, first_seen: raw.first_seen,
       });
@@ -205,12 +219,12 @@ export function registerPriceStatsRoutes(app: Express) {
       // null-stats for count<3.
       const results = pidsRaw.map((p: any) => {
         if (typeof p !== "string") {
-          return { pid: String(p), currency, count: 0, count_90d: 0, median: null, min: null, max: null, avg_90d: null, median_90d: null, trend: null, last_seen: null, first_seen: null };
+          return { pid: String(p), currency, count: 0, count_90d: 0, median: null, min: null, max: null, avg_90d: null, median_90d: null, median_14d: null, median_120d: null, trend: null, last_seen: null, first_seen: null };
         }
         const u = p.trim().toUpperCase();
         const raw = statsMap.get(u);
         if (!raw) {
-          return { pid: p.trim(), currency, count: 0, count_90d: 0, median: null, min: null, max: null, avg_90d: null, median_90d: null, trend: null, last_seen: null, first_seen: null };
+          return { pid: p.trim(), currency, count: 0, count_90d: 0, median: null, min: null, max: null, avg_90d: null, median_90d: null, median_14d: null, median_120d: null, trend: null, last_seen: null, first_seen: null };
         }
         const applied = applyMinSample(raw);
         if (applied) return { ...applied, pid: p.trim() };
@@ -221,6 +235,7 @@ export function registerPriceStatsRoutes(app: Express) {
           count_90d: raw.count_90d,
           median: null, min: null, max: null,
           avg_90d: null, median_90d: null,
+          median_14d: null, median_120d: null,
           trend: null,
           last_seen: raw.last_seen, first_seen: raw.first_seen,
         };
