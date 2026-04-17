@@ -129,6 +129,33 @@ function parseDays(v: unknown): number {
   return Math.floor(n);
 }
 
+// ------------------------------------------------------------------
+// SQL regex mirror of detectMessageType() in server/watch-parser.ts
+// POSIX ERE: \b isn't supported — we bound with non-alnum or string edges.
+// Kept identical to the TS classifier so backfill matches live parsing.
+// ------------------------------------------------------------------
+const SQL_BUY_REGEX =
+  "(^|[^a-z0-9])(" +
+  [
+    "wtb",
+    "w\\.?t\\.?b",
+    "looking[[:space:]]+for",
+    "looking[[:space:]]+to[[:space:]]+buy",
+    "want[[:space:]]+to[[:space:]]+buy",
+    "wanted",
+    "searching[[:space:]]+for",
+    "interested[[:space:]]+in[[:space:]]+buying",
+    "if[[:space:]]+you[[:space:]]+have[[:space:]]+[a-z0-9]",
+    "anyone[[:space:]]+(has|have|selling|got)",
+    "cash[[:space:]]+ready",
+    "ready[[:space:]]+cash",
+    "pm[[:space:]]+me[[:space:]]+(if|your|asap)",
+    "dm[[:space:]]+me[[:space:]]+(if|your|asap)",
+    "quote[[:space:]]+me[[:space:]]+(best|your)",
+    "urgent(ly)?[[:space:]]+(need|looking|want|buy)",
+  ].join("|") +
+  ")([^a-z0-9]|$)";
+
 export function registerDemandStatsRoutes(app: Express) {
   // Diagnostic: distribution of message_type values (X-API-Key protected).
   // Useful to verify which values are treated as demand.
@@ -156,6 +183,194 @@ export function registerDemandStatsRoutes(app: Express) {
         });
       } catch (err: any) {
         console.error("[demand-stats/message-types] error:", err);
+        res.status(500).json({ error: err.message || "Internal error" });
+      }
+    }
+  );
+
+  // Diagnostic: sample rows currently classified as 'selling' whose text
+  // contains buy-side keywords. Use to verify misclassification before
+  // running the backfill.
+  app.get(
+    "/api/demand-stats/debug/misclassified",
+    requireApiKey,
+    async (req: Request, res: Response) => {
+      try {
+        const n = Math.min(Math.max(parseInt(String(req.query.n ?? 20), 10) || 20, 1), 200);
+        const q = await pool.query(
+          `
+          SELECT id, pid, message_type,
+                 LEFT(COALESCE(original_message, raw_line, ''), 400) AS preview
+            FROM watch_listings
+           WHERE message_type = 'selling'
+             AND COALESCE(original_message, raw_line, '') ~* $1
+           ORDER BY RANDOM()
+           LIMIT $2
+          `,
+          [SQL_BUY_REGEX, n]
+        );
+        res.json({
+          sample_size: q.rows.length,
+          rows: q.rows,
+          note:
+            "These rows currently have message_type='selling' but their raw " +
+            "text matches the buy-side regex. POST /api/demand-stats/backfill " +
+            "will reclassify them.",
+        });
+      } catch (err: any) {
+        console.error("[demand-stats/debug/misclassified] error:", err);
+        res.status(500).json({ error: err.message || "Internal error" });
+      }
+    }
+  );
+
+  // Diagnostic: counts of how reclassification WOULD land (dry-run helper).
+  app.get(
+    "/api/demand-stats/debug/reclass-preview",
+    requireApiKey,
+    async (_req: Request, res: Response) => {
+      try {
+        const q = await pool.query(
+          `
+          SELECT
+            COUNT(*)::bigint                                         AS total,
+            COUNT(*) FILTER (WHERE COALESCE(original_message, raw_line, '') ~* $1)::bigint  AS would_be_looking_for,
+            COUNT(*) FILTER (WHERE COALESCE(original_message, raw_line, '') !~* $1)::bigint AS would_be_selling,
+            COUNT(*) FILTER (WHERE message_type = 'looking_for')::bigint AS currently_looking_for,
+            COUNT(*) FILTER (WHERE message_type = 'selling')::bigint     AS currently_selling,
+            COUNT(*) FILTER (WHERE original_message IS NULL AND (raw_line IS NULL OR raw_line = ''))::bigint
+                                                                     AS rows_without_text
+          FROM watch_listings
+          `,
+          [SQL_BUY_REGEX]
+        );
+        const row = q.rows[0] as any;
+        res.json({
+          total: Number(row.total),
+          would_be_looking_for: Number(row.would_be_looking_for),
+          would_be_selling: Number(row.would_be_selling),
+          currently_looking_for: Number(row.currently_looking_for),
+          currently_selling: Number(row.currently_selling),
+          rows_without_text: Number(row.rows_without_text),
+        });
+      } catch (err: any) {
+        console.error("[demand-stats/debug/reclass-preview] error:", err);
+        res.status(500).json({ error: err.message || "Internal error" });
+      }
+    }
+  );
+
+  // Backfill: re-run classification over all watch_listings rows.
+  // Uses the SAME regex as the TS classifier, runs in batches of 100K by id.
+  // Body: { dry?: boolean, batch?: number, maxBatches?: number }
+  app.post(
+    "/api/demand-stats/backfill",
+    requireApiKey,
+    async (req: Request, res: Response) => {
+      try {
+        const dry = req.body?.dry === true;
+        const batch = Math.min(Math.max(Number(req.body?.batch) || 50000, 1000), 500000);
+        const maxBatches = Math.min(Math.max(Number(req.body?.maxBatches) || 20, 1), 500);
+        const fromId = Number.isFinite(Number(req.body?.fromId)) ? Number(req.body.fromId) : null;
+
+        if (dry) {
+          const q = await pool.query(
+            `
+            SELECT
+              COUNT(*)::bigint AS total,
+              COUNT(*) FILTER (WHERE COALESCE(original_message, raw_line, '') ~* $1
+                AND message_type IS DISTINCT FROM 'looking_for')::bigint AS would_update_to_looking_for,
+              COUNT(*) FILTER (WHERE COALESCE(original_message, raw_line, '') !~* $1
+                AND message_type IS DISTINCT FROM 'selling')::bigint     AS would_update_to_selling
+            FROM watch_listings
+            `,
+            [SQL_BUY_REGEX]
+          );
+          const r = q.rows[0] as any;
+          return res.json({
+            dry: true,
+            total: Number(r.total),
+            would_update_to_looking_for: Number(r.would_update_to_looking_for),
+            would_update_to_selling: Number(r.would_update_to_selling),
+          });
+        }
+
+        // Live backfill: batch by id range. Safer than one giant UPDATE on
+        // 2.9M rows and avoids Neon statement timeout.
+        const range = await pool.query(
+          `SELECT COALESCE(MIN(id), 0)::bigint AS min_id,
+                  COALESCE(MAX(id), 0)::bigint AS max_id FROM watch_listings`
+        );
+        const minId = Number((range.rows[0] as any).min_id);
+        const maxId = Number((range.rows[0] as any).max_id);
+
+        let cursor = fromId !== null ? Math.max(minId, fromId) : minId;
+        const startCursor = cursor;
+        let batchesRun = 0;
+        let totalUpdatedLookingFor = 0;
+        let totalUpdatedSelling = 0;
+        const startedAt = Date.now();
+
+        while (cursor <= maxId && batchesRun < maxBatches) {
+          const upper = cursor + batch - 1;
+          const upd = await pool.query(
+            `
+            WITH scoped AS (
+              SELECT id,
+                     COALESCE(original_message, raw_line, '') AS src_text,
+                     message_type AS old_type
+                FROM watch_listings
+               WHERE id >= $1 AND id <= $2
+            ),
+            target AS (
+              SELECT id, old_type,
+                     CASE WHEN src_text ~* $3 THEN 'looking_for' ELSE 'selling' END AS new_type
+                FROM scoped
+            ),
+            diff AS (
+              SELECT id, old_type, new_type
+                FROM target
+               WHERE old_type IS DISTINCT FROM new_type
+            ),
+            upd AS (
+              UPDATE watch_listings wl
+                 SET message_type = d.new_type, updated_at = NOW()
+                FROM diff d
+               WHERE wl.id = d.id
+              RETURNING wl.id, d.new_type
+            )
+            SELECT
+              COUNT(*) FILTER (WHERE new_type = 'looking_for')::int AS upd_lf,
+              COUNT(*) FILTER (WHERE new_type = 'selling')::int     AS upd_sel
+              FROM upd
+            `,
+            [cursor, upper, SQL_BUY_REGEX]
+          );
+          const row = upd.rows[0] as any;
+          totalUpdatedLookingFor += Number(row?.upd_lf) || 0;
+          totalUpdatedSelling += Number(row?.upd_sel) || 0;
+          batchesRun++;
+          cursor = upper + 1;
+        }
+
+        const done = cursor > maxId;
+        res.json({
+          dry: false,
+          batches_run: batchesRun,
+          batch_size: batch,
+          id_range_covered: { from: startCursor, to: Math.min(cursor - 1, maxId) },
+          max_id: maxId,
+          next_from_id: done ? null : cursor,
+          done,
+          updated_to_looking_for: totalUpdatedLookingFor,
+          updated_to_selling: totalUpdatedSelling,
+          elapsed_ms: Date.now() - startedAt,
+          note: done
+            ? "Complete."
+            : "Batch limit hit. Re-invoke with {\"fromId\": <next_from_id>} to resume.",
+        });
+      } catch (err: any) {
+        console.error("[demand-stats/backfill] error:", err);
         res.status(500).json({ error: err.message || "Internal error" });
       }
     }

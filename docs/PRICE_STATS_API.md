@@ -174,7 +174,60 @@ The `days` parameter (default 90, 1–3650 allowed) controls the window feeding 
 
 **Dealers-distinct count:** `unique_dealers` is `COUNT(DISTINCT sender_number)` (fallback `sender` when `sender_number` is null/blank), so a single noisy dealer re-posting the same request doesn't inflate the tier.
 
-### 2.7 `POST /api/reference-database/import` — upsert rich rows
+### 2.7 Demand-classifier debug + backfill
+
+The initial parser mis-classified ~all messages as `selling` because the
+"strong selling" regex list was over-broad (any `digits space digitsK`
+triggered selling, which matches WTB messages too). `detectMessageType()`
+was rewritten to check unambiguous buy-side keywords first. To reclassify
+existing rows:
+
+**a) Sample misclassified rows** (sanity-check before running backfill)
+
+```bash
+curl -H "X-API-Key: $KEY" \
+  "https://whatsapp-watch-parser-v-2.replit.app/api/demand-stats/debug/misclassified?n=20"
+```
+
+Returns 20 random rows currently marked `selling` whose text matches the
+buy-side regex. Each row: `{id, pid, message_type, preview}` (first 400 chars).
+
+**b) Preview what backfill would do** (read-only)
+
+```bash
+curl -H "X-API-Key: $KEY" \
+  https://whatsapp-watch-parser-v-2.replit.app/api/demand-stats/debug/reclass-preview
+```
+
+Returns totals for: current counts, would-be counts, rows without text.
+
+**c) Run the backfill** (chunked UPDATE)
+
+Dry-run first (no writes):
+```bash
+curl -X POST -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
+  -d '{"dry":true}' \
+  https://whatsapp-watch-parser-v-2.replit.app/api/demand-stats/backfill
+```
+
+Live run:
+```bash
+curl -X POST -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
+  -d '{"batch":50000,"maxBatches":20}' \
+  https://whatsapp-watch-parser-v-2.replit.app/api/demand-stats/backfill
+```
+
+Response includes `next_from_id` when more rows remain. Resume with:
+```bash
+curl -X POST -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
+  -d '{"fromId": 1000001, "batch":50000, "maxBatches":20}' \
+  https://whatsapp-watch-parser-v-2.replit.app/api/demand-stats/backfill
+```
+
+Repeat until `"done": true`. Operation is idempotent — only rows whose
+classification actually changes are written.
+
+### 2.8 `POST /api/reference-database/import` — upsert rich rows
 
 Upserts by `LOWER(pid)`. If a row has no `pid` it falls back to `ref`.
 Existing rows stay (COALESCE preserves previous non-null fields when the
