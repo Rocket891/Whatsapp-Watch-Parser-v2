@@ -198,52 +198,44 @@ export class WatchMessageParser {
     return undefined;
   }
 
-  // NEW: Detect if message is "looking for" vs "selling"
+  // Detect if a message is "looking for" (buy-side) vs "selling" (dealer listing).
+  //
+  // Prior logic checked over-broad "selling" regexes FIRST (e.g. any
+  // "number<space>number+k" pattern = selling), which matched WTB messages
+  // too and short-circuited before the looking-for branch could run. Every
+  // row in the DB ended up 'selling'.
+  //
+  // New logic: check UNAMBIGUOUS buy-side keywords first. Dealer lists are
+  // the normal case, so default is 'selling' when no buy signal is present.
+  // Kept in sync with the SQL regex used by POST /api/demand-stats/backfill.
   private detectMessageType(message: string): 'selling' | 'looking_for' {
-    const lowerMessage = message.toLowerCase();
-    
-    // Strong selling indicators - if present, it's definitely a selling message
-    const sellingPatterns = [
-      /\b\d+[a-z]*[\s\/]*\d*[a-z]*\s*[-–]\s*\d+k?\b/i, // PID-price patterns like "126334 - 120k"
-      /\b[a-z]*\d+[a-z]*\s+\d+k?\b/i, // PID space price like "126334 120k"
-      /\bfs\b/i, // "fs" indicates for sale
-      /\bboth\s+tags?\b/i, // "both tags" is selling terminology
-      /\b(n\d+|used|new)\s*\d+k?\b/i, // condition with price
-      /https?:\/\/[^\s]+/i, // URLs in selling messages
-      /\b\d+\/\d+\b/i, // Date patterns in selling messages
+    const lower = message.toLowerCase();
+
+    // Strong, unambiguous buy-side keywords.
+    const buyPatterns = [
+      /\bwtb\b/,                          // "WTB 116500"
+      /\bw\.?t\.?b\b/,                    // "W.T.B" / "WTB."
+      /\blooking\s+for\b/,                // "looking for Panda"
+      /\blooking\s+to\s+buy\b/,
+      /\bwant\s+to\s+buy\b/,
+      /\bwanted\b/,                       // "WANTED: 15202ST"
+      /\bsearching\s+for\b/,
+      /\binterested\s+in\s+buying\b/,
+      /\bif\s+you\s+have\s+[a-z0-9]/,     // "if you have a Daytona..."
+      /\banyone\s+(has|have|selling|got)\b/, // "anyone has a 116500?"
+      /\bcash\s+ready\b/,
+      /\bready\s+cash\b/,
+      /\bpm\s+me\s+(if|your|asap)\b/,
+      /\bdm\s+me\s+(if|your|asap)\b/,
+      /\bquote\s+me\s+(best|your)\b/,     // "quote me best price"
+      /\burgent(ly)?\s+(need|looking|want|buy)\b/,
     ];
 
-    // Check for strong selling indicators first
-    for (const pattern of sellingPatterns) {
-      if (pattern.test(lowerMessage)) {
-        return 'selling';
-      }
+    for (const p of buyPatterns) {
+      if (p.test(lower)) return 'looking_for';
     }
-    
-    // More specific looking for indicators (avoid false positives)
-    const lookingForPatterns = [
-      /\blooking\s+for\s+[a-z0-9]/i, // "looking for" followed by model/PID
-      /\bwant\s+to\s+buy\s+[a-z0-9]/i, // "want to buy" followed by model
-      /\binterested\s+in\s+[a-z0-9]/i, // "interested in" followed by model
-      /\bsearching\s+for\s+[a-z0-9]/i, // "searching for" followed by model
-      /\bneed\s+[a-z0-9]/i, // "need" followed by model
-      /\bdemand\s+[a-z0-9]/i, // "demand" followed by model (like the diamond message)
-      /\bif\s+you\s+have\s+[a-z0-9]/i, // "if you have" followed by model
-      /\bplease\s+contact\s+me/i,
-      /\bcan\s+confirm/i,
-      /\bgood\s+price.*confirm/i,
-      /\bcash\s+ready/i,
-      /\bbuy.*urgent/i
-    ];
-    
-    // Only classify as looking_for if no selling indicators and has specific looking patterns
-    for (const pattern of lookingForPatterns) {
-      if (pattern.test(lowerMessage)) {
-        return 'looking_for';
-      }
-    }
-    
-    // Default to selling for traditional listing messages
+
+    // Default: dealer listing / selling.
     return 'selling';
   }
   
