@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, varchar, decimal, jsonb, unique, uuid, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, varchar, decimal, jsonb, unique, uuid, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 import { z } from "zod";
@@ -157,8 +157,35 @@ export const referenceDatabase = pgTable("reference_database", {
   family: text("family").notNull(),
   reference: text("reference").notNull(),
   name: text("name").notNull(),
+  // Rich columns (scraped data from Watch Sales Database)
+  collection: text("collection"),
+  model: text("model"),
+  nickname: text("nickname"),
+  status: text("status"),
+  yearIn: integer("year_in"),
+  yearDisc: integer("year_disc"),
+  size: decimal("size"),
+  dial: text("dial"),
+  specs: text("specs"),
+  retail: integer("retail"),
+  gender: text("gender"),
+  popularity: text("popularity"),
+  url: text("url"),
+  imgB64: text("img_b64"),
+  caseMaterial: text("case_material"),
+  bezel: text("bezel"),
+  movement: text("movement"),
+  caliber: text("caliber"),
+  powerReserve: text("power_reserve"),
+  waterResistance: text("water_resistance"),
+  braceletStrap: text("bracelet_strap"),
+  glass: text("glass"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (table) => ({
+  // Unique case-insensitive index on pid for upsert operations
+  pidLowerIdx: uniqueIndex("reference_database_pid_lower_idx").on(sql`LOWER(${table.pid})`),
+}));
 
 export const pidAlerts = pgTable("pid_alerts", {
   id: serial("id").primaryKey(),

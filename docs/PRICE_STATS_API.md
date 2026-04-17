@@ -1,0 +1,190 @@
+# Price-Stats & Reference-Database Import API
+
+External-facing endpoints used by the local Watch Sales Database viewer
+to (a) import rich reference data into `reference_database`, and
+(b) query aggregated dealer prices from `watch_listings` for enrichment.
+
+The `watch_listings` table (6.7M rows of real dealer listings) is read-only
+from these endpoints — **nothing writes to it**.
+
+---
+
+## 1. Authentication
+
+All endpoints (except `/ping`) require a shared secret in the `X-API-Key`
+HTTP header. The expected value is stored server-side in the
+**`PRICE_STATS_KEY`** environment variable.
+
+### Setting the secret in Replit
+
+1. Open your Replit project.
+2. Click the **padlock / Secrets** icon in the left sidebar (Tools → Secrets).
+3. Click **"New Secret"**.
+4. Key = `PRICE_STATS_KEY`, Value = any long random string
+   (e.g. `openssl rand -hex 32` → `a3f7b2c1…`).
+5. Click **Add Secret**. The server reads it from `process.env.PRICE_STATS_KEY`.
+6. Restart / re-publish the app so the new env var is picked up.
+
+If `PRICE_STATS_KEY` is unset, protected endpoints return `500` with
+`{ "error": "PRICE_STATS_KEY env var not configured on server" }`.
+
+---
+
+## 2. Endpoints
+
+Base URL: `https://whatsapp-watch-parser-v-2.replit.app`
+
+### 2.1 `GET /api/price-stats/ping` — health check (no auth)
+
+```bash
+curl https://whatsapp-watch-parser-v-2.replit.app/api/price-stats/ping
+# → {"ok":true,"service":"price-stats","timestamp":"..."}
+```
+
+### 2.2 `GET /api/price-stats/:pid?currency=HKD` — single PID lookup
+
+```bash
+KEY='your-secret-here'
+curl -H "X-API-Key: $KEY" \
+  "https://whatsapp-watch-parser-v-2.replit.app/api/price-stats/15202ST?currency=HKD"
+```
+
+Response (count ≥ 3, stats returned):
+
+```json
+{
+  "pid": "15202ST",
+  "currency": "HKD",
+  "count": 187,
+  "count_90d": 34,
+  "median": 505000,
+  "min": 390000,
+  "max": 750000,
+  "avg_90d": 512300,
+  "median_90d": 498000,
+  "trend": "stable",
+  "last_seen": "2026-04-12T08:30:00.000Z",
+  "first_seen": "2024-09-01T15:22:00.000Z"
+}
+```
+
+Response (count < 3, nulled stats but `count`/`count_90d` preserved):
+
+```json
+{
+  "pid": "OBSCURE-123",
+  "currency": "HKD",
+  "count": 1,
+  "count_90d": 0,
+  "median": null, "min": null, "max": null,
+  "avg_90d": null, "median_90d": null,
+  "trend": null,
+  "last_seen": "...", "first_seen": "..."
+}
+```
+
+### 2.3 `POST /api/price-stats/bulk` — up to 1000 PIDs per request
+
+```bash
+curl -X POST \
+  -H "X-API-Key: $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"pids":["15202ST","116500LN","5711/1A","26331OR"],"currency":"HKD"}' \
+  https://whatsapp-watch-parser-v-2.replit.app/api/price-stats/bulk
+```
+
+Response: an **array** of stat objects (one per input PID, in input order,
+with same shape as single lookup).
+
+### 2.4 `POST /api/reference-database/import` — upsert rich rows
+
+Upserts by `LOWER(pid)`. If a row has no `pid` it falls back to `ref`.
+Existing rows stay (COALESCE preserves previous non-null fields when the
+new row has `null`).
+
+```bash
+curl -X POST \
+  -H "X-API-Key: $KEY" \
+  -H "Content-Type: application/json" \
+  --data-binary @scraped_rolex.json \
+  https://whatsapp-watch-parser-v-2.replit.app/api/reference-database/import
+```
+
+Expected JSON body shape:
+
+```json
+{
+  "brand": "Rolex",            // optional, used as fallback when row has no brand
+  "rows": [
+    {
+      "pid": "116500LN",       // or "ref": "..."
+      "brand": "Rolex",
+      "family": "Daytona",     // or "collection"
+      "reference": "116500LN",
+      "name": "Cosmograph Daytona",
+      "collection": "Daytona",
+      "model": "Cosmograph Daytona",
+      "nickname": "Panda",
+      "status": "discontinued",
+      "year_in": 2016,
+      "year_disc": 2023,
+      "size": 40,
+      "dial": "White",
+      "specs": "...",
+      "retail": 14800,
+      "gender": "Men",
+      "popularity": "high",
+      "url": "https://...",
+      "img_b64": "iVBORw0KGg...",
+      "case_material": "Stainless Steel",
+      "bezel": "Ceramic",
+      "movement": "Automatic",
+      "caliber": "Cal. 4130",
+      "power_reserve": "72h",
+      "water_resistance": "100m",
+      "bracelet_strap": "Oyster",
+      "glass": "Sapphire"
+    }
+  ]
+}
+```
+
+Response:
+
+```json
+{ "inserted": 180, "updated": 42, "skipped": 3, "errors": [], "errorCount": 0, "total": 225 }
+```
+
+The endpoint accepts payloads up to **300 MB** (for 1000-row batches with
+base64 images). If your file is larger, split it into multiple requests.
+
+---
+
+## 3. Query details
+
+- PID match: case-insensitive (`UPPER(pid) = ANY(...)`).
+- Filters: `currency` match (case-insensitive), `price > 0`, `message_type = 'selling'`.
+- Min sample: if `count < 3`, all numeric stats are returned as `null`
+  (but `count` / `count_90d` / `first_seen` / `last_seen` remain).
+- Time windows:
+  - 90d: `created_at > NOW() - INTERVAL '90 days'`
+  - 14d / 120d: used internally for `trend`
+- Trend: `median_14d / median_120d`
+  - `>= 1.05` → `"up"`
+  - `<= 0.95` → `"down"`
+  - else → `"stable"`
+  - (null when insufficient data in either window)
+- Median: PostgreSQL `PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY price)`.
+
+---
+
+## 4. Migration
+
+This endpoint depends on new columns and a unique expression index on
+`LOWER(pid)` in `reference_database`. Run once after deploy:
+
+```bash
+npm run db:push
+```
+
+(This pushes the Drizzle schema to the Neon Postgres database.)

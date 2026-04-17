@@ -12,6 +12,10 @@ if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT || 
   console.log('🔒 Trust proxy enabled for reverse proxy environment');
 }
 
+// Large-payload JSON parser ONLY for the reference-database import endpoint
+// (base64 images in scraped records push batches to ~250MB for 1000 rows)
+app.use('/api/reference-database/import', express.json({ limit: '300mb' }));
+
 app.use(express.json({ limit: '10mb' })); // Increase limit for large WhatsApp messages
 app.use(express.urlencoded({ extended: false }));
 

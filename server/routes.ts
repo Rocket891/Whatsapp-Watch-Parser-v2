@@ -14,6 +14,8 @@ import ExcelJS from "exceljs";
 // SECURITY FIX: Removed insecure global waConfig import
 import { registerSecureWhatsAppRoutes } from "./routes/whatsapp-secure";
 import { registerSecureWebhookRoutes } from "./routes/webhook-secure";
+import { registerPriceStatsRoutes } from "./routes/price-stats";
+import { registerReferenceImportRoutes } from "./routes/reference-import";
 import authRoutes from "./routes/auth";
 import adminRoutes from "./routes/admin";
 import cookieParser from 'cookie-parser';
@@ -2904,9 +2906,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register SECURE multi-tenant WhatsApp API routes
   registerSecureWhatsAppRoutes(app);
-  
+
   // Register SECURE user-aware webhook processing
   registerSecureWebhookRoutes(app);
+
+  // Register price-stats endpoints (X-API-Key protected, read-only aggregation)
+  registerPriceStatsRoutes(app);
+
+  // Register reference-database import endpoint (X-API-Key protected, upsert)
+  registerReferenceImportRoutes(app);
   
   // Import name caches from whatsapp routes
   const { contactNameMap, groupNameMap } = await import('./routes/whatsapp');
