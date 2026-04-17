@@ -10,6 +10,7 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 import { GoogleSheetsService } from "./google-sheets";
+import ExcelJS from "exceljs";
 // SECURITY FIX: Removed insecure global waConfig import
 import { registerSecureWhatsAppRoutes } from "./routes/whatsapp-secure";
 import { registerSecureWebhookRoutes } from "./routes/webhook-secure";
@@ -1095,7 +1096,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
         res.json(exportData);
       } else if (format === 'excel') {
-        const ExcelJS = require('exceljs');
         const workbook = new ExcelJS.Workbook();
         
         // Add summary sheet
@@ -1190,7 +1190,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { listings } = await storage.getWatchListings({ limit: 50000 });
       
       if (format === 'excel') {
-        const ExcelJS = require('exceljs');
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('Watch Listings');
         
@@ -1244,7 +1243,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { contacts } = await storage.getContacts({ limit: 10000, userAccessCondition });
       
       if (format === 'excel') {
-        const ExcelJS = require('exceljs');
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('Contacts');
         
@@ -1913,7 +1911,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: req.user.userId,
       });
 
-      const ExcelJS = require('exceljs');
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet('Watch Requirements');
 
