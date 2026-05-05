@@ -598,6 +598,20 @@ async function processMessageWithUserContext(messageData: any, userId: string, u
       );
 
       debugLog(`📊 [User ${userId}] Updated message log ${storedMessage.id} with status: ${parseResults && parseResults.length > 0 ? 'processed' : 'ignored'}`);
+    } else {
+      // BUG FIX: Previously, messages that failed the shouldParseForWatches()
+      // gate (non-watch chatter, "thanks", emoji-only, admin notices, etc.)
+      // were inserted with status='received' and never updated, leaving them
+      // permanently displayed as "pending" in the UI. Mark them ignored here.
+      await storage.updateMessageLogStatus(
+        messageId,
+        'ignored',
+        0,
+        0,
+        undefined,
+        userId
+      );
+      debugLog(`📊 [User ${userId}] Message ${storedMessage.id} skipped watch-gate, marked ignored`);
     }
 
   } catch (error) {

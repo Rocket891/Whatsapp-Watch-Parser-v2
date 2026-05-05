@@ -27,10 +27,13 @@ interface IncomingMessage {
   status?: 'pending' | 'processed' | 'requirement' | 'error' | 'no-pid' | string;
 }
 
+const PAGE_SIZE = 100;
+
 export default function IncomingMessages() {
   const [filter, setFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'processed' | 'requirement' | 'error' | 'no-pid'>('all');
   const [groupFilter, setGroupFilter] = useState<string>('all');
+  const [currentPage, setCurrentPage] = useState(1);
   const { toast } = useToast();
 
   // Fetch incoming messages from API with increased limit (500 instead of 100)
@@ -149,17 +152,29 @@ export default function IncomingMessages() {
   const uniqueGroups = Array.from(new Set(apiMessages.map(msg => msg.groupId).filter(Boolean)));
 
   const filteredMessages = apiMessages.filter(msg => {
-    const matchesSearch = filter === '' || 
+    const matchesSearch = filter === '' ||
       msg.sender.toLowerCase().includes(filter.toLowerCase()) ||
       msg.message.toLowerCase().includes(filter.toLowerCase()) ||
       msg.groupName?.toLowerCase().includes(filter.toLowerCase());
-    
+
     const matchesStatus = statusFilter === 'all' || msg.status === statusFilter;
-    
+
     const matchesGroup = groupFilter === 'all' || msg.groupId === groupFilter;
-    
+
     return matchesSearch && matchesStatus && matchesGroup;
   });
+
+  // Pagination — slice the filtered list. Reset to page 1 whenever a filter changes.
+  const totalPages = Math.max(1, Math.ceil(filteredMessages.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const pageStart = (safePage - 1) * PAGE_SIZE;
+  const pagedMessages = filteredMessages.slice(pageStart, pageStart + PAGE_SIZE);
+
+  // Auto-clamp current page when filters reduce the result set
+  if (currentPage !== safePage) {
+    // Defer to avoid setState-in-render warning
+    setTimeout(() => setCurrentPage(safePage), 0);
+  }
 
   const getStatusBadge = (status?: string, message?: string) => {
     // Count PIDs using the same pattern as the server-side watch parser
@@ -319,7 +334,7 @@ export default function IncomingMessages() {
                     id="search"
                     placeholder="Search by sender, message, or group..."
                     value={filter}
-                    onChange={(e) => setFilter(e.target.value)}
+                    onChange={(e) => { setFilter(e.target.value); setCurrentPage(1); }}
                   />
                 </div>
                 <div>
@@ -328,7 +343,7 @@ export default function IncomingMessages() {
                     id="status"
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
                     value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value as any)}
+                    onChange={(e) => { setStatusFilter(e.target.value as any); setCurrentPage(1); }}
                   >
                     <option value="all">All Status</option>
                     <option value="processed">Processed</option>
@@ -345,7 +360,7 @@ export default function IncomingMessages() {
                     id="group"
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
                     value={groupFilter}
-                    onChange={(e) => setGroupFilter(e.target.value)}
+                    onChange={(e) => { setGroupFilter(e.target.value); setCurrentPage(1); }}
                   >
                     <option value="all">All Groups</option>
                     {uniqueGroups.map(groupId => (
@@ -361,6 +376,7 @@ export default function IncomingMessages() {
                     setFilter('');
                     setStatusFilter('all');
                     setGroupFilter('all');
+                    setCurrentPage(1);
                   }}
                 >
                   Clear
@@ -380,7 +396,14 @@ export default function IncomingMessages() {
           {/* Messages Table */}
           <Card>
             <CardHeader>
-              <CardTitle>Messages ({filteredMessages.length})</CardTitle>
+              <CardTitle>
+                Messages ({filteredMessages.length})
+                {filteredMessages.length > PAGE_SIZE && (
+                  <span className="text-sm font-normal text-gray-500 ml-2">
+                    — page {safePage} of {totalPages}, showing {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filteredMessages.length)}
+                  </span>
+                )}
+              </CardTitle>
               <CardDescription>
                 Latest WhatsApp messages from your connected groups
               </CardDescription>
@@ -406,7 +429,7 @@ export default function IncomingMessages() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredMessages.map((message) => (
+                      {pagedMessages.map((message) => (
                         <tr key={message.id} className="hover:bg-gray-50">
                           <td className="border border-gray-200 px-4 py-2 text-sm text-gray-900">
                             {new Date(message.timestamp).toLocaleString()}
@@ -490,6 +513,54 @@ export default function IncomingMessages() {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+
+              {/* Pagination controls */}
+              {filteredMessages.length > PAGE_SIZE && (
+                <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+                  <div className="text-sm text-gray-600">
+                    Showing <span className="font-medium">{pageStart + 1}</span>–
+                    <span className="font-medium">{Math.min(pageStart + PAGE_SIZE, filteredMessages.length)}</span>
+                    {' '}of <span className="font-medium">{filteredMessages.length}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(1)}
+                      disabled={safePage <= 1}
+                    >
+                      « First
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={safePage <= 1}
+                    >
+                      ‹ Prev
+                    </Button>
+                    <span className="text-sm font-medium px-2">
+                      Page {safePage} / {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={safePage >= totalPages}
+                    >
+                      Next ›
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(totalPages)}
+                      disabled={safePage >= totalPages}
+                    >
+                      Last »
+                    </Button>
+                  </div>
                 </div>
               )}
             </CardContent>
