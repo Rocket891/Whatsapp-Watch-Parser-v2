@@ -246,6 +246,25 @@ export const messageLogs = pgTable("message_logs", {
   messageIdIdx: index("message_logs_message_id_idx").on(table.messageId),
 }));
 
+// Raw webhook event buffer — captures every incoming webhook payload
+// BEFORE the parser sees it. If the parser breaks or DB writes fail
+// downstream, the raw payload is preserved here and can be replayed
+// via POST /api/raw-events/replay.
+export const rawWebhookEvents = pgTable("raw_webhook_events", {
+  id: serial("id").primaryKey(),
+  receivedAt: timestamp("received_at").defaultNow().notNull(),
+  provider: text("provider").notNull(),     // 'wapi24' | 'evolution'
+  headers: jsonb("headers"),
+  body: jsonb("body").notNull(),
+  processed: boolean("processed").default(false).notNull(),
+  processedAt: timestamp("processed_at"),
+  processingError: text("processing_error"),
+}, (table) => ({
+  receivedAtIdx: index("raw_webhook_events_received_at_idx").on(table.receivedAt),
+  unprocessedIdx: index("raw_webhook_events_unprocessed_idx").on(table.processed, table.receivedAt),
+  providerIdx: index("raw_webhook_events_provider_idx").on(table.provider),
+}));
+
 export const broadcastReports = pgTable("broadcast_reports", {
   id: serial("id").primaryKey(),
   userId: uuid("user_id").references(() => users.id), // Data isolation - CRITICAL SECURITY FIX

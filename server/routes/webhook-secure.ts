@@ -3,8 +3,10 @@
    ------------------------------------------------------------------ */
 import type { Express } from "express";
 import { storage } from "../storage";
+import { pool } from "../db";
 import type { UserWhatsappConfig } from "@shared/schema";
 import { processContactUpdates, formatSenderWithDbLookup } from "../contactResolver";
+import { getActiveProvider } from "../whatsapp-providers";
 
 // PRODUCTION-SAFE LOGGING: Reduces log volume to prevent Railway OOM crashes
 const isProduction = process.env.NODE_ENV === 'production';
@@ -105,19 +107,54 @@ export function registerSecureWebhookRoutes(app: Express) {
        /api/webhook           (alias)
      ---------------------------------------------------------------- */
   const handleWebhook = async (req: any, res: any) => {
+    // RESILIENCE BUFFER: insert into raw_webhook_events BEFORE any validation.
+    // If anything below throws (parser, DB, network), the raw payload is
+    // still preserved and replayable via POST /api/raw-events/replay.
+    let rawEventId: number | null = null;
+    const activeProvider = getActiveProvider();
+    const providerName = activeProvider.name;
     try {
-      const payload = req.body;
-      // Trim whitespace/tab chars from instance_id (wapi24 safety)
-      const instanceId = (payload?.instance_id || payload?.data?.instance_id || "").trim() || undefined;
-      // wapi24 sends event at top level OR under data
-      const eventType = payload?.event || payload?.data?.event;
+      // Capture truncated headers for diagnostics (avoid storing huge proxy chains)
+      const safeHeaders: Record<string, string> = {};
+      for (const k of ["user-agent", "content-type", "x-forwarded-for", "x-real-ip", "host", "x-evolution-api-key"]) {
+        const v = req.headers[k];
+        if (v) safeHeaders[k] = String(v).slice(0, 500);
+      }
+      const insertResult = await pool.query(
+        `INSERT INTO raw_webhook_events (provider, headers, body) VALUES ($1, $2::jsonb, $3::jsonb) RETURNING id`,
+        [providerName, JSON.stringify(safeHeaders), JSON.stringify(req.body ?? {})]
+      );
+      rawEventId = Number(insertResult.rows[0]?.id);
+    } catch (bufferErr) {
+      // Even the buffer write failed — log loud, but don't block the webhook.
+      // wapi24/Evolution will retry if we 500, but losing the buffer write
+      // shouldn't take down the parser path.
+      console.error("⚠️ raw_webhook_events insert failed:", bufferErr);
+    }
 
-      // ALWAYS log full payload in production for debugging wapi24 integration
-      console.log(`📨 [WEBHOOK] instance=${instanceId}, event=${eventType}`);
-      console.log(`📦 [WEBHOOK] Full payload:`, JSON.stringify(payload, null, 2));
+    try {
+      // Normalize the raw payload via the active provider adapter.
+      // wapi24 = pass-through. Evolution = reshape to wapi24-compatible.
+      const normalized = activeProvider.normalize(req.body);
+      if (!normalized) {
+        console.error(`❌ [${providerName}] Could not normalize payload. Keys:`, Object.keys(req.body || {}));
+        await markRawEventProcessed(rawEventId, "could not normalize payload");
+        return res.status(400).json({ error: "Unrecognized payload" });
+      }
+
+      // Use the canonical (wapi24-shaped) payload for downstream processing.
+      // The existing processWebhookWithUserContext() expects this shape.
+      const payload = normalized.canonicalPayload;
+      const instanceId = normalized.instanceId;
+      const eventType = normalized.eventType;
+
+      // ALWAYS log full payload in production for debugging
+      console.log(`📨 [WEBHOOK provider=${providerName}] instance=${instanceId}, event=${eventType}`);
+      console.log(`📦 [WEBHOOK] Canonical payload:`, JSON.stringify(payload, null, 2));
 
       if (!instanceId) {
         console.error("❌ No instance_id in webhook payload. Keys:", Object.keys(payload || {}));
+        await markRawEventProcessed(rawEventId, "missing instance_id");
         return res.status(400).json({ error: "Missing instance_id" });
       }
 
@@ -125,6 +162,7 @@ export function registerSecureWebhookRoutes(app: Express) {
       const userId = await storage.getUserIdByInstanceId(instanceId);
       if (!userId) {
         console.error(`❌ No user found for instance ID: ${instanceId} - potential security breach attempt`);
+        await markRawEventProcessed(rawEventId, `unknown instance ${instanceId}`);
         return res.status(403).json({ error: "Unauthorized instance" });
       }
 
@@ -132,6 +170,7 @@ export function registerSecureWebhookRoutes(app: Express) {
       const userConfig = await storage.getUserWhatsappConfig(userId);
       if (!userConfig || !userConfig.isActive) {
         console.error(`❌ User ${userId} has inactive/missing WhatsApp config for instance ${instanceId}`);
+        await markRawEventProcessed(rawEventId, "user config inactive");
         return res.status(403).json({ error: "Inactive WhatsApp configuration" });
       }
 
@@ -139,14 +178,30 @@ export function registerSecureWebhookRoutes(app: Express) {
 
       // **SECURITY**: All processing now includes user context
       const result = await processWebhookWithUserContext(payload, userId, userConfig);
-      
+
+      await markRawEventProcessed(rawEventId, null);
       return res.json(result);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("❌ Webhook processing error:", error);
+      await markRawEventProcessed(rawEventId, String(error?.message || error).slice(0, 500));
       return res.status(500).json({ error: "Webhook processing failed" });
     }
   };
+
+  // Helper: flip raw_webhook_events row to processed=true with optional error.
+  // Called from every exit path of handleWebhook so the buffer state is accurate.
+  async function markRawEventProcessed(id: number | null, error: string | null) {
+    if (id === null) return;
+    try {
+      await pool.query(
+        `UPDATE raw_webhook_events SET processed=true, processed_at=NOW(), processing_error=$2 WHERE id=$1`,
+        [id, error]
+      );
+    } catch (e) {
+      console.error("⚠️ markRawEventProcessed update failed:", e);
+    }
+  }
 
   app.post("/api/whatsapp/webhook", handleWebhook);
   app.post("/api/webhook", (req: any, res: any) => {

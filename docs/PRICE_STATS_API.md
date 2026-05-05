@@ -174,7 +174,60 @@ The `days` parameter (default 90, 1–3650 allowed) controls the window feeding 
 
 **Dealers-distinct count:** `unique_dealers` is `COUNT(DISTINCT sender_number)` (fallback `sender` when `sender_number` is null/blank), so a single noisy dealer re-posting the same request doesn't inflate the tier.
 
-### 2.7 Demand-classifier debug + backfill
+### 2.7 Webhook resilience: raw-events buffer + replay
+
+Every incoming webhook hit is now logged to a `raw_webhook_events` table
+BEFORE the parser runs. If the parser crashes or the DB hiccups, the raw
+payload is preserved and replayable. Also useful when migrating providers.
+
+**a) Recent hits diagnostic**
+
+```bash
+curl -H "X-API-Key: $KEY" \
+  "https://whatsapp-watch-parser-v-2.replit.app/api/webhook-debug/recent-hits?limit=100"
+
+# Filter by provider:
+curl -H "X-API-Key: $KEY" \
+  "https://whatsapp-watch-parser-v-2.replit.app/api/webhook-debug/recent-hits?provider=evolution"
+```
+
+**b) Provider stats**
+
+```bash
+curl -H "X-API-Key: $KEY" \
+  https://whatsapp-watch-parser-v-2.replit.app/api/webhook-debug/stats
+```
+
+Returns per-provider: total, processed, unprocessed, last_5min, last_1hr,
+last_24hr, most_recent. Use to verify a provider is alive (e.g., last_5min > 0
+during market hours).
+
+**c) Replay unprocessed events**
+
+```bash
+curl -X POST -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
+  -d '{"limit":100}' \
+  https://whatsapp-watch-parser-v-2.replit.app/api/raw-events/replay
+```
+
+Response includes `replayed`, `errors`, `last_id_processed`, `done`.
+
+### 2.8 Provider abstraction — env var WHATSAPP_PROVIDER
+
+Set the active webhook normalizer. Default is `wapi24`. Valid values:
+- `wapi24` — Waziper-panel reseller (default, original behavior)
+- `evolution` — self-hosted Evolution API on your own VPS
+
+Replit Secrets to set when migrating to Evolution:
+```
+WHATSAPP_PROVIDER=evolution
+EVOLUTION_API_URL=http://<your-vps-ip>:8080
+EVOLUTION_AUTH_KEY=<your-auth-key-from-evolution-setup>
+```
+
+After changing, republish on Replit.
+
+### 2.9 Demand-classifier debug + backfill
 
 The initial parser mis-classified ~all messages as `selling` because the
 "strong selling" regex list was over-broad (any `digits space digitsK`

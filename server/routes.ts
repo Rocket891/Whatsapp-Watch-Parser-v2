@@ -18,6 +18,7 @@ import { registerPriceStatsRoutes } from "./routes/price-stats";
 import { registerDemandStatsRoutes } from "./routes/demand-stats";
 import { registerReferenceImportRoutes } from "./routes/reference-import";
 import { registerMessageLogBackfillRoutes } from "./routes/message-log-backfill";
+import { registerRawEventsRoutes } from "./routes/raw-events";
 import authRoutes from "./routes/auth";
 import adminRoutes from "./routes/admin";
 import cookieParser from 'cookie-parser';
@@ -2923,6 +2924,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register message-log backfill (one-shot cleanup for stuck 'received' rows)
   registerMessageLogBackfillRoutes(app);
+
+  // Register raw-events buffer diagnostics + replay
+  registerRawEventsRoutes(app);
 
   // Import name caches from whatsapp routes
   const { contactNameMap, groupNameMap } = await import('./routes/whatsapp');
