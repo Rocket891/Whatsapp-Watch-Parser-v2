@@ -17,6 +17,7 @@ import { registerSecureWebhookRoutes } from "./routes/webhook-secure";
 import { registerPriceStatsRoutes } from "./routes/price-stats";
 import { registerDemandStatsRoutes } from "./routes/demand-stats";
 import { registerReferenceImportRoutes } from "./routes/reference-import";
+import { registerMessageLogBackfillRoutes } from "./routes/message-log-backfill";
 import authRoutes from "./routes/auth";
 import adminRoutes from "./routes/admin";
 import cookieParser from 'cookie-parser';
@@ -2919,7 +2920,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register reference-database import endpoint (X-API-Key protected, upsert)
   registerReferenceImportRoutes(app);
-  
+
+  // Register message-log backfill (one-shot cleanup for stuck 'received' rows)
+  registerMessageLogBackfillRoutes(app);
+
   // Import name caches from whatsapp routes
   const { contactNameMap, groupNameMap } = await import('./routes/whatsapp');
   
