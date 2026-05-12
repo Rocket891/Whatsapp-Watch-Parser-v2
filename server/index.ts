@@ -5,6 +5,14 @@ import { startSyncScheduler } from "./evolution-sync-scheduler";
 
 const app = express();
 
+// Last-resort safety nets so a single bad promise can't kill the container.
+process.on("unhandledRejection", (reason) => {
+  console.error("[unhandledRejection]", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[uncaughtException]", err);
+});
+
 // Trust proxy for Railway/production environments (fixes rate limiting and client IP detection)
 // Enable for any environment that uses a reverse proxy (Railway, Heroku, etc.)
 if (process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT || process.env.PORT) {
@@ -52,12 +60,13 @@ app.use((req, res, next) => {
 async function startServer() {
   const server = await registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
+    console.error(`[express-error] ${req.method} ${req.path} -> ${status}:`, err);
+    if (!res.headersSent) {
+      res.status(status).json({ message });
+    }
   });
 
   // importantly only setup vite in development and after
