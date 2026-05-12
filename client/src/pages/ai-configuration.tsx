@@ -78,13 +78,21 @@ export default function AIConfiguration() {
   const selectedProvider = form.watch('provider');
   const useAI = form.watch('useAI');
 
+  // Helper to attach the JWT bearer token to every AI-config request.
+  const authHeaders = (): Record<string, string> => {
+    const token = localStorage.getItem('auth_token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
   const onSubmit = async (data: AIConfig) => {
     try {
       const response = await fetch('/api/ai/configure', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...authHeaders(),
         },
+        credentials: 'include',
         body: JSON.stringify(data),
       });
 
@@ -112,7 +120,9 @@ export default function AIConfiguration() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...authHeaders(),
         },
+        credentials: 'include',
         body: JSON.stringify({
           message: testMessage,
           config: form.getValues(),

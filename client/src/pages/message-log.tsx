@@ -17,40 +17,7 @@ export default function MessageLog() {
   const [currentPage, setCurrentPage] = useState(1);
   const messagesPerPage = 100;
 
-  // Query for all filtered messages to get accurate total count using the /total endpoint
-  const { data: totalCountData } = useQuery({
-    queryKey: ['/api/whatsapp/message-logs-total', { 
-      search: searchTerm,
-      status: statusFilter === 'all' ? '' : statusFilter,
-      timeFilter: timeFilter
-    }],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (searchTerm) params.append('search', searchTerm);
-      if (statusFilter !== 'all') params.append('status', statusFilter);
-      if (timeFilter !== 'all') params.append('timeFilter', timeFilter);
-      
-      // Get auth token
-      const token = localStorage.getItem('auth_token');
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-      
-      const response = await fetch(`/api/whatsapp/message-logs/total?${params}`, {
-        headers,
-        credentials: "include",
-      });
-      
-      if (!response.ok) throw new Error('Failed to fetch total count');
-      return response.json();
-    },
-  });
-
-  // Query for current page messages
+  // Query for current page messages (also returns the total count via `total`)
   const { data: messageData, isLoading } = useQuery({
     queryKey: ['/api/whatsapp/message-logs', { 
       search: searchTerm,
@@ -88,8 +55,8 @@ export default function MessageLog() {
   });
 
   const messages = messageData?.messages || [];
-  const totalMessages = totalCountData?.total || 0;
-  const totalPages = Math.ceil(totalMessages / messagesPerPage);
+  const totalMessages = messageData?.total || 0;
+  const totalPages = Math.max(1, Math.ceil(totalMessages / messagesPerPage));
 
   // Reset to page 1 when filters change
   const handleFilterChange = () => {

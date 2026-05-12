@@ -50,11 +50,14 @@ export default function MessageTesting() {
 
     setIsLoading(true);
     try {
+      const token = localStorage.getItem('auth_token');
       const response = await fetch("/api/test/parse-message", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
+        credentials: "include",
         body: JSON.stringify({ message: testMessage }),
       });
 

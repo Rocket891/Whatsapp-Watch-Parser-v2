@@ -1555,14 +1555,24 @@ export class DatabaseStorage implements IStorage {
     }
     
     if (filters.search) {
-      const searchTerm = `%${filters.search}%`;
-      conditions.push(
-        or(
-          ilike(messageLogs.message, searchTerm),
-          ilike(messageLogs.sender, searchTerm),
-          ilike(messageLogs.groupName, searchTerm)
-        )
-      );
+      // Multi-word AND search: tokenize on whitespace, every token must appear
+      // in at least one of message/sender/groupName. Lets users type
+      // "126508 green" and get only rows containing BOTH tokens, like notepad
+      // Ctrl+F across multiple words.
+      const tokens = filters.search
+        .trim()
+        .split(/\s+/)
+        .filter((t) => t.length > 0);
+      for (const tok of tokens) {
+        const pattern = `%${tok}%`;
+        conditions.push(
+          or(
+            ilike(messageLogs.message, pattern),
+            ilike(messageLogs.sender, pattern),
+            ilike(messageLogs.groupName, pattern)
+          )
+        );
+      }
     }
     
     if (filters.sender) {

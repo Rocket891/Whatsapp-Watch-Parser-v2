@@ -84,10 +84,54 @@ async function processOne(row: { id: number; provider: string | null; body: any 
   }
 }
 
+// Message log retention — delete message_logs older than N days. Keeps DB lean.
+// Default 7 days; configurable via MESSAGE_LOG_RETENTION_DAYS env var. Set to 0
+// to disable retention.
+const RETENTION_DAYS = Math.max(
+  0,
+  parseInt(process.env.MESSAGE_LOG_RETENTION_DAYS || "7", 10) || 7
+);
+let lastRetentionSweep = 0;
+
+async function retentionSweep(): Promise<void> {
+  if (RETENTION_DAYS <= 0) return;
+  try {
+    const r = await pool.query(
+      `DELETE FROM message_logs
+        WHERE created_at < NOW() - ($1::text || ' days')::interval
+        RETURNING id`,
+      [RETENTION_DAYS]
+    );
+    if (r.rowCount && r.rowCount > 0) {
+      console.log(`[retention] purged ${r.rowCount} message_logs older than ${RETENTION_DAYS} days`);
+    }
+    // Also clean up the raw_webhook_events buffer — fully-processed events older than retention
+    const r2 = await pool.query(
+      `DELETE FROM raw_webhook_events
+        WHERE processed = true
+          AND created_at < NOW() - ($1::text || ' days')::interval
+        RETURNING id`,
+      [RETENTION_DAYS]
+    );
+    if (r2.rowCount && r2.rowCount > 0) {
+      console.log(`[retention] purged ${r2.rowCount} raw_webhook_events older than ${RETENTION_DAYS} days`);
+    }
+  } catch (e: any) {
+    console.error("[retention] sweep failed:", e?.message || e);
+  }
+}
+
 async function tick(): Promise<void> {
   if (inFlight) return;
   inFlight = true;
   try {
+    // Periodic retention sweep — once every 6 hours
+    const now = Date.now();
+    if (now - lastRetentionSweep > 6 * 60 * 60 * 1000) {
+      retentionSweep().catch(() => {}); // fire-and-forget; don't block drain
+      lastRetentionSweep = now;
+    }
+
     // Pull NEWEST unprocessed events first so the live dashboard catches up
     // immediately. Old events still get processed — they just queue behind
     // the newest. Drain throughput now high enough (~600-1000/min) to fully

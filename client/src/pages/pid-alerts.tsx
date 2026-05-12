@@ -61,10 +61,19 @@ export default function PidAlerts() {
     },
   });
 
+  // Helper: every PID-alerts fetch goes through this so the JWT token is always sent.
+  const authHeaders = (): Record<string, string> => {
+    const token = localStorage.getItem('auth_token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
   const { data: alerts, isLoading } = useQuery({
     queryKey: ['/api/pid-alerts'],
     queryFn: async () => {
-      const response = await fetch('/api/pid-alerts');
+      const response = await fetch('/api/pid-alerts', {
+        headers: authHeaders(),
+        credentials: 'include',
+      });
       if (!response.ok) throw new Error('Failed to fetch alerts');
       return response.json() as Promise<PidAlert[]>;
     },
@@ -74,7 +83,8 @@ export default function PidAlerts() {
     mutationFn: async (data: PidAlertForm) => {
       const response = await fetch('/api/pid-alerts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        credentials: 'include',
         body: JSON.stringify(data),
       });
       if (!response.ok) throw new Error('Failed to create alert');
@@ -102,7 +112,8 @@ export default function PidAlerts() {
     mutationFn: async ({ id, data }: { id: number; data: PidAlertForm }) => {
       const response = await fetch(`/api/pid-alerts/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...authHeaders() },
+        credentials: 'include',
         body: JSON.stringify(data),
       });
       if (!response.ok) throw new Error('Failed to update alert');
@@ -131,6 +142,8 @@ export default function PidAlerts() {
     mutationFn: async (id: number) => {
       const response = await fetch(`/api/pid-alerts/${id}`, {
         method: 'DELETE',
+        headers: authHeaders(),
+        credentials: 'include',
       });
       if (!response.ok) throw new Error('Failed to delete alert');
       return response.json();

@@ -53,8 +53,8 @@ export default function Sidebar() {
   });
 
   return (
-    <aside 
-      className="w-64 flex-shrink-0 flex flex-col transition-all duration-300"
+    <aside
+      className="w-64 flex-shrink-0 flex flex-col transition-all duration-300 sticky top-0 h-screen self-start"
       style={{
         background: `linear-gradient(135deg, ${currentTheme.colors.background}08, ${currentTheme.colors.surface}05)`,
         borderRight: `1px solid ${currentTheme.colors.border}`,
