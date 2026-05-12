@@ -58,10 +58,21 @@ export const userWhatsappConfig = pgTable("user_whatsapp_config", {
   isActive: boolean("is_active").notNull().default(true),
   
   // Legacy fields for backward compatibility (will map to receiving instance)
+  // After the Evolution migration, instanceId now holds the Evolution instance NAME
+  // (e.g. "watch1") rather than the wapi24 instance_id. accessToken is deprecated
+  // but kept for the pre-migration cutover; the new Evolution columns below take over.
   instanceId: text("instance_id"),
   accessToken: text("access_token"),
   mobileNumber: text("mobile_number"),
-  
+
+  // Evolution API integration (new since Evolution migration).
+  // - evolutionApiUrl: per-user override; falls back to EVOLUTION_API_URL env
+  // - evolutionApiKey: per-instance API key from Evolution; falls back to EVOLUTION_AUTH_KEY env
+  // - evolutionInstanceCreatedAt: when the instance was provisioned on the VPS
+  evolutionApiUrl: text("evolution_api_url"),
+  evolutionApiKey: text("evolution_api_key"),
+  evolutionInstanceCreatedAt: timestamp("evolution_instance_created_at"),
+
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 }, (table) => ({
