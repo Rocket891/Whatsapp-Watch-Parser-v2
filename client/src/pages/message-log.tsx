@@ -133,12 +133,14 @@ export default function MessageLog() {
       return <pre className="whitespace-pre-wrap font-sans text-sm">{message}</pre>;
     }
 
-    // Find line indices containing any token (case-insensitive)
+    // Find line indices containing ALL tokens on the SAME line (AND, not OR).
+    // "26589IO Blue" → only lines that contain both "26589IO" and "Blue".
+    // Lines with "26589IO" alone or "Blue" alone are NOT matches.
     const lowerTokens = tokens.map((t) => t.toLowerCase());
     const matchedLines = new Set<number>();
     lines.forEach((line, i) => {
       const lower = line.toLowerCase();
-      if (lowerTokens.some((t) => lower.includes(t))) matchedLines.add(i);
+      if (lowerTokens.every((t) => lower.includes(t))) matchedLines.add(i);
     });
 
     // Add ±2 lines of context around each match

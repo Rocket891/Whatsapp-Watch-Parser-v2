@@ -633,33 +633,60 @@ export function registerSecureWhatsAppRoutes(app: Express) {
       const uc = await getUserEvolutionConfig(req);
       if (!uc) return res.status(400).json({ error: "WhatsApp not configured" });
 
+      console.log(`[contacts/sync] Fetching contacts from Evolution for instance=${uc.instanceName}…`);
       const contacts = await fetchAllContacts(uc.instanceName, { baseUrl: uc.apiUrl, apiKey: uc.apiKey });
+      console.log(`[contacts/sync] Evolution returned ${contacts.length} contacts. Beginning batched insert.`);
 
-      let inserted = 0;
-      let errors = 0;
+      // Pre-process: extract pushName + phoneNumber for each contact
+      const rows: Array<{ userId: string; pushName: string | null; phone: string | null }> = [];
       for (const c of contacts) {
         const remoteJid = c.id || c.remoteJid || c.jid;
         if (!remoteJid) continue;
         const pushName = c.pushName || c.name || c.notify || c.verifiedName || null;
         let phoneNumber: string | null = null;
-        if (remoteJid.endsWith("@s.whatsapp.net")) {
-          phoneNumber = "+" + remoteJid.replace(/@s\.whatsapp\.net$/, "").replace(/[^\d]/g, "");
-        } else if (remoteJid.endsWith("@c.us")) {
-          phoneNumber = "+" + remoteJid.replace(/@c\.us$/, "").replace(/[^\d]/g, "");
+        if (typeof remoteJid === "string") {
+          if (remoteJid.endsWith("@s.whatsapp.net")) {
+            phoneNumber = "+" + remoteJid.replace(/@s\.whatsapp\.net$/, "").replace(/[^\d]/g, "");
+          } else if (remoteJid.endsWith("@c.us")) {
+            phoneNumber = "+" + remoteJid.replace(/@c\.us$/, "").replace(/[^\d]/g, "");
+          }
         }
+        rows.push({ userId: req.user.userId, pushName, phone: phoneNumber });
+      }
+
+      let inserted = 0;
+      let errors = 0;
+      const BATCH = 100;
+      for (let i = 0; i < rows.length; i += BATCH) {
+        const slice = rows.slice(i, i + BATCH);
+        // Build a single multi-row INSERT — one HTTP roundtrip per 100 contacts
+        const values: any[] = [];
+        const placeholders: string[] = [];
+        slice.forEach((row, idx) => {
+          const base = idx * 3;
+          placeholders.push(`($${base + 1}, $${base + 2}, $${base + 3}, 'evolution-sync', NOW())`);
+          values.push(row.userId, row.pushName, row.phone);
+        });
         try {
           await pool.query(
-            `INSERT INTO contacts
-               (user_id, push_name, phone_number, upload_batch, uploaded_at)
-             VALUES ($1, $2, $3, 'evolution-sync', NOW())
+            `INSERT INTO contacts (user_id, push_name, phone_number, upload_batch, uploaded_at)
+             VALUES ${placeholders.join(", ")}
              ON CONFLICT DO NOTHING`,
-            [req.user.userId, pushName, phoneNumber],
+            values,
           );
-          inserted++;
-        } catch {
-          errors++;
+          inserted += slice.length;
+        } catch (err: any) {
+          errors += slice.length;
+          console.error(`[contacts/sync] batch ${i / BATCH} failed:`, err?.message || err);
+        }
+        // Heartbeat — visible in deployment logs / Shell tail
+        if (i % (BATCH * 5) === 0 || i + BATCH >= rows.length) {
+          console.log(
+            `[contacts/sync] progress: ${Math.min(i + BATCH, rows.length)}/${rows.length} processed (${inserted} ok, ${errors} err)`,
+          );
         }
       }
+      console.log(`[contacts/sync] DONE. fetched=${contacts.length}, inserted=${inserted}, errors=${errors}`);
 
       // Warm LID cache for sender-resolution at webhook time
       try {
