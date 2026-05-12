@@ -14,6 +14,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Upload, Package, Search, AlertTriangle, CheckCircle, Users, ArrowRight, MessageCircle, Eye, ExternalLink, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import Sidebar from '@/components/layout/sidebar';
 import Topbar from '@/components/layout/topbar';
+import { formatDate as formatDateUtil } from '@/lib/format-date';
 
 interface InventoryItem {
   id: string;
@@ -184,7 +185,8 @@ export default function Inventory() {
   };
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString();
+    // Centralized: outputs "12 May 2026"
+    return formatDateUtil(dateStr);
   };
 
   return (
@@ -568,7 +570,7 @@ export default function Inventory() {
                                     <span className="text-blue-600">Group:</span> {match.requirement?.groupName}
                                   </div>
                                   <div className="text-xs text-gray-500">
-                                    {new Date(match.requirement?.date || match.requirement?.createdAt).toLocaleDateString()}
+                                    {formatDateUtil(match.requirement?.date || match.requirement?.createdAt)}
                                   </div>
                                 </div>
                               </div>

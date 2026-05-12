@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MessageSquare, Filter, Clock, Hash, Phone, Eye, Copy, Download } from 'lucide-react';
 import { WhatsAppBadge } from '@/components/whatsapp-badge';
+import { formatDateTime } from '@/lib/format-date';
 import ConnectionStatus from '@/components/connection-status';
 import { formatDistanceToNow } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -223,7 +224,7 @@ export default function IncomingMessages() {
   const exportToCSV = () => {
     const headers = ['Timestamp', 'Group', 'Sender', 'Sender Number', 'Message', 'Status'];
     const rows = filteredMessages.map(msg => [
-      new Date(msg.timestamp).toLocaleString(),
+      formatDateTime(msg.timestamp),
       msg.groupName || msg.groupId,
       msg.sender,
       msg.senderNumber || '',
@@ -433,7 +434,7 @@ export default function IncomingMessages() {
                       {pagedMessages.map((message) => (
                         <tr key={message.id} className="hover:bg-gray-50">
                           <td className="border border-gray-200 px-4 py-2 text-sm text-gray-900">
-                            {new Date(message.timestamp).toLocaleString()}
+                            {formatDateTime(message.timestamp)}
                           </td>
                           <td className="border border-gray-200 px-4 py-2 text-sm text-gray-700">
                             {message.groupName && message.groupName !== message.groupId && !message.groupName.startsWith('Group ') ? 

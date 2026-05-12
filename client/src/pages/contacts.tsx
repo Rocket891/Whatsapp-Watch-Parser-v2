@@ -19,6 +19,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/contexts/auth-context";
 import Sidebar from "@/components/layout/sidebar";
 import { WhatsAppBadge } from "@/components/whatsapp-badge";
+import { formatDate as formatDateUtil } from "@/lib/format-date";
 
 type Contact = {
   id: number;
@@ -841,7 +842,9 @@ export default function Contacts() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
+    // Routed through centralized formatter: "12 May 2026"
+    // (kept this wrapper for backward compatibility with existing callers)
+    return formatDateUtil(dateString);
   };
 
   const formatTime = (dateString: string) => {

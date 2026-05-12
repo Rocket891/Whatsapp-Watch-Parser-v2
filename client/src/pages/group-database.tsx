@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import Sidebar from "@/components/layout/sidebar";
 import Topbar from "@/components/layout/topbar";
 import { useToast } from "@/hooks/use-toast";
+import { formatDateTime } from "@/lib/format-date";
 
 interface WhatsAppGroup {
   id: string;
@@ -133,7 +134,7 @@ export default function GroupDatabase() {
           {/* Auto-sync indicator */}
           {syncStatus?.last_run_at && (
             <p className="text-xs text-gray-500">
-              Last auto-sync: {new Date(syncStatus.last_run_at).toLocaleString()} (runs every {syncStatus.interval_min} min)
+              Last auto-sync: {formatDateTime(syncStatus.last_run_at)} (runs every {syncStatus.interval_min} min)
             </p>
           )}
 

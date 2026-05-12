@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Search, MessageCircle, Clock, TrendingUp, Eye, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "wouter";
+import { formatDateTime } from "@/lib/format-date";
 
 interface RequirementMatch {
   requirement: {
@@ -164,7 +165,7 @@ export default function Matches() {
         {dataUpdatedAt && (
           <div className="text-xs text-gray-500 flex items-center gap-1">
             <Clock className="h-3 w-3" />
-            Last updated: {new Date(dataUpdatedAt).toLocaleString()}
+            Last updated: {formatDateTime(dataUpdatedAt)}
             {isFetching && <span className="text-blue-500 ml-2">• Refreshing...</span>}
           </div>
         )}
