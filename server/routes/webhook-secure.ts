@@ -189,15 +189,26 @@ export function registerSecureWebhookRoutes(app: Express) {
     }
   };
 
-  // Helper: flip raw_webhook_events row to processed=true with optional error.
-  // Called from every exit path of handleWebhook so the buffer state is accurate.
+  // Helper: update raw_webhook_events row state.
+  // - On success (error=null): mark processed=true and clear processing_error.
+  // - On failure (error!=null): leave processed=false but record processing_error
+  //   and processed_at, so /api/raw-events/replay (which selects NOT processed)
+  //   can pick the row up again later. This preserves the "parser crashes are
+  //   replayable" guarantee.
   async function markRawEventProcessed(id: number | null, error: string | null) {
     if (id === null) return;
     try {
-      await pool.query(
-        `UPDATE raw_webhook_events SET processed=true, processed_at=NOW(), processing_error=$2 WHERE id=$1`,
-        [id, error]
-      );
+      if (error === null) {
+        await pool.query(
+          `UPDATE raw_webhook_events SET processed=true, processed_at=NOW(), processing_error=NULL WHERE id=$1`,
+          [id]
+        );
+      } else {
+        await pool.query(
+          `UPDATE raw_webhook_events SET processed=false, processed_at=NOW(), processing_error=$2 WHERE id=$1`,
+          [id, error]
+        );
+      }
     } catch (e) {
       console.error("⚠️ markRawEventProcessed update failed:", e);
     }

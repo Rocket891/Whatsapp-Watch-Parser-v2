@@ -127,6 +127,7 @@ export function registerRawEventsRoutes(app: Express) {
         // Lazy import to avoid circular deps.
         const { processWebhookWithUserContext } = await import("./webhook-secure");
         const { storage } = await import("../storage");
+        const { getProviderByName } = await import("../whatsapp-providers");
 
         let replayed = 0;
         let errors = 0;
@@ -135,8 +136,20 @@ export function registerRawEventsRoutes(app: Express) {
         for (const row of q.rows as any[]) {
           lastId = Number(row.id);
           try {
-            const payload = row.body;
-            const instanceId = (payload?.instance_id || payload?.data?.instance_id || payload?.instance || "").toString().trim();
+            // Normalize the raw body using the provider recorded at insert time.
+            // wapi24 = pass-through; Evolution (or other) reshape into canonical form.
+            const providerAdapter = getProviderByName(String(row.provider || "wapi24"));
+            const normalized = providerAdapter.normalize(row.body);
+            if (!normalized) {
+              await pool.query(
+                `UPDATE raw_webhook_events SET processed=true, processed_at=NOW(), processing_error=$2 WHERE id=$1`,
+                [row.id, `provider ${row.provider} could not normalize payload during replay`]
+              );
+              errors++;
+              continue;
+            }
+            const payload = normalized.canonicalPayload;
+            const instanceId = (normalized.instanceId || payload?.instance_id || payload?.data?.instance_id || payload?.instance || "").toString().trim();
             if (!instanceId) {
               await pool.query(
                 `UPDATE raw_webhook_events SET processed=true, processed_at=NOW(), processing_error=$2 WHERE id=$1`,

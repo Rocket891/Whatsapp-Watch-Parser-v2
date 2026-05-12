@@ -84,7 +84,7 @@ export const evolutionProvider: WhatsAppProvider = {
 
     const canonicalPayload = {
       instance_id: instanceId,
-      event: "message",                    // Map to wapi24's event name
+      event: "messages.upsert",            // Map to wapi24's event name handled by dispatcher
       _original_event: evolutionEvent,     // Preserve for debugging
       data: {
         messages,
@@ -94,7 +94,7 @@ export const evolutionProvider: WhatsAppProvider = {
     return {
       provider: "evolution",
       instanceId,
-      eventType: "message",
+      eventType: "messages.upsert",
       canonicalPayload,
     };
   },
