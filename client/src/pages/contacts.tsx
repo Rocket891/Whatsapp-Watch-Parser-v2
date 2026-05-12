@@ -889,15 +889,22 @@ export default function Contacts() {
               onClick={async () => {
                 setIsSyncingContacts(true);
                 try {
-                  const res = await fetch("/api/whatsapp/contacts/sync", { method: "POST" });
+                  const token = localStorage.getItem('auth_token');
+                  const res = await fetch("/api/whatsapp/contacts/sync", {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                    },
+                    credentials: "include",
+                  });
+                  const data = await res.json().catch(() => ({}));
                   if (!res.ok) {
-                    const e = await res.json().catch(() => ({}));
-                    throw new Error(e?.error || `HTTP ${res.status}`);
+                    throw new Error(data?.error || `HTTP ${res.status}`);
                   }
-                  const data = await res.json();
                   toast({
                     title: "Contacts synced from WhatsApp",
-                    description: `Fetched ${data.fetched}, inserted ${data.inserted}${data.errors ? `, ${data.errors} errors` : ""}`,
+                    description: `Fetched ${data.fetched ?? 0}, inserted ${data.inserted ?? 0}${data.errors ? `, ${data.errors} errors` : ""}`,
                   });
                   queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
                 } catch (err: any) {
