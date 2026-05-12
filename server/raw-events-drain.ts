@@ -14,11 +14,11 @@ import { processWebhookWithUserContext } from "./routes/webhook-secure";
 
 const INTERVAL_MS = Math.max(
   250,
-  parseInt(process.env.RAW_EVENTS_DRAIN_INTERVAL_MS || "2000", 10) || 2000
+  parseInt(process.env.RAW_EVENTS_DRAIN_INTERVAL_MS || "1000", 10) || 1000
 );
 const BATCH_SIZE = Math.max(
   1,
-  Math.min(50, parseInt(process.env.RAW_EVENTS_DRAIN_BATCH || "5", 10) || 5)
+  Math.min(100, parseInt(process.env.RAW_EVENTS_DRAIN_BATCH || "15", 10) || 15)
 );
 
 let inFlight = false;
@@ -97,9 +97,14 @@ async function tick(): Promise<void> {
       [BATCH_SIZE]
     );
     if (q.rows.length === 0) return;
-    for (const row of q.rows as any[]) {
-      await processOne({ id: Number(row.id), provider: row.provider, body: row.body });
-    }
+    // Parallelize within the batch — each event is independent (own row, own
+    // tenant resolution). Sequential `await` was the bottleneck: 5 events × 3s
+    // each = 15s per tick. Parallel: takes max(events) ≈ 3-4s for the batch.
+    await Promise.all(
+      (q.rows as any[]).map((row) =>
+        processOne({ id: Number(row.id), provider: row.provider, body: row.body })
+      )
+    );
   } catch (err: any) {
     console.error("[raw-events-drain] tick error:", err?.message || err);
   } finally {
