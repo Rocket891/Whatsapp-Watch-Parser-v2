@@ -16,6 +16,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useToast } from "@/hooks/use-toast";
+import { formatDate } from "@/lib/format-date";
 
 const pidAlertSchema = z.object({
   pid: z.string().min(1, "PID is required"),
@@ -411,13 +412,13 @@ export default function PidAlerts() {
                                 <span className="font-medium text-lg">{alert.triggeredCount || 0}</span>
                                 {alert.lastTriggered && (
                                   <span className="text-xs text-gray-500">
-                                    Last: {new Date(alert.lastTriggered).toLocaleDateString()}
+                                    Last: {formatDate(alert.lastTriggered)}
                                   </span>
                                 )}
                               </div>
                             </TableCell>
                             <TableCell>
-                              {new Date(alert.createdAt).toLocaleDateString()}
+                              {formatDate(alert.createdAt)}
                             </TableCell>
                             <TableCell>
                               <div className="flex space-x-2">

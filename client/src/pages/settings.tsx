@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useTheme, themes } from "@/contexts/theme-context";
 import { useAuth } from "@/contexts/auth-context";
+import { formatDate } from "@/lib/format-date";
 
 export default function Settings() {
   const { toast } = useToast();
@@ -319,7 +320,7 @@ export default function Settings() {
                           <div>
                             <div className="font-medium">{member.memberEmail}</div>
                             <div className="text-sm text-gray-500">
-                              Added {new Date(member.createdAt).toLocaleDateString()}
+                              Added {formatDate(member.createdAt)}
                             </div>
                           </div>
                           <Button

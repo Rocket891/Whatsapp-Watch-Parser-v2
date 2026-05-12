@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import Sidebar from '@/components/layout/sidebar';
 import Topbar from '@/components/layout/topbar';
 import { MessageSquare, FileText, Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { formatDateTime } from '@/lib/format-date';
 
 // Use the new message logs endpoint that returns ALL messages with pagination
 export default function MessageLog() {
@@ -114,14 +115,7 @@ export default function MessageLog() {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleString();
-    } catch {
-      return dateString;
-    }
-  };
+  const formatDate = (dateString: string) => formatDateTime(dateString);
 
   const truncateMessage = (message: string, maxLength: number = 150) => {
     if (message.length <= maxLength) return message;

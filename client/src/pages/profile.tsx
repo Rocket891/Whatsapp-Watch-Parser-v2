@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import { apiRequest } from '@/lib/queryClient';
 import { Loader2, User, CreditCard, BarChart3, Settings, Key } from 'lucide-react';
 import Sidebar from '@/components/layout/sidebar';
+import { formatDate as formatDateShared } from '@/lib/format-date';
 import Topbar from '@/components/layout/topbar';
 
 export default function Profile() {
@@ -78,13 +79,7 @@ export default function Profile() {
     return `${mb.toFixed(1)} MB`;
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
+  const formatDate = (dateString: string) => formatDateShared(dateString);
 
   const getPlanColor = (plan: string) => {
     switch (plan) {

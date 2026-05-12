@@ -206,7 +206,7 @@ export default function Matches() {
                       <span>Group: {matchGroup.requirement.groupName}</span>
                       <div className="flex items-center gap-1">
                         <Clock className="h-4 w-4" />
-                        <span>{new Date(matchGroup.requirement.createdAt).toLocaleDateString()}</span>
+                        <span>{formatDateTime(matchGroup.requirement.createdAt)}</span>
                       </div>
                       {matchGroup.requirement.condition && getConditionBadge(matchGroup.requirement.condition)}
                     </div>

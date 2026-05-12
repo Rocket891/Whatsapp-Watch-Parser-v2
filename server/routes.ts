@@ -2843,6 +2843,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 variant: requirement.variant,
                 condition: requirement.condition,
                 sender: requirement.sender,
+                senderNumber: requirement.senderNumber,
                 groupName: requirement.groupName,
                 date: requirement.date,
                 rawLine: requirement.rawLine,

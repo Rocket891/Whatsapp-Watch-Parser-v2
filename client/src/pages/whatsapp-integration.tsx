@@ -92,7 +92,6 @@ export default function WhatsAppIntegration() {
   const [status, setStatus] = useState<"connected" | "connecting" | "disconnected" | "error">("disconnected");
   const [lastCheck, setLastCheck] = useState<string>("");
   const [qr, setQr] = useState<string>("");
-  const [qrSending, setQrSending] = useState<string>("");
   const [groups, setGroups] = useState<WhatsAppGroup[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
@@ -298,30 +297,8 @@ export default function WhatsAppIntegration() {
     }
   };
 
-  // Generate QR code for sending instance
-  const generateSendingQR = async () => {
-    const { sendingInstanceId, sendingAccessToken } = form.getValues();
-    if (!sendingInstanceId || !sendingAccessToken) {
-      toast({ title: "Error", description: "Sending Instance ID and access token are required" });
-      return;
-    }
-    
-    const res = await fetch("/api/whatsapp/qr", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ instanceId: sendingInstanceId, accessToken: sendingAccessToken }),
-    });
-    const j = await res.json();
-    
-    if (res.ok && j.qr) {
-      setQrSending(j.qr);
-      toast({ title: "QR code generated", description: "Scan with WhatsApp to connect sending instance" });
-    } else if (j.alreadyConnected) {
-      toast({ title: "Already connected", description: "Sending instance is already authenticated" });
-    } else {
-      toast({ title: "Error", description: j.error || "Failed to generate QR code" });
-    }
-  };
+  // (generateSendingQR removed — Evolution flow uses the Receiving Setup card for QR.
+  //  Sending instance is a routing override, not a separate WhatsApp pairing.)
 
   // Create new receiving instance
   const createReceivingInstance = async () => {
@@ -346,27 +323,8 @@ export default function WhatsAppIntegration() {
     }
   };
 
-  // Create new sending instance
-  const createSendingInstance = async () => {
-    const { sendingAccessToken } = form.getValues();
-    if (!sendingAccessToken) {
-      toast({ title: "Error", description: "Sending access token is required" });
-      return;
-    }
-    
-    const res = await fetch("/api/whatsapp/create-instance", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ accessToken: sendingAccessToken }),
-    });
-    const j = await res.json();
-    if (res.ok && j.instanceId) {
-      form.setValue("sendingInstanceId", j.instanceId);
-      toast({ title: "Sending instance created", description: `Instance ID: ${j.instanceId}` });
-    } else {
-      toast({ title: "Error", description: j.error || "Failed to create sending instance" });
-    }
-  };
+  // (createSendingInstance removed — to provision a new Evolution sending instance,
+  //  create it via the Receiving setup card and reuse its name in the Sending tab.)
 
   // Create new instance (unified function)
   const createInstance = async () => {
@@ -489,45 +447,67 @@ export default function WhatsAppIntegration() {
     }
   };
 
-  // Save sending instance configuration
+  // Save sending instance configuration (Evolution override — does NOT touch receiving fields)
   const saveSendingInstance = async () => {
     const sendingData = form.getValues();
-    
+
     const data = {
-      instanceId: sendingData.sendingInstanceId,
-      accessToken: sendingData.sendingAccessToken,
-      mobileNumber: sendingData.sendingMobileNumber,
+      sendingInstanceId: sendingData.sendingInstanceId || "",
+      sendingAccessToken: sendingData.sendingAccessToken || "",
+      sendingMobileNumber: sendingData.sendingMobileNumber || "",
     };
-    
-    // Save to localStorage
-    saveConfig(data);
-    
-    // Send to server to update config
+
     try {
       const token = localStorage.getItem('auth_token');
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-      
-      const res = await fetch("/api/whatsapp/configure", {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch("/api/whatsapp/configure/sending", {
         method: "POST",
         headers,
         credentials: "include",
         body: JSON.stringify(data),
       });
-      
+
+      const j = await res.json();
       if (res.ok) {
-        toast({ title: "Sending instance saved", description: "WhatsApp sending instance configured successfully" });
+        toast({ title: "Sending instance saved", description: j.message || "Outbound configuration updated" });
       } else {
-        const error = await res.json();
-        toast({ title: "Error", description: error.error || "Failed to configure sending instance" });
+        toast({ title: "Error", description: j.error || "Failed to configure sending instance", variant: "destructive" });
       }
     } catch (error) {
-      toast({ title: "Error", description: "Failed to save sending instance configuration" });
+      toast({ title: "Error", description: "Failed to save sending instance configuration", variant: "destructive" });
+    }
+  };
+
+  // Test sending instance — Evolution connection-state probe
+  const testSendingInstance = async () => {
+    const sendingInstanceId = form.getValues("sendingInstanceId");
+    if (!sendingInstanceId) {
+      toast({ title: "Error", description: "Enter a sending instance name first", variant: "destructive" });
+      return;
+    }
+    try {
+      const token = localStorage.getItem('auth_token');
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(`/api/whatsapp/connection-status?instance=${encodeURIComponent(sendingInstanceId)}`, {
+        headers,
+        credentials: "include",
+      });
+      const j = await res.json();
+      if (res.ok && j.connected) {
+        toast({ title: "Sending instance reachable", description: `State: ${j.state || "open"}` });
+      } else {
+        toast({
+          title: "Sending instance not connected",
+          description: j.message || `State: ${j.state || "unknown"}`,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to test sending instance", variant: "destructive" });
     }
   };
 
@@ -1439,94 +1419,50 @@ export default function WhatsAppIntegration() {
 
             <TabsContent value="sending" className="space-y-6">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                
-                {/* Sending Instance Configuration Card */}
+
+                {/* Sending Instance Configuration Card — Evolution edition */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Upload className="h-5 w-5" />
-                      Sending Instance Configuration
+                      Sending Instance (Evolution)
                     </CardTitle>
                     <CardDescription>
-                      Configure WhatsApp instance for sending messages
+                      Optional override. By default, outbound messages use your receiving
+                      Evolution instance. Set this only if you want to send from a
+                      <strong> different Evolution instance</strong> than the one you receive on
+                      (e.g. shared-data users on the admin's receiving instance who want to
+                      send from their own personal WhatsApp).
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="space-y-4">
-
-                    {/* Sending Configuration Form */}
                     <div className="space-y-4">
                       <div>
-                        <Label htmlFor="sendingMobileNumber">Sending WhatsApp Number</Label>
-                        <Input
-                          id="sendingMobileNumber"
-                          {...form.register("sendingMobileNumber")}
-                          placeholder="Enter sending WhatsApp number (e.g., +919821822961)"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="sendingInstanceId">Sending Instance ID</Label>
+                        <Label htmlFor="sendingInstanceId">Sending Evolution Instance Name</Label>
                         <Input
                           id="sendingInstanceId"
                           {...form.register("sendingInstanceId")}
-                          placeholder="Enter your sending instance ID"
+                          placeholder='e.g. "watch_user1" (leave blank to use receiving instance)'
                         />
                       </div>
-                      
+
                       <div>
-                        <Label htmlFor="sendingAccessToken">Sending Access Token</Label>
-                        <div className="flex gap-2">
-                          <Input
-                            id="sendingAccessToken"
-                            {...form.register("sendingAccessToken")}
-                            type="text"
-                            placeholder="Enter your sending access token"
-                            className="flex-1"
-                          />
-                          <Button 
-                            type="button"
-                            size="sm" 
-                            variant="outline"
-                            onClick={async () => {
-                              const token = form.getValues("sendingAccessToken");
-                              if (!token) {
-                                toast({ title: "Error", description: "Please enter a sending access token" });
-                                return;
-                              }
-                              
-                              try {
-                                const response = await fetch('/api/whatsapp/test-token', {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ accessToken: token })
-                                });
-                                const data = await response.json();
-                                
-                                if (data.error) {
-                                  toast({ 
-                                    title: "Invalid Token", 
-                                    description: data.error,
-                                    variant: "destructive"
-                                  });
-                                } else if (data.instance_id) {
-                                  toast({ 
-                                    title: "Token Valid!", 
-                                    description: "Sending access token is working. New instance created: " + data.instance_id
-                                  });
-                                  form.setValue('sendingInstanceId', data.instance_id);
-                                } else {
-                                  toast({ 
-                                    title: "Token Valid", 
-                                    description: "Sending access token is working"
-                                  });
-                                }
-                              } catch (error) {
-                                toast({ title: "Error", description: "Failed to validate sending token" });
-                              }
-                            }}
-                          >
-                            Test Token
-                          </Button>
-                        </div>
+                        <Label htmlFor="sendingAccessToken">Sending API Key (optional)</Label>
+                        <Input
+                          id="sendingAccessToken"
+                          {...form.register("sendingAccessToken")}
+                          type="text"
+                          placeholder="Leave blank to use the master EVOLUTION_AUTH_KEY"
+                        />
+                      </div>
+
+                      <div>
+                        <Label htmlFor="sendingMobileNumber">Sending WhatsApp Number (display)</Label>
+                        <Input
+                          id="sendingMobileNumber"
+                          {...form.register("sendingMobileNumber")}
+                          placeholder="e.g. +919821822961"
+                        />
                       </div>
 
                       <div className="flex gap-2">
@@ -1541,43 +1477,19 @@ export default function WhatsAppIntegration() {
                         <Button
                           type="button"
                           variant="outline"
-                          onClick={async () => {
-                            const token = form.getValues("sendingAccessToken");
-                            const instanceId = form.getValues("sendingInstanceId");
-                            
-                            if (!token || !instanceId) {
-                              toast({ title: "Error", description: "Please enter both sending access token and instance ID" });
-                              return;
-                            }
-                            
-                            try {
-                              const response = await fetch('/api/whatsapp/test-instance', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ accessToken: token, instanceId: instanceId })
-                              });
-                              const data = await response.json();
-                              
-                              if (data.error) {
-                                toast({ 
-                                  title: "Sending Instance Test Failed", 
-                                  description: data.error,
-                                  variant: "destructive"
-                                });
-                              } else {
-                                toast({ 
-                                  title: "Sending Instance Test Success", 
-                                  description: "Sending instance is working correctly"
-                                });
-                              }
-                            } catch (error) {
-                              toast({ title: "Error", description: "Failed to test sending instance" });
-                            }
-                          }}
+                          onClick={testSendingInstance}
+                          title="Probe Evolution connection state for the sending instance"
                         >
-                          <RefreshCw className="h-4 w-4" />
+                          <RefreshCw className="h-4 w-4 mr-1" />
+                          Test
                         </Button>
                       </div>
+
+                      <p className="text-xs text-gray-500">
+                        Tip: To create a brand-new Evolution sending instance, use the Setup
+                        card in the "Receiving Instance" tab to create it first, then enter
+                        its name here.
+                      </p>
                     </div>
                   </CardContent>
                 </Card>

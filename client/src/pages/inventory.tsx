@@ -473,7 +473,7 @@ export default function Inventory() {
                                 className="bg-green-600 hover:bg-green-700 text-xs px-2 py-1"
                                 onClick={() => {
                                   setMessageDialog({
-                                    phone: match.requirement?.sender,
+                                    phone: match.requirement?.senderNumber || match.requirement?.sender,
                                     name: match.requirement?.sender,
                                     context: 'requirement',
                                     pid: match.requirement?.pid,

@@ -193,6 +193,49 @@ export function registerSecureWhatsAppRoutes(app: Express) {
     }
   });
 
+  /* ------------------------------------------------ CONFIGURE SENDING INSTANCE (multi-tenant override)
+     For users who want to SEND from a different Evolution instance than the one
+     they RECEIVE on (e.g. shared-data users on admin's receiving instance but
+     sending from their own personal WhatsApp). Writes only sending_* columns
+     and leaves the receiving config untouched. */
+  app.post("/api/whatsapp/configure/sending", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const {
+        sendingInstanceId: rawSendingInstanceId,
+        sendingAccessToken,
+        sendingMobileNumber,
+      } = req.body || {};
+
+      const sendingInstanceName = String(rawSendingInstanceId || "").trim();
+
+      const existingConfig = await storage.getUserWhatsappConfig(req.user.userId);
+      if (!existingConfig) {
+        return res.status(400).json({
+          error: "Configure your receiving instance first, then set up sending.",
+        });
+      }
+
+      const updateData: Partial<InsertUserWhatsappConfig> = {
+        sendingInstanceId: sendingInstanceName || null,
+        sendingAccessToken: sendingAccessToken || null,
+        sendingMobileNumber: sendingMobileNumber || null,
+      } as any;
+
+      const config = await storage.updateUserWhatsappConfig(req.user.userId, updateData as any);
+
+      return res.json({
+        status: "configured",
+        sendingInstanceId: config.sendingInstanceId,
+        message: sendingInstanceName
+          ? "Sending instance configured. Outbound messages will use this instance."
+          : "Sending override cleared. Outbound messages will use the primary receiving instance.",
+      });
+    } catch (error: any) {
+      console.error("Error configuring sending instance:", error);
+      res.status(500).json({ error: error?.message || "Failed to configure sending instance" });
+    }
+  });
+
   /* ------------------------------------------------ VERIFY WEBHOOK */
   app.get("/api/whatsapp/verify-webhook", requireAuth, async (req: AuthRequest, res) => {
     try {
