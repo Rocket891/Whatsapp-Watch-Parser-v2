@@ -1495,26 +1495,35 @@ export class DatabaseStorage implements IStorage {
 
     if (messageLog.message && messageLog.message.trim().length > 0 && messageLog.userId) {
       try {
-        const dedupKey = (messageLog.senderNumber && messageLog.senderNumber.trim()) ||
-                         (messageLog.sender || "").trim();
-        if (dedupKey) {
+        const senderNumber = (messageLog.senderNumber || "").trim();
+        const senderName = (messageLog.sender || "").trim();
+
+        // Need at least one identifier (phone or display name) to dedup safely
+        if (senderNumber || senderName) {
           const cutoff = new Date(Date.now() - dedupWindowMin * 60 * 1000);
+
+          // Match either by phone OR display name, whichever exists
+          const senderConditions = [];
+          if (senderNumber) senderConditions.push(eq(messageLogs.senderNumber, senderNumber));
+          if (senderName) senderConditions.push(eq(messageLogs.sender, senderName));
+
+          // IMPORTANT: filter by created_at (when WE inserted), not by timestamp
+          // (when WhatsApp sent it). The drain processes backlog with old
+          // WhatsApp timestamps; filtering by `timestamp` would exclude them.
           const existing = await db
             .select({ id: messageLogs.id })
             .from(messageLogs)
             .where(and(
               eq(messageLogs.userId, messageLog.userId as string),
-              or(
-                eq(messageLogs.senderNumber, dedupKey),
-                eq(messageLogs.sender, dedupKey)
-              ),
+              senderConditions.length > 1 ? or(...senderConditions) : senderConditions[0],
               eq(messageLogs.message, messageLog.message),
-              gte(messageLogs.timestamp, cutoff)
+              gte(messageLogs.createdAt, cutoff)
             ))
             .limit(1);
 
           if (existing.length > 0) {
-            console.log(`[dedup] duplicate detected — sender=${dedupKey.slice(0,20)}, marking as duplicate`);
+            const key = senderNumber || senderName;
+            console.log(`[dedup] duplicate detected — sender=${key.slice(0,20)}, marking as duplicate`);
             messageLog.status = 'duplicate';
             messageLog.processed = true;  // skip downstream parsing
           }
