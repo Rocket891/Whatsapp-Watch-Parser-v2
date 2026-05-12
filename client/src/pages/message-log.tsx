@@ -15,15 +15,17 @@ export default function MessageLog() {
   const [searchTerm, setSearchTerm] = useState(''); // Unified search for message, sender, group
   const [statusFilter, setStatusFilter] = useState('all');
   const [timeFilter, setTimeFilter] = useState('all');
+  const [hideEmpty, setHideEmpty] = useState(true); // default: hide non-text events (delivery acks, stickers, etc.)
   const [currentPage, setCurrentPage] = useState(1);
   const messagesPerPage = 100;
 
   // Query for current page messages (also returns the total count via `total`)
   const { data: messageData, isLoading } = useQuery({
-    queryKey: ['/api/whatsapp/message-logs', { 
+    queryKey: ['/api/whatsapp/message-logs', {
       search: searchTerm,
       status: statusFilter === 'all' ? '' : statusFilter,
       timeFilter: timeFilter,
+      hideEmpty,
       offset: (currentPage - 1) * messagesPerPage,
       limit: messagesPerPage
     }],
@@ -32,6 +34,7 @@ export default function MessageLog() {
       if (searchTerm) params.append('search', searchTerm);
       if (statusFilter !== 'all') params.append('status', statusFilter);
       if (timeFilter !== 'all') params.append('timeFilter', timeFilter);
+      if (hideEmpty) params.append('hideEmpty', 'true');
       params.append('offset', String((currentPage - 1) * messagesPerPage));
       params.append('limit', String(messagesPerPage));
       
@@ -314,6 +317,19 @@ export default function MessageLog() {
                   <option value="yesterday">Yesterday</option>
                   <option value="week">Last 7 days</option>
                 </select>
+
+                <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={hideEmpty}
+                    onChange={(e) => {
+                      setHideEmpty(e.target.checked);
+                      handleFilterChange();
+                    }}
+                    className="h-4 w-4 cursor-pointer"
+                  />
+                  Hide empty messages
+                </label>
               </div>
             </CardContent>
           </Card>

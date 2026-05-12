@@ -1595,6 +1595,13 @@ export class DatabaseStorage implements IStorage {
       conditions.push(lte(messageLogs.timestamp, new Date(filters.dateTo)));
     }
 
+    // Hide empty messages (default ON in UI). Filters rows where message is
+    // NULL or whitespace-only. Captures non-text events (delivery acks,
+    // stickers, deleted messages, etc.) that have no text body.
+    if (filters.hideEmpty) {
+      conditions.push(sql`${messageLogs.message} IS NOT NULL AND length(trim(${messageLogs.message})) > 0`);
+    }
+
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
     const limit = filters.limit || 500; // Default to 500 instead of 100
     const offset = filters.offset || 0;

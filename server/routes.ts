@@ -4011,6 +4011,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status,
         dateFrom,
         dateTo,
+        hideEmpty,
         limit = 500, // Increased from 100 to 500 as requested
         offset = 0
       } = req.query;
@@ -4022,6 +4023,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: status as string,
         dateFrom: dateFrom as string,
         dateTo: dateTo as string,
+        hideEmpty: hideEmpty === 'true' || hideEmpty === '1',
         limit: parseInt(limit as string),
         offset: parseInt(offset as string),
         userId: req.user.userId // **SECURITY FIX**: Add user filtering for multi-tenancy
@@ -4073,6 +4075,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status,
         dateFrom,
         dateTo,
+        hideEmpty,
         limit = 500, // Increased from 100 to 500 as requested
         offset = 0
       } = req.query;
@@ -4084,6 +4087,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: status as string,
         dateFrom: dateFrom as string,
         dateTo: dateTo as string,
+        hideEmpty: hideEmpty === 'true' || hideEmpty === '1',
         limit: parseInt(limit as string),
         offset: parseInt(offset as string),
         userId: req.user.userId // **SECURITY FIX**: Add user filtering for multi-tenancy

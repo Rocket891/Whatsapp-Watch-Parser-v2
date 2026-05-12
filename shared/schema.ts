@@ -529,10 +529,13 @@ export const messageLogFiltersSchema = z.object({
   dateFrom: z.string().optional(),
   dateTo: z.string().optional(),
   userId: z.string().optional(), // Add userId for data isolation
-  limit: z.union([z.number(), z.string()]).optional().transform((val) => 
+  hideEmpty: z.union([z.boolean(), z.string()]).optional().transform((val) =>
+    typeof val === 'string' ? val === 'true' || val === '1' : !!val
+  ),
+  limit: z.union([z.number(), z.string()]).optional().transform((val) =>
     typeof val === 'string' ? (val === '' ? undefined : Number(val)) : val
   ),
-  offset: z.union([z.number(), z.string()]).optional().transform((val) => 
+  offset: z.union([z.number(), z.string()]).optional().transform((val) =>
     typeof val === 'string' ? (val === '' ? undefined : Number(val)) : val
   ),
 });
