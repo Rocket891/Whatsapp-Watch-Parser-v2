@@ -44,6 +44,107 @@ export function registerAdminEvolutionRoutes(app: Express) {
     }
   });
 
+  // ----- POST /api/migration/backfill-lid-sender-numbers ----------------
+  // After running Sync Contacts (which warms the LID cache), this endpoint
+  // walks message_logs rows with empty sender_number, looks up the LID in the
+  // user's cache, and fills in the resolved +phone. One-shot, idempotent.
+  // Body: { userId: string, limit?: number (default 1000), dry?: boolean }
+  app.post(
+    "/api/migration/backfill-lid-sender-numbers",
+    requireApiKey,
+    async (req: Request, res: Response) => {
+      try {
+        const userId = req.body?.userId;
+        const limit = Math.max(1, Math.min(10000, parseInt(req.body?.limit ?? "1000", 10) || 1000));
+        const dry = req.body?.dry === true;
+
+        if (!userId) {
+          return res.status(400).json({ error: "userId required in body" });
+        }
+
+        const { lidToPhone } = await import("../contactResolver");
+        const cacheEntries = Array.from((lidToPhone as Map<string, string>).entries())
+          .filter(([k]) => k.startsWith(`${userId}:`));
+
+        if (cacheEntries.length === 0) {
+          return res.json({
+            scanned: 0,
+            updated: 0,
+            note: "No LID-to-phone mappings cached for this user. Run Sync Contacts from the UI first.",
+          });
+        }
+
+        // Build lookup map: lidJid -> +phone
+        const lidMap = new Map<string, string>();
+        for (const [k, phoneJid] of cacheEntries) {
+          const lidJid = k.substring(userId.length + 1); // strip "userId:"
+          const phoneE164 = "+" + phoneJid.replace(/@s\.whatsapp\.net$/, "");
+          lidMap.set(lidJid, phoneE164);
+        }
+
+        // Read raw_webhook_events.body to find the LID participant for each
+        // message_logs row that's missing a sender_number. Match by message_id.
+        const rowsQ = await pool.query(
+          `SELECT m.id, m.message_id, m.sender, r.body
+             FROM message_logs m
+             LEFT JOIN raw_webhook_events r ON r.body::text LIKE '%' || m.message_id || '%'
+            WHERE m.user_id = $1
+              AND (m.sender_number IS NULL OR m.sender_number = '')
+              AND m.message_id IS NOT NULL
+            ORDER BY m.id DESC
+            LIMIT $2`,
+          [userId, limit]
+        );
+
+        let scanned = 0;
+        let updated = 0;
+        const updates: { id: number; phone: string }[] = [];
+
+        for (const row of rowsQ.rows) {
+          scanned++;
+          const body = row.body;
+          // Try common LID locations in Evolution payloads
+          const participant =
+            body?.data?.key?.participantAlt ||
+            body?.data?.key?.participant ||
+            body?.key?.participant ||
+            body?.participant ||
+            null;
+          if (!participant || !participant.endsWith("@lid")) continue;
+          const phone = lidMap.get(participant);
+          if (!phone) continue;
+          updates.push({ id: row.id, phone });
+        }
+
+        if (!dry && updates.length > 0) {
+          for (const u of updates) {
+            try {
+              await pool.query(
+                `UPDATE message_logs SET sender_number = $1 WHERE id = $2`,
+                [u.phone, u.id]
+              );
+              updated++;
+            } catch (e: any) {
+              console.warn(`[backfill-lid] update ${u.id} failed:`, e?.message || e);
+            }
+          }
+        }
+
+        res.json({
+          dry,
+          cacheSize: cacheEntries.length,
+          scanned,
+          matched: updates.length,
+          updated: dry ? 0 : updated,
+          note: dry ? "Re-invoke without dry:true to apply." : "Backfill complete.",
+        });
+      } catch (err: any) {
+        console.error("[admin/backfill-lid] error:", err);
+        res.status(500).json({ error: err.message || "Internal error" });
+      }
+    },
+  );
+
   // ----- POST /api/migration/wipe-wapi24-config -------------------------
   // Body: { dry?: boolean }
   app.post(

@@ -142,7 +142,7 @@ export default function AdminPanel() {
   // Check if user is admin
   if (!user?.isAdmin) {
     return (
-      <div className="flex h-screen bg-gray-50">
+      <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
         <Sidebar />
         <div className="flex-1 flex flex-col overflow-hidden">
           <Topbar title="Access Denied" subtitle="Admin privileges required" />
@@ -733,7 +733,7 @@ export default function AdminPanel() {
                       </CardHeader>
                       <CardContent>
                         {users.filter((u: User) => u.isAdmin && u.email === 'rocketelabs@gmail.com').map((u: User) => (
-                          <div key={u.id} className="bg-white p-4 rounded-lg border border-red-200">
+                          <div key={u.id} className="bg-white dark:bg-gray-800 p-4 rounded-lg border border-red-200 dark:border-red-900">
                             <div className="flex items-center justify-between">
                               <div>
                                 <div className="font-semibold text-lg">{u.firstName} {u.lastName}</div>
@@ -1037,14 +1037,14 @@ export default function AdminPanel() {
                       <div className="border rounded-lg overflow-hidden">
                         <table className="w-full">
                           <thead>
-                            <tr className="border-b bg-gray-50">
-                              <th className="px-4 py-3 text-left text-sm font-medium text-gray-900">Feature</th>
-                              <th className="px-4 py-3 text-center text-sm font-medium text-gray-900">FREE</th>
-                              <th className="px-4 py-3 text-center text-sm font-medium text-gray-900">PRO</th>
-                              <th className="px-4 py-3 text-center text-sm font-medium text-gray-900">BUSINESS</th>
+                            <tr className="border-b bg-gray-50 dark:bg-gray-800">
+                              <th className="px-4 py-3 text-left text-sm font-medium text-gray-900 dark:text-gray-100">Feature</th>
+                              <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-gray-100">FREE</th>
+                              <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-gray-100">PRO</th>
+                              <th className="px-4 py-3 text-center text-sm font-medium text-gray-900 dark:text-gray-100">BUSINESS</th>
                             </tr>
                           </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
+                          <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                             <tr className="border-b">
                               <td className="px-4 py-4 text-sm font-medium text-gray-900 align-middle">Messages Limit</td>
                               <td className="px-4 py-4 text-center align-middle">

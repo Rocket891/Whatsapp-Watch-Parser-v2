@@ -73,6 +73,10 @@ export default function Inventory() {
   const [selectedMessage, setSelectedMessage] = useState<any>(null);
   const [messageDialog, setMessageDialog] = useState<any>(null);
   const [matchesPage, setMatchesPage] = useState(1);
+  // Bulk-send: which matches are checked (by row index in currentMatches),
+  // and the composite-message dialog
+  const [selectedMatchKeys, setSelectedMatchKeys] = useState<Set<string>>(new Set());
+  const [bulkSendDialog, setBulkSendDialog] = useState<{ phone: string; name: string; composedMessage: string } | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -452,24 +456,100 @@ export default function Inventory() {
                         <div className="flex justify-between items-center mb-4">
                           <div className="text-sm text-gray-600">
                             Showing {matchesStartIndex + 1}-{Math.min(matchesEndIndex, requirementMatchesData.length)} of {requirementMatchesData.length} matches
+                            {selectedMatchKeys.size > 0 && (
+                              <span className="ml-3 text-green-700 font-medium">
+                                · {selectedMatchKeys.size} selected
+                              </span>
+                            )}
                           </div>
-                          <div className="text-xs text-gray-500">
-                            Updated: {new Date().toLocaleTimeString()}
-                            {matchesFetching && <span className="text-blue-500 ml-2">• Refreshing...</span>}
+                          <div className="flex items-center gap-3">
+                            {selectedMatchKeys.size > 0 && (
+                              <Button
+                                size="sm"
+                                className="bg-green-600 hover:bg-green-700"
+                                onClick={() => {
+                                  // Group selected matches by buyer phone, build one composite message per buyer
+                                  const byBuyer = new Map<string, { name: string; items: any[] }>();
+                                  for (const m of currentMatches) {
+                                    const phone = m.requirement?.senderNumber || m.requirement?.sender;
+                                    if (!phone) continue;
+                                    const key = `${m.requirement?.id}-${m.inventoryItem?.id}`;
+                                    if (!selectedMatchKeys.has(key)) continue;
+                                    if (!byBuyer.has(phone)) {
+                                      byBuyer.set(phone, { name: m.requirement?.sender || phone, items: [] });
+                                    }
+                                    byBuyer.get(phone)!.items.push(m);
+                                  }
+                                  if (byBuyer.size === 0) {
+                                    toast({ title: 'No buyer phones', description: 'Selected matches have no resolved phone numbers', variant: 'destructive' });
+                                    return;
+                                  }
+                                  if (byBuyer.size > 1) {
+                                    toast({
+                                      title: 'Mixed buyers',
+                                      description: `Selected matches span ${byBuyer.size} buyers. Currently sends to the first buyer (${byBuyer.values().next().value!.name}).`,
+                                    });
+                                  }
+                                  const first = byBuyer.entries().next().value!;
+                                  const [phone, bundle] = first;
+                                  const lines = bundle.items.map((mm: any) => {
+                                    const inv = mm.inventoryItem;
+                                    return `• ${inv.pid}${inv.variant ? ' ' + inv.variant : ''}${inv.year ? ' ' + inv.year : ''}${inv.price ? ` — ${inv.currency || 'HKD'}${inv.price}` : ''}`;
+                                  }).join('\n');
+                                  const composed = `Hi ${bundle.name}, I have the following in stock that match what you're looking for:\n\n${lines}\n\nLet me know if any of these interest you.`;
+                                  setBulkSendDialog({ phone, name: bundle.name, composedMessage: composed });
+                                }}
+                              >
+                                <MessageCircle className="h-4 w-4 mr-1" />
+                                Bulk Send ({selectedMatchKeys.size})
+                              </Button>
+                            )}
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                if (selectedMatchKeys.size === currentMatches.length) {
+                                  setSelectedMatchKeys(new Set());
+                                } else {
+                                  const allKeys = new Set(currentMatches.map((m: any) => `${m.requirement?.id}-${m.inventoryItem?.id}`));
+                                  setSelectedMatchKeys(allKeys);
+                                }
+                              }}
+                            >
+                              {selectedMatchKeys.size === currentMatches.length ? 'Clear all' : 'Select all'}
+                            </Button>
+                            <div className="text-xs text-gray-500">
+                              Updated: {new Date().toLocaleTimeString()}
+                              {matchesFetching && <span className="text-blue-500 ml-2">• Refreshing...</span>}
+                            </div>
                           </div>
                         </div>
-                        {currentMatches.map((match: any, index: number) => (
-                          <div key={index} className="border rounded-lg p-3">
+                        {currentMatches.map((match: any, index: number) => {
+                          const matchKey = `${match.requirement?.id}-${match.inventoryItem?.id}`;
+                          const isSelected = selectedMatchKeys.has(matchKey);
+                          return (
+                          <div key={index} className={`border rounded-lg p-3 ${isSelected ? 'border-green-500 bg-green-50' : ''}`}>
                             {/* Header with Score */}
                             <div className="flex items-center justify-between mb-3">
                               <div className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={(e) => {
+                                    const next = new Set(selectedMatchKeys);
+                                    if (e.target.checked) next.add(matchKey);
+                                    else next.delete(matchKey);
+                                    setSelectedMatchKeys(next);
+                                  }}
+                                  className="h-4 w-4 cursor-pointer"
+                                />
                                 <Badge className="bg-green-100 text-green-800 text-xs">
                                   Score: {match.matches?.[0]?.matchScore || 0}
                                 </Badge>
                                 <Badge variant="outline" className="text-xs">{match.matchType || 'PID'}</Badge>
                               </div>
-                              <Button 
-                                size="sm" 
+                              <Button
+                                size="sm"
                                 className="bg-green-600 hover:bg-green-700 text-xs px-2 py-1"
                                 onClick={() => {
                                   setMessageDialog({
@@ -617,8 +697,9 @@ export default function Inventory() {
                               </div>
                             </div>
                           </div>
-                        ))}
-                        
+                          );
+                        })}
+
                         {/* Pagination Controls for Matches */}
                         {totalMatchesPages > 1 && (
                           <div className="flex items-center justify-between mt-6 pt-4 border-t">
@@ -725,10 +806,65 @@ export default function Inventory() {
                 Send a message to {messageDialog.name || messageDialog.phone} about {messageDialog.pid}
               </DialogDescription>
             </DialogHeader>
-            <WhatsAppMessageDialog 
+            <WhatsAppMessageDialog
               contact={messageDialog}
               onClose={() => setMessageDialog(null)}
             />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Bulk WhatsApp Send Dialog — composite message across selected matches */}
+      {bulkSendDialog && (
+        <Dialog open={!!bulkSendDialog} onOpenChange={() => setBulkSendDialog(null)}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>Send Bulk WhatsApp</DialogTitle>
+              <DialogDescription>
+                To {bulkSendDialog.name} ({bulkSendDialog.phone}) — edit message below, then send.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3">
+              <textarea
+                value={bulkSendDialog.composedMessage}
+                onChange={(e) => setBulkSendDialog({ ...bulkSendDialog, composedMessage: e.target.value })}
+                rows={10}
+                className="w-full border rounded p-3 font-mono text-sm"
+              />
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setBulkSendDialog(null)}>Cancel</Button>
+                <Button
+                  className="bg-green-600 hover:bg-green-700"
+                  onClick={async () => {
+                    try {
+                      const token = localStorage.getItem('auth_token');
+                      const res = await fetch('/api/whatsapp/send', {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({ phone: bulkSendDialog.phone, message: bulkSendDialog.composedMessage }),
+                      });
+                      const data = await res.json().catch(() => ({}));
+                      if (res.ok && data?.success !== false) {
+                        toast({ title: 'Bulk message sent', description: `To ${bulkSendDialog.name}` });
+                        setSelectedMatchKeys(new Set());
+                        setBulkSendDialog(null);
+                      } else {
+                        toast({ title: 'Send failed', description: data?.error || `HTTP ${res.status}`, variant: 'destructive' });
+                      }
+                    } catch (err: any) {
+                      toast({ title: 'Send error', description: err?.message || 'Could not send', variant: 'destructive' });
+                    }
+                  }}
+                >
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  Send to {bulkSendDialog.name}
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       )}

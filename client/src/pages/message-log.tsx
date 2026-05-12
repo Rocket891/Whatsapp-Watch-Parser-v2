@@ -6,8 +6,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import Sidebar from '@/components/layout/sidebar';
 import Topbar from '@/components/layout/topbar';
-import { MessageSquare, FileText, Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { MessageSquare, FileText, Search, Filter, ChevronLeft, ChevronRight, MessageCircle } from 'lucide-react';
 import { formatDateTime } from '@/lib/format-date';
+import { useToast } from '@/hooks/use-toast';
 
 // Use the new message logs endpoint that returns ALL messages with pagination
 export default function MessageLog() {
@@ -57,6 +58,42 @@ export default function MessageLog() {
   const messages = messageData?.messages || [];
   const totalMessages = messageData?.total || 0;
   const totalPages = Math.max(1, Math.ceil(totalMessages / messagesPerPage));
+  const { toast } = useToast();
+
+  // Counts computed from the currently-visible page (lightweight, no extra query)
+  const pageProcessed = messages.filter((m: any) => m.status === 'processed').length;
+  const pageDuplicates = messages.filter((m: any) => m.status === 'duplicate').length;
+  const pageErrors = messages.filter((m: any) => m.status === 'error').length;
+
+  // Send a WhatsApp message via the existing /api/whatsapp/send endpoint
+  const sendWhatsApp = async (phone: string, sender: string) => {
+    if (!phone || phone === '—') {
+      toast({ title: 'No phone number', description: `${sender} has no resolved phone number to message.`, variant: 'destructive' });
+      return;
+    }
+    const text = prompt(`Send WhatsApp to ${phone} (${sender})?\nType your message:`, '');
+    if (!text || !text.trim()) return;
+    try {
+      const token = localStorage.getItem('auth_token');
+      const res = await fetch('/api/whatsapp/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: 'include',
+        body: JSON.stringify({ phone, message: text.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && (data?.success !== false)) {
+        toast({ title: 'Message sent', description: `To ${phone}` });
+      } else {
+        toast({ title: 'Send failed', description: data?.error || `HTTP ${res.status}`, variant: 'destructive' });
+      }
+    } catch (err: any) {
+      toast({ title: 'Send error', description: err?.message || 'Could not send', variant: 'destructive' });
+    }
+  };
 
   // Reset to page 1 when filters change
   const handleFilterChange = () => {
@@ -118,8 +155,8 @@ export default function MessageLog() {
                 <div className="flex items-center">
                   <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Processed</p>
-                    <p className="text-2xl font-bold">{isLoading ? '...' : totalCountData?.processed || 0}</p>
+                    <p className="text-sm font-medium text-gray-600">Processed (page)</p>
+                    <p className="text-2xl font-bold">{isLoading ? '...' : pageProcessed}</p>
                   </div>
                 </div>
               </CardContent>
@@ -130,8 +167,8 @@ export default function MessageLog() {
                 <div className="flex items-center">
                   <div className="w-3 h-3 bg-orange-500 rounded-full mr-2"></div>
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Duplicates</p>
-                    <p className="text-2xl font-bold">{isLoading ? '...' : totalCountData?.duplicates || 0}</p>
+                    <p className="text-sm font-medium text-gray-600">Duplicates (page)</p>
+                    <p className="text-2xl font-bold">{isLoading ? '...' : pageDuplicates}</p>
                   </div>
                 </div>
               </CardContent>
@@ -142,8 +179,8 @@ export default function MessageLog() {
                 <div className="flex items-center">
                   <div className="w-3 h-3 bg-red-500 rounded-full mr-2"></div>
                   <div>
-                    <p className="text-sm font-medium text-gray-600">Errors</p>
-                    <p className="text-2xl font-bold">{isLoading ? '...' : totalCountData?.errors || 0}</p>
+                    <p className="text-sm font-medium text-gray-600">Errors (page)</p>
+                    <p className="text-2xl font-bold">{isLoading ? '...' : pageErrors}</p>
                   </div>
                 </div>
               </CardContent>
@@ -275,7 +312,20 @@ export default function MessageLog() {
                             {msg.sender || 'Unknown'}
                           </TableCell>
                           <TableCell className="text-sm text-gray-600">
-                            {msg.senderNumber || '—'}
+                            <div className="flex items-center gap-2">
+                              <span>{msg.senderNumber || '—'}</span>
+                              {msg.senderNumber && (
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-6 w-6 p-0 text-green-600 hover:text-green-700"
+                                  title="Send WhatsApp message"
+                                  onClick={() => sendWhatsApp(msg.senderNumber, msg.sender || 'Unknown')}
+                                >
+                                  <MessageCircle className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell className="text-sm text-gray-600">
                             {msg.groupName || msg.group || 'Unknown Group'}

@@ -89,7 +89,7 @@ async function processOne(row: { id: number; provider: string | null; body: any 
 // to disable retention.
 const RETENTION_DAYS = Math.max(
   0,
-  parseInt(process.env.MESSAGE_LOG_RETENTION_DAYS || "7", 10) || 7
+  parseInt(process.env.MESSAGE_LOG_RETENTION_DAYS || "14", 10) || 14
 );
 let lastRetentionSweep = 0;
 
