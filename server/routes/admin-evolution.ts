@@ -3,12 +3,12 @@
    X-API-Key protected (PRICE_STATS_KEY env).
 
    Provides:
-     POST /api/admin/wipe-wapi24-config
+     POST /api/migration/wipe-wapi24-config
        One-shot data migration helper. Wipes legacy user_whatsapp_config
        rows so the user can re-configure cleanly via the new Evolution
        setup UI. Idempotent.
 
-     GET  /api/admin/migration-status
+     GET  /api/migration/status
        Diagnostic: returns row count of user_whatsapp_config and a
        summary of the new Evolution columns' fill rate.
    ------------------------------------------------------------------*/
@@ -18,8 +18,8 @@ import { pool } from "../db";
 import { requireApiKey } from "../middleware/apiKey";
 
 export function registerAdminEvolutionRoutes(app: Express) {
-  // ----- GET /api/admin/migration-status -----------------------------
-  app.get("/api/admin/migration-status", requireApiKey, async (_req: Request, res: Response) => {
+  // ----- GET /api/migration/status -----------------------------
+  app.get("/api/migration/status", requireApiKey, async (_req: Request, res: Response) => {
     try {
       const counts = await pool.query(`
         SELECT
@@ -35,7 +35,7 @@ export function registerAdminEvolutionRoutes(app: Express) {
         user_whatsapp_config: counts.rows[0],
         next_step:
           counts.rows[0].total_rows > 0 && counts.rows[0].with_evolution_url === 0
-            ? "Run POST /api/admin/wipe-wapi24-config (dry=true first), then re-configure via UI"
+            ? "Run POST /api/migration/wipe-wapi24-config (dry=true first), then re-configure via UI"
             : "Migration status looks clean",
       });
     } catch (err: any) {
@@ -44,10 +44,10 @@ export function registerAdminEvolutionRoutes(app: Express) {
     }
   });
 
-  // ----- POST /api/admin/wipe-wapi24-config -------------------------
+  // ----- POST /api/migration/wipe-wapi24-config -------------------------
   // Body: { dry?: boolean }
   app.post(
-    "/api/admin/wipe-wapi24-config",
+    "/api/migration/wipe-wapi24-config",
     requireApiKey,
     async (req: Request, res: Response) => {
       try {
