@@ -450,7 +450,7 @@ export default function WhatsAppIntegration() {
           toast({ title: "Instance saved & webhook configured", description: "Messages will start flowing from the new instance." });
           setWebhookSetupRequired(false);
         } else {
-          toast({ title: "Instance saved", description: "Please set the webhook URL manually in wapi24 — see instructions below." });
+          toast({ title: "Instance saved", description: "Webhook auto-configured. Use the QR code below to link your phone." });
           setWebhookSetupRequired(true);
           setSavedWebhookUrl(result.webhookUrl || `https://whatsapp-watch-parser-v-2.replit.app/api/whatsapp/webhook`);
         }
@@ -787,21 +787,27 @@ export default function WhatsAppIntegration() {
                     )}
                   </div>
                   <div>
-                    <Label htmlFor="instanceId">Instance ID</Label>
+                    <Label htmlFor="instanceId">Evolution Instance Name</Label>
                     <Input
                       id="instanceId"
+                      placeholder="watch1"
                       {...form.register("instanceId")}
                       disabled={status === "connecting" || isTeamMember}
                       data-testid="input-instance-id"
                       className={isTeamMember ? "bg-gray-100 dark:bg-gray-800 cursor-not-allowed" : ""}
                     />
+                    {!isTeamMember && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Letters/numbers only. We&apos;ll auto-create it on the Evolution server if it doesn&apos;t exist yet.
+                      </p>
+                    )}
                     {isTeamMember && (
                       <p className="text-xs text-gray-500 mt-1">Inherited from admin</p>
                     )}
                   </div>
-                  
+
                   <div>
-                    <Label htmlFor="accessToken">Access Token</Label>
+                    <Label htmlFor="accessToken">Evolution API Key (optional)</Label>
                     <div className="flex gap-2">
                       <Input
                         id="accessToken"
@@ -935,10 +941,11 @@ export default function WhatsAppIntegration() {
                     <div className="flex items-start gap-3">
                       <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
                       <div className="flex-1">
-                        <p className="font-semibold text-amber-800">Action Required: Set webhook in wapi24</p>
+                        <p className="font-semibold text-amber-800">Webhook auto-setup failed — retry manually</p>
                         <p className="text-sm text-amber-700 mt-1 mb-3">
-                          Your instance was saved, but the webhook could not be configured automatically. 
-                          You must set this URL in your <strong>wapi24 dashboard</strong> under your instance's webhook settings:
+                          Your instance was saved but the webhook couldn't be set automatically. Click
+                          <strong> Re-set Webhook</strong> below, or POST this URL to your Evolution
+                          server's <code>/webhook/set/{`{instance}`}</code> endpoint:
                         </p>
                         <div className="flex items-center gap-2 bg-white border border-amber-200 rounded px-3 py-2">
                           <code className="text-sm text-gray-800 flex-1 break-all">{savedWebhookUrl}</code>
@@ -956,7 +963,7 @@ export default function WhatsAppIntegration() {
                           </Button>
                         </div>
                         <p className="text-xs text-amber-600 mt-2">
-                          Steps: wapi24 dashboard → select your instance → Webhook → paste the URL above → Save
+                          Evolution Manager UI: open http://[your-vps]:8080/manager → instance → Webhook → paste URL → Save
                         </p>
                       </div>
                     </div>
@@ -997,7 +1004,7 @@ export default function WhatsAppIntegration() {
                       size="sm"
                       variant="destructive"
                       onClick={async () => {
-                        if (!confirm("Reboot will hard-restart your WhatsApp instance. You may need to re-scan QR on wapi24.in. Continue?")) return;
+                        if (!confirm("Reboot will DELETE & RECREATE your Evolution instance. You will need to re-scan the QR code afterward. Continue?")) return;
                         try {
                           const response = await fetch('/api/whatsapp/reboot', {
                             method: 'POST',
@@ -1005,7 +1012,7 @@ export default function WhatsAppIntegration() {
                           });
                           const data = await response.json();
                           if (data.success) {
-                            toast({ title: "Rebooting", description: "Hard reboot initiated. Check wapi24.in to re-scan QR if needed." });
+                            toast({ title: "Instance recreated", description: "Refresh the QR section below and re-scan with your phone." });
                           } else {
                             toast({ title: "Error", description: data.error || "Reboot failed", variant: "destructive" });
                           }
@@ -1037,7 +1044,7 @@ export default function WhatsAppIntegration() {
                           if (data.success) {
                             toast({ 
                               title: "✅ Pipeline OK", 
-                              description: `Instance "${instanceId}" is correctly configured. The problem is wapi24 not sending webhooks — check wapi24 webhook settings.`
+                              description: `Instance "${instanceId}" is correctly configured. If messages still aren't arriving, check the Evolution server (admin UI) and your phone's linked-devices list.`
                             });
                           } else {
                             toast({ 

@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Users, UserPlus, Search, Trash2, Upload, Edit3, Check, X, Send, Download, MessageSquare, Clock, Pause } from "lucide-react";
+import { Users, UserPlus, Search, Trash2, Upload, Edit3, Check, X, Send, Download, MessageSquare, Clock, Pause, RefreshCw } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FaWhatsapp } from "react-icons/fa";
 import { useToast } from "@/hooks/use-toast";
@@ -60,6 +60,7 @@ export default function Contacts() {
   const [searchTerm, setSearchTerm] = useState("");
   const [groupFilter, setGroupFilter] = useState("all");
   const [page, setPage] = useState(1);
+  const [isSyncingContacts, setIsSyncingContacts] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editData, setEditData] = useState<{ pushName: string; phoneNumber: string }>({ pushName: "", phoneNumber: "" });
   const [sendingTo, setSendingTo] = useState<string | null>(null);
@@ -875,10 +876,42 @@ export default function Contacts() {
             <div className="p-3 bg-blue-600 rounded-xl shadow-lg">
               <Users className="h-8 w-8 text-white" />
             </div>
-            <div>
+            <div className="flex-1">
               <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Contact Intelligence</h1>
               <p className="text-gray-600 dark:text-gray-300">Advanced contact management with WhatsApp integration</p>
             </div>
+            <Button
+              variant="outline"
+              disabled={isSyncingContacts}
+              onClick={async () => {
+                setIsSyncingContacts(true);
+                try {
+                  const res = await fetch("/api/whatsapp/contacts/sync", { method: "POST" });
+                  if (!res.ok) {
+                    const e = await res.json().catch(() => ({}));
+                    throw new Error(e?.error || `HTTP ${res.status}`);
+                  }
+                  const data = await res.json();
+                  toast({
+                    title: "Contacts synced from WhatsApp",
+                    description: `Fetched ${data.fetched}, inserted ${data.inserted}${data.errors ? `, ${data.errors} errors` : ""}`,
+                  });
+                  queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
+                } catch (err: any) {
+                  toast({
+                    title: "Sync failed",
+                    description: err?.message || "Could not sync contacts",
+                    variant: "destructive",
+                  });
+                } finally {
+                  setIsSyncingContacts(false);
+                }
+              }}
+              className="bg-white/80"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isSyncingContacts ? "animate-spin" : ""}`} />
+              {isSyncingContacts ? "Syncing…" : "Sync Contacts from WhatsApp"}
+            </Button>
           </div>
 
           {/* Statistics Cards */}

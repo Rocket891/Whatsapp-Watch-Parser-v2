@@ -214,16 +214,20 @@ Response includes `replayed`, `errors`, `last_id_processed`, `done`.
 
 ### 2.8 Provider abstraction — env var WHATSAPP_PROVIDER
 
-Set the active webhook normalizer. Default is `wapi24`. Valid values:
-- `wapi24` — Waziper-panel reseller (default, original behavior)
-- `evolution` — self-hosted Evolution API on your own VPS
+Set the active webhook normalizer. Default is `evolution` and that's
+the only active value. The legacy `wapi24` provider was removed in
+the Evolution migration. Historical `raw_webhook_events` rows tagged
+with `provider='wapi24'` are still replayable — the evolution adapter
+handles their payload shape too.
 
-Replit Secrets to set when migrating to Evolution:
+Replit Secrets required:
 ```
 WHATSAPP_PROVIDER=evolution
 EVOLUTION_API_URL=http://<your-vps-ip>:8080
-EVOLUTION_AUTH_KEY=<your-auth-key-from-evolution-setup>
+EVOLUTION_AUTH_KEY=<master-key-from-evolution-setup>
 ```
+
+See `docs/EVOLUTION_SETUP.md` for the full Evolution setup walkthrough.
 
 After changing, republish on Replit.
 

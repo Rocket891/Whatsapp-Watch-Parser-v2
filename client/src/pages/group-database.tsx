@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Search, Users, Phone, Eye, Edit, Trash2 } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Search, Users, Phone, Eye, Edit, Trash2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import Sidebar from "@/components/layout/sidebar";
 import Topbar from "@/components/layout/topbar";
+import { useToast } from "@/hooks/use-toast";
 
 interface WhatsAppGroup {
   id: string;
@@ -21,11 +22,46 @@ interface WhatsAppGroup {
 export default function GroupDatabase() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   // Fetch WhatsApp groups
   const { data: groupsResponse, isLoading } = useQuery({
     queryKey: ["/api/contacts/groups"],
   });
+
+  // Sync-status (last auto-sync time)
+  const { data: syncStatus } = useQuery<any>({
+    queryKey: ["/api/whatsapp/sync-status"],
+    refetchInterval: 60_000,
+  });
+
+  // Manual refresh: fetch fresh groups from Evolution → upsert
+  const refreshFromWhatsApp = async () => {
+    setIsRefreshing(true);
+    try {
+      const res = await fetch("/api/whatsapp/groups/refresh", { method: "POST" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      toast({
+        title: "Groups refreshed",
+        description: `Fetched ${data.fetched}, upserted ${data.upserted}${data.errors ? `, ${data.errors} errors` : ""}`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/contacts/groups"] });
+    } catch (err: any) {
+      toast({
+        title: "Refresh failed",
+        description: err?.message || "Could not fetch groups from WhatsApp",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Transform the response to the expected format
   const rawGroups = (groupsResponse as { groups?: any[] })?.groups || [];
@@ -66,22 +102,40 @@ export default function GroupDatabase() {
     <div className="min-h-screen bg-gray-50 flex">
       <Sidebar />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Topbar 
-          title="Group Database" 
-          subtitle="Select groups by instance. Groups are automatically discovered from webhook traffic."
+        <Topbar
+          title="Group Database"
+          subtitle="Groups are discovered from webhook traffic + the periodic Evolution sync. Click Refresh to pull the latest list now."
         />
         <div className="flex-1 overflow-auto p-6 space-y-6">
-          
-          {/* Search Bar */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Search groups by name or ID (partial/full)..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+
+          {/* Search + Refresh */}
+          <div className="flex gap-2 items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Search groups by name or ID (partial/full)..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <Button
+              onClick={refreshFromWhatsApp}
+              disabled={isRefreshing}
+              variant="outline"
+              className="shrink-0"
+            >
+              <RefreshCw className={`h-4 w-4 mr-1 ${isRefreshing ? "animate-spin" : ""}`} />
+              {isRefreshing ? "Refreshing…" : "Refresh from WhatsApp"}
+            </Button>
           </div>
+
+          {/* Auto-sync indicator */}
+          {syncStatus?.last_run_at && (
+            <p className="text-xs text-gray-500">
+              Last auto-sync: {new Date(syncStatus.last_run_at).toLocaleString()} (runs every {syncStatus.interval_min} min)
+            </p>
+          )}
 
           {/* Group Type Filters */}
           <div className="flex flex-wrap items-center gap-2">
