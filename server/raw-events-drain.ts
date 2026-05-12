@@ -84,15 +84,58 @@ async function processOne(row: { id: number; provider: string | null; body: any 
   }
 }
 
+// Events older than this are marked stale on first sight rather than parsed.
+// Reasoning: if the drain has fallen far behind, the user's pain is "I can't
+// see live messages" — processing 4-hour-old events first makes that worse.
+// Mark old ones as skipped, prioritize fresh ones.
+const STALE_AGE_MIN = Math.max(
+  5,
+  parseInt(process.env.RAW_EVENTS_STALE_MIN || "30", 10) || 30
+);
+
+async function markStaleBacklog(): Promise<number> {
+  try {
+    const r = await pool.query(
+      `UPDATE raw_webhook_events
+          SET processed = true,
+              processed_at = NOW(),
+              processing_error = 'stale-skipped (>' || $1 || ' min)'
+        WHERE NOT processed
+          AND created_at < NOW() - ($1::text || ' minutes')::interval
+        RETURNING id`,
+      [STALE_AGE_MIN]
+    );
+    return r.rowCount || 0;
+  } catch (e: any) {
+    console.error("[raw-events-drain] markStaleBacklog failed:", e?.message || e);
+    return 0;
+  }
+}
+
+// Sweep stale backlog every minute. Cheap UPDATE; keeps queue from growing.
+let lastStaleSweep = 0;
+
 async function tick(): Promise<void> {
   if (inFlight) return;
   inFlight = true;
   try {
+    // Periodic stale sweep — once per minute
+    const now = Date.now();
+    if (now - lastStaleSweep > 60_000) {
+      const skipped = await markStaleBacklog();
+      if (skipped > 0) {
+        console.log(`[raw-events-drain] stale sweep: skipped ${skipped} events >${STALE_AGE_MIN}min old`);
+      }
+      lastStaleSweep = now;
+    }
+
+    // Pull NEWEST unprocessed events first — user sees live data immediately
+    // instead of grinding through hours-old backlog.
     const q = await pool.query(
       `SELECT id, provider, body
          FROM raw_webhook_events
         WHERE NOT processed
-        ORDER BY id ASC
+        ORDER BY id DESC
         LIMIT $1`,
       [BATCH_SIZE]
     );
