@@ -1,8 +1,19 @@
 import express, { type Request, Response, NextFunction } from "express";
+import https from "node:https";
+import http from "node:http";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { startSyncScheduler } from "./evolution-sync-scheduler";
 import { startRawEventsDrain } from "./raw-events-drain";
+
+// Boost the global HTTP/HTTPS agent socket cap.
+// Neon's HTTP driver opens one HTTPS request per query. Default maxSockets=Infinity
+// in modern Node but DNS+TLS handshake can still bottleneck. Force keepAlive +
+// a generous concurrent socket pool so the parallel drain worker (40 events ×
+// ~5 queries each = ~200 concurrent requests) doesn't queue at the agent layer.
+const sharedAgentOpts = { keepAlive: true, maxSockets: 256, keepAliveMsecs: 30_000 };
+https.globalAgent = new https.Agent(sharedAgentOpts);
+http.globalAgent = new http.Agent(sharedAgentOpts);
 
 const app = express();
 

@@ -14,11 +14,11 @@ import { processWebhookWithUserContext } from "./routes/webhook-secure";
 
 const INTERVAL_MS = Math.max(
   250,
-  parseInt(process.env.RAW_EVENTS_DRAIN_INTERVAL_MS || "1000", 10) || 1000
+  parseInt(process.env.RAW_EVENTS_DRAIN_INTERVAL_MS || "500", 10) || 500
 );
 const BATCH_SIZE = Math.max(
   1,
-  Math.min(100, parseInt(process.env.RAW_EVENTS_DRAIN_BATCH || "15", 10) || 15)
+  Math.min(200, parseInt(process.env.RAW_EVENTS_DRAIN_BATCH || "40", 10) || 40)
 );
 
 let inFlight = false;
@@ -84,53 +84,14 @@ async function processOne(row: { id: number; provider: string | null; body: any 
   }
 }
 
-// Events older than this are marked stale on first sight rather than parsed.
-// Reasoning: if the drain has fallen far behind, the user's pain is "I can't
-// see live messages" — processing 4-hour-old events first makes that worse.
-// Mark old ones as skipped, prioritize fresh ones.
-const STALE_AGE_MIN = Math.max(
-  5,
-  parseInt(process.env.RAW_EVENTS_STALE_MIN || "30", 10) || 30
-);
-
-async function markStaleBacklog(): Promise<number> {
-  try {
-    const r = await pool.query(
-      `UPDATE raw_webhook_events
-          SET processed = true,
-              processed_at = NOW(),
-              processing_error = 'stale-skipped (>' || $1 || ' min)'
-        WHERE NOT processed
-          AND created_at < NOW() - ($1::text || ' minutes')::interval
-        RETURNING id`,
-      [STALE_AGE_MIN]
-    );
-    return r.rowCount || 0;
-  } catch (e: any) {
-    console.error("[raw-events-drain] markStaleBacklog failed:", e?.message || e);
-    return 0;
-  }
-}
-
-// Sweep stale backlog every minute. Cheap UPDATE; keeps queue from growing.
-let lastStaleSweep = 0;
-
 async function tick(): Promise<void> {
   if (inFlight) return;
   inFlight = true;
   try {
-    // Periodic stale sweep — once per minute
-    const now = Date.now();
-    if (now - lastStaleSweep > 60_000) {
-      const skipped = await markStaleBacklog();
-      if (skipped > 0) {
-        console.log(`[raw-events-drain] stale sweep: skipped ${skipped} events >${STALE_AGE_MIN}min old`);
-      }
-      lastStaleSweep = now;
-    }
-
-    // Pull NEWEST unprocessed events first — user sees live data immediately
-    // instead of grinding through hours-old backlog.
+    // Pull NEWEST unprocessed events first so the live dashboard catches up
+    // immediately. Old events still get processed — they just queue behind
+    // the newest. Drain throughput now high enough (~600-1000/min) to fully
+    // catch up on a 3,000-event backlog within ~5 min.
     const q = await pool.query(
       `SELECT id, provider, body
          FROM raw_webhook_events
@@ -140,9 +101,9 @@ async function tick(): Promise<void> {
       [BATCH_SIZE]
     );
     if (q.rows.length === 0) return;
-    // Parallelize within the batch — each event is independent (own row, own
-    // tenant resolution). Sequential `await` was the bottleneck: 5 events × 3s
-    // each = 15s per tick. Parallel: takes max(events) ≈ 3-4s for the batch.
+    // Parallel batch processing — each event is independent.
+    // With BATCH_SIZE=40 and Node HTTP maxSockets=100, ~40 events with
+    // ~5 queries each = 200 concurrent HTTP requests, well under cap.
     await Promise.all(
       (q.rows as any[]).map((row) =>
         processOne({ id: Number(row.id), provider: row.provider, body: row.body })
