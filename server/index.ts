@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { startSyncScheduler } from "./evolution-sync-scheduler";
+import { startRawEventsDrain } from "./raw-events-drain";
 
 const app = express();
 
@@ -96,6 +97,7 @@ async function startServer() {
     } catch (err) {
       console.error("Failed to start evolution-sync-scheduler:", err);
     }
+    try { startRawEventsDrain(); } catch (err) { console.error("Failed to start raw-events-drain:", err); }
   });
 }
 
