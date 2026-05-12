@@ -42,15 +42,22 @@ export default function GroupDatabase() {
   const refreshFromWhatsApp = async () => {
     setIsRefreshing(true);
     try {
-      const res = await fetch("/api/whatsapp/groups/refresh", { method: "POST" });
+      const token = localStorage.getItem('auth_token');
+      const res = await fetch("/api/whatsapp/groups/refresh", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err?.error || `HTTP ${res.status}`);
+        throw new Error(data?.error || `HTTP ${res.status}`);
       }
-      const data = await res.json();
       toast({
         title: "Groups refreshed",
-        description: `Fetched ${data.fetched}, upserted ${data.upserted}${data.errors ? `, ${data.errors} errors` : ""}`,
+        description: `Fetched ${data.fetched ?? 0}, upserted ${data.upserted ?? 0}${data.errors ? `, ${data.errors} errors` : ""}`,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/contacts/groups"] });
     } catch (err: any) {
