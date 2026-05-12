@@ -1478,15 +1478,52 @@ export class DatabaseStorage implements IStorage {
 
   // Message log methods for comprehensive incoming message tracking
   async createMessageLog(messageLog: InsertMessageLog): Promise<MessageLog> {
-    // **DEBUG**: Log what we're trying to insert
-    console.log('🔍 createMessageLog called with:', JSON.stringify(messageLog, null, 2));
-    
     // **CRITICAL FIX**: Ensure timestamp is never null
     if (!messageLog.timestamp) {
       console.warn('⚠️ Null timestamp detected, using current time');
       messageLog.timestamp = new Date();
     }
-    
+
+    // Duplicate detection — same sender + same message text within the dedup
+    // window gets marked status='duplicate' and is NOT re-parsed downstream.
+    // First copy keeps its real status; later copies become 'duplicate'.
+    // Window is configurable via env var MESSAGE_DEDUP_WINDOW_MIN (default 60).
+    const dedupWindowMin = Math.max(
+      1,
+      parseInt(process.env.MESSAGE_DEDUP_WINDOW_MIN || "60", 10) || 60
+    );
+
+    if (messageLog.message && messageLog.message.trim().length > 0 && messageLog.userId) {
+      try {
+        const dedupKey = (messageLog.senderNumber && messageLog.senderNumber.trim()) ||
+                         (messageLog.sender || "").trim();
+        if (dedupKey) {
+          const cutoff = new Date(Date.now() - dedupWindowMin * 60 * 1000);
+          const existing = await db
+            .select({ id: messageLogs.id })
+            .from(messageLogs)
+            .where(and(
+              eq(messageLogs.userId, messageLog.userId as string),
+              or(
+                eq(messageLogs.senderNumber, dedupKey),
+                eq(messageLogs.sender, dedupKey)
+              ),
+              eq(messageLogs.message, messageLog.message),
+              gte(messageLogs.timestamp, cutoff)
+            ))
+            .limit(1);
+
+          if (existing.length > 0) {
+            console.log(`[dedup] duplicate detected — sender=${dedupKey.slice(0,20)}, marking as duplicate`);
+            messageLog.status = 'duplicate';
+            messageLog.processed = true;  // skip downstream parsing
+          }
+        }
+      } catch (err: any) {
+        console.warn('[dedup] check failed (proceeding without dedup):', err?.message || err);
+      }
+    }
+
     const [newLog] = await db.insert(messageLogs).values(messageLog).returning();
     return newLog;
   }

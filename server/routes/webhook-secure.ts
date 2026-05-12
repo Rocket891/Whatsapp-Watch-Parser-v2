@@ -496,6 +496,14 @@ async function processMessageWithUserContext(messageData: any, userId: string, u
     const storedMessage = await storage.createMessageLog(messageLogEntry);
     debugLog(`📝 [User ${userId}] Message stored in database with ID ${storedMessage.id}`);
 
+    // If createMessageLog marked this as a duplicate (same sender + same text
+    // within the dedup window), skip the parser entirely — the original copy
+    // was already parsed into watch_listings.
+    if ((storedMessage as any).status === 'duplicate') {
+      debugLog(`[User ${userId}] Skipping parser — message ${storedMessage.id} is a duplicate`);
+      return;
+    }
+
     // **CRITICAL**: Parse watch listings with USER CONTEXT for PID alerts
     if (messageContent && shouldParseForWatches(messageContent)) {
       debugLog(`🔍 [User ${userId}] Parsing message for watch listings...`);
