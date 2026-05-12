@@ -1,48 +1,34 @@
-// WhatsApp API Provider Configuration
-// Single source of truth - change these to switch providers.
-//
-// WHATSAPP_PROVIDER (env var) selects the active webhook payload normalizer:
-//   'wapi24'    — default, existing behavior (Waziper-panel reseller)
-//   'evolution' — self-hosted Evolution API on user's VPS
-// Set on Replit via Secrets > "New Secret" > Key: WHATSAPP_PROVIDER
-export const WHATSAPP_PROVIDER = (process.env.WHATSAPP_PROVIDER || "wapi24").toLowerCase();
+/* ------------------------------------------------------------------
+   WhatsApp provider configuration.
 
-// Outbound API base URL — used for sending messages and status checks.
-export const WAPI24_API_BASE = "https://wapi24.in/api";
-export const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL || ""; // e.g. http://<vps-ip>:8080
+   Evolution API is the sole supported provider. The WHATSAPP_PROVIDER
+   env var remains for the provider-abstraction layer (which may grow
+   future providers like Whapi.cloud or WAHA), but defaults to
+   'evolution' and any unknown value falls back to it.
+
+   Legacy wapi24 / mblaster / Cloudflare-proxy config was removed in
+   the Evolution migration. The actual HTTP client lives in
+   server/evolution-client.ts and reads EVOLUTION_API_URL +
+   EVOLUTION_AUTH_KEY directly from process.env.
+   ------------------------------------------------------------------*/
+
+/** Active provider name (informational; only 'evolution' is wired). */
+export const WHATSAPP_PROVIDER = (process.env.WHATSAPP_PROVIDER || "evolution").toLowerCase();
+
+/** Evolution API base URL. Defaults to the production Contabo VPS. */
+export const EVOLUTION_API_URL =
+  process.env.EVOLUTION_API_URL || "http://185.193.19.117:8080";
+
+/** Master Evolution API key — used when no per-instance key is configured. */
 export const EVOLUTION_AUTH_KEY = process.env.EVOLUTION_AUTH_KEY || "";
 
-export const WHATSAPP_API_BASE =
-  WHATSAPP_PROVIDER === "evolution" && EVOLUTION_API_URL
-    ? EVOLUTION_API_URL
-    : WAPI24_API_BASE;
+/** Periodic groups+contacts sync interval (minutes). */
+export const EVOLUTION_SYNC_INTERVAL_MIN =
+  parseInt(process.env.EVOLUTION_SYNC_INTERVAL_MIN || "60", 10) || 60;
 
-// Legacy alias kept for backward compatibility with code that imported it.
+/** Set DISABLE_SYNC_SCHEDULER=true in tests to skip the auto-sync runner. */
+export const SYNC_SCHEDULER_DISABLED = process.env.DISABLE_SYNC_SCHEDULER === "true";
+
+// Legacy alias kept in case any downstream import path still references it.
+// All new code should use WHATSAPP_PROVIDER directly.
 export const WHATSAPP_API_PROVIDER = WHATSAPP_PROVIDER;
-
-// Cloudflare proxy (optional, for IP bypass on wapi24/Waziper-class providers)
-export const WHATSAPP_PROXY_URL = process.env.CLOUDFLARE_PROXY_URL || "";
-export const USE_PROXY = process.env.USE_PROXY === "true"; // disabled by default
-
-// Build full URL for an endpoint
-export function getApiUrl(endpoint: string): string {
-  if (USE_PROXY && WHATSAPP_PROXY_URL) {
-    return `${WHATSAPP_PROXY_URL}/api/${endpoint}`;
-  }
-  return `${WHATSAPP_API_BASE}/${endpoint}`;
-}
-
-// Endpoint name mapping (handles differences between providers)
-export const ENDPOINTS = {
-  createInstance: "create_instance",
-  getQrCode: "get_qrcode",
-  getStatus: "get_status",
-  getInstanceStatus: "get_instance_status",
-  setWebhook: "set_webhook",
-  reconnect: "reconnect",
-  reboot: "reboot",
-  resetInstance: "reset_instance",
-  send: "send",
-  sendGroup: "send_group",
-  getGroups: "get_groups",
-} as const;

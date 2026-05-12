@@ -1,7 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { initializePollingService } from "./polling-service";
+import { startSyncScheduler } from "./evolution-sync-scheduler";
 
 const app = express();
 
@@ -79,10 +79,14 @@ async function startServer() {
     reusePort: true,
   }, async () => {
     log(`serving on port ${port}`);
-    
-    // Polling service disabled - causes constant DB timeouts from cross-region connections
-    // The webhooks work fine without it
-    // await initializePollingService();
+
+    // Start the Evolution sync scheduler (groups + contacts every 60 min).
+    // Set DISABLE_SYNC_SCHEDULER=true to disable for tests.
+    try {
+      startSyncScheduler();
+    } catch (err) {
+      console.error("Failed to start evolution-sync-scheduler:", err);
+    }
   });
 }
 

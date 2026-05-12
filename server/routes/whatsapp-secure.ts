@@ -1,261 +1,226 @@
 /* ------------------------------------------------------------------
-   SECURE Multi-Tenant WhatsApp Routes - SECURITY FIX
+   SECURE Multi-Tenant WhatsApp Routes — Evolution API edition.
+
+   Replaces the previous wapi24/Waziper-based plumbing with Evolution
+   API v2 (running on the Contabo VPS). Preserves the existing route
+   paths and response shapes so the current frontend keeps working
+   during the Commit 2 cutover. A leaner Evolution-aware frontend
+   replaces the legacy UI in Commit 3.
+
+   All routes still require JWT auth (requireAuth). Each user's
+   Evolution instance is identified by user_whatsapp_config.instance_id
+   (now repurposed to hold the Evolution instance NAME, e.g. "watch1").
+   The optional per-instance Evolution API key lives in
+   user_whatsapp_config.evolution_api_key; otherwise the master
+   EVOLUTION_AUTH_KEY env var is used.
    ------------------------------------------------------------------*/
+
 import type { Express } from "express";
 import { requireAuth, type AuthRequest } from "../middleware/auth";
 import { storage } from "../storage";
+import { pool } from "../db";
 import type { InsertUserWhatsappConfig } from "@shared/schema";
-import { getPollingStatus, manualPoll } from "../polling-service";
-import { getApiUrl, ENDPOINTS, WHATSAPP_API_BASE } from '../whatsapp-api-config';
+import {
+  createInstance,
+  fetchInstances,
+  getQrCode,
+  connectionState,
+  deleteInstance as evolutionDeleteInstance,
+  logoutInstance,
+  setWebhook,
+  findWebhook,
+  sendText,
+  fetchAllGroups,
+  fetchAllContacts,
+  EvolutionApiError,
+} from "../evolution-client";
+import { runSyncOnce, getSyncStatus } from "../evolution-sync-scheduler";
 
-// Per-user WhatsApp name caches (isolated by userId)
+// ============================================================
+// Per-user name caches (kept for compatibility)
+// ============================================================
+
 const groupNameCaches = new Map<string, Map<string, string>>();
 const contactNameCaches = new Map<string, Map<string, string>>();
 
-// Helper to get user-specific caches
 function getUserCaches(userId: string) {
-  if (!groupNameCaches.has(userId)) {
-    groupNameCaches.set(userId, new Map<string, string>());
-  }
-  if (!contactNameCaches.has(userId)) {
-    contactNameCaches.set(userId, new Map<string, string>());
-  }
+  if (!groupNameCaches.has(userId)) groupNameCaches.set(userId, new Map<string, string>());
+  if (!contactNameCaches.has(userId)) contactNameCaches.set(userId, new Map<string, string>());
   return {
     groupCache: groupNameCaches.get(userId)!,
-    contactCache: contactNameCaches.get(userId)!
+    contactCache: contactNameCaches.get(userId)!,
   };
 }
 
-/* ---------- universal WhatsApp API caller with retry (per-user) -------------------- */
+// ============================================================
+// Helpers
+// ============================================================
 
-export async function callWhatsAppAPI(
-  endpoint: string,
-  params: Record<string, string|number>,
-  userConfig: { instanceId: string; accessToken: string },
-  method: "GET" | "POST" = "GET",
-  retries = 1
-) {
-  
-  const baseUrl = getApiUrl(endpoint);
-  const url = new URL(baseUrl);
-  
-  // Remove any trailing dots from hostname to prevent TLS CN mismatch
-  url.hostname = url.hostname.replace(/\.$/, '');
-  
-  // Always use user's specific credentials
-  const requestParams = {
-    ...params,
-    instance_id: userConfig.instanceId,
-    access_token: userConfig.accessToken
-  };
-  
-  if (method === "GET") {
-    Object.entries(requestParams).forEach(([k, v]) => url.searchParams.set(k, String(v)));
-  }
-
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      const resp = await fetch(url.toString(), {
-        method,
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-          ...(method === "POST" && { "Content-Type": "application/json" })
-        },
-        body: method === "POST" ? JSON.stringify(requestParams) : undefined,
-      });
-
-      const txt = await resp.text();
-      
-      // Check if response is HTML (IP blocked/marketing page)
-      if (txt.includes("<!DOCTYPE html") || txt.includes("<html")) {
-        throw new Error("IP_REJECTED_HTML");
-      }
-
-      let json;
-      try {
-        json = JSON.parse(txt);
-      } catch {
-        throw new Error("INVALID_JSON_RESPONSE");
-      }
-
-      return { ok: resp.ok, json };
-      
-    } catch (error: any) {
-      console.log(`🔄 [User ${userConfig.instanceId}] WhatsApp API attempt ${attempt + 1}/${retries + 1} failed:`, error.message);
-      
-      if (attempt === retries) {
-        const err = new Error("WHATSAPP_API_FAILED");
-        // @ts-ignore
-        err.originalError = error;
-        throw err;
-      }
-      
-      // Exponential backoff with jitter: 1s, 2s, 4s, 8s...
-      // For IP blocking issues, longer delays help the block to clear
-      if (attempt < retries) {
-        const baseDelay = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s, 8s
-        const jitter = Math.random() * 1000; // 0-1s random jitter
-        const delay = baseDelay + jitter;
-        console.log(`⏳ [User ${userConfig.instanceId}] Waiting ${Math.round(delay/1000)}s before retry...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-      }
-    }
-  }
+interface UserEvolutionConfig {
+  instanceName: string;
+  apiUrl?: string;
+  apiKey?: string;
 }
 
-// Backward compatibility alias
-export { callWhatsAppAPI as callMBSecure };
-/* ---------- SECURITY: Get user's WhatsApp config or return 401 ------------- */
-async function getUserWhatsAppConfig(req: AuthRequest): Promise<{ instanceId: string; accessToken: string } | null> {
+async function getUserEvolutionConfig(
+  req: AuthRequest,
+): Promise<UserEvolutionConfig | null> {
   const config = await storage.getUserWhatsappConfig(req.user.userId);
-  if (!config || !config.instanceId || !config.accessToken) {
-    return null;
-  }
+  if (!config || !config.instanceId) return null;
   return {
-    instanceId: config.instanceId,
-    accessToken: config.accessToken
+    instanceName: config.instanceId,
+    apiUrl: (config as any).evolutionApiUrl || undefined,
+    apiKey: (config as any).evolutionApiKey || undefined,
   };
 }
 
-/* ------------------------------------------------------------------
-   SECURE: Multi-tenant WhatsApp routes with proper authentication
-   ------------------------------------------------------------------*/
+const PUBLIC_WEBHOOK_URL =
+  process.env.WEBHOOK_PUBLIC_URL ||
+  "https://whatsapp-watch-parser-v-2.replit.app/api/whatsapp/webhook";
+
+const EVOLUTION_DEFAULT_EVENTS = ["MESSAGES_UPSERT", "CONNECTION_UPDATE", "CONTACTS_UPSERT"];
+
+// Lightweight phone-number normalizer (Evolution accepts digits only)
+function normalizePhone(input: string): string {
+  return String(input || "").replace(/[\s\-()]/g, "").replace(/^\+/, "");
+}
+
+// ============================================================
+// Webhook handler (unchanged; uses provider abstraction internally)
+// ============================================================
+// NOTE: The actual webhook RECEIVE handler is in webhook-secure.ts.
+// This file only exposes the user-facing OUTBOUND endpoints.
+
+// ============================================================
+// Routes
+// ============================================================
+
 export function registerSecureWhatsAppRoutes(app: Express) {
-  /* ------------------------------------------------ GET USER CONFIG (Authenticated) */
+  /* ------------------------------------------------ GET USER CONFIG */
   app.get("/api/whatsapp/config", requireAuth, async (req: AuthRequest, res) => {
     try {
       const config = await storage.getUserWhatsappConfig(req.user.userId);
-      
       return res.json({
         instanceId: config?.instanceId || "",
-        accessToken: config?.accessToken ? "***CONFIGURED***" : "", // Never expose tokens
+        accessToken: (config as any)?.evolutionApiKey ? "***CONFIGURED***" : "",
         mobileNumber: config?.mobileNumber || "",
         whitelistedGroups: config?.whitelistedGroups || "",
         isActive: config?.isActive || false,
-        hasConfig: !!config
+        hasConfig: !!config,
+        provider: "evolution",
+        evolutionApiUrl: (config as any)?.evolutionApiUrl || process.env.EVOLUTION_API_URL || null,
+        evolutionInstanceCreatedAt: (config as any)?.evolutionInstanceCreatedAt || null,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error fetching user WhatsApp config:", error);
       res.status(500).json({ error: "Failed to fetch configuration" });
     }
   });
 
-  /* ------------------------------------------------ CONFIGURE USER WHATSAPP (Authenticated) */
+  /* ------------------------------------------------ CONFIGURE (save instance + webhook) */
   app.post("/api/whatsapp/configure", requireAuth, async (req: AuthRequest, res) => {
     try {
-      const { instanceId: rawInstanceId, accessToken, mobileNumber, whitelistedGroups } = req.body || {};
-      // Trim whitespace/tabs to prevent data entry issues
-      const instanceId = (rawInstanceId || "").trim();
-      
-      if (!accessToken || !instanceId) {
-        return res.status(400).json({ error: "Instance ID and access token are required" });
-      }
-
-      // Check if user already has a config
-      const existingConfig = await storage.getUserWhatsappConfig(req.user.userId);
-      
-      const configData: InsertUserWhatsappConfig = {
-        userId: req.user.userId,
-        instanceId,
-        accessToken,
+      const {
+        instanceId: rawInstanceId,
+        accessToken,          // legacy field; treated as per-instance Evolution API key when provided
         mobileNumber,
         whitelistedGroups,
-        isActive: true
-      };
+        evolutionApiUrl,
+        evolutionApiKey,
+      } = req.body || {};
 
-      let config;
-      if (existingConfig) {
-        // Update existing config
-        config = await storage.updateUserWhatsappConfig(req.user.userId, configData);
-      } else {
-        // Create new config
-        config = await storage.createUserWhatsappConfig(configData);
+      const instanceName = String(rawInstanceId || "").trim();
+      if (!instanceName) {
+        return res.status(400).json({ error: "Instance name is required" });
       }
 
-      // Clear user's caches so next API calls get fresh data
+      const apiKey = evolutionApiKey || accessToken || undefined;
+      const apiUrl = evolutionApiUrl || undefined;
+
+      const existingConfig = await storage.getUserWhatsappConfig(req.user.userId);
+
+      const configData: InsertUserWhatsappConfig = {
+        userId: req.user.userId,
+        instanceId: instanceName,
+        accessToken: accessToken || apiKey || "",
+        mobileNumber,
+        whitelistedGroups,
+        isActive: true,
+        ...(apiUrl && { evolutionApiUrl: apiUrl } as any),
+        ...(apiKey && { evolutionApiKey: apiKey } as any),
+      } as any;
+
+      const config = existingConfig
+        ? await storage.updateUserWhatsappConfig(req.user.userId, configData)
+        : await storage.createUserWhatsappConfig(configData);
+
+      // Clear caches for fresh data
       const { groupCache, contactCache } = getUserCaches(req.user.userId);
       groupCache.clear();
       contactCache.clear();
-      console.log(`🧹 [User ${req.user.userId}] Cleared group and contact caches for fresh data fetch`);
-      
-      // Set up webhook for this user's instance
+
+      // Auto-set webhook on the Evolution instance
       let webhookAutoSetup = false;
-      const webhookUrl = `https://whatsapp-watch-parser-v-2.replit.app/api/whatsapp/webhook`;
       try {
-        console.log(`🔄 [User ${req.user.userId}] Setting webhook for instance ${instanceId}: ${webhookUrl}`);
-        
-        const webhookResult = await callWhatsAppAPI("set_webhook", {
-          webhook_url: webhookUrl,
-          webhook_uri: webhookUrl,
-          status: "Enable",
-          enable: "true",
-        }, { instanceId, accessToken });
-        
-        console.log(`📋 [User ${req.user.userId}] set_webhook response:`, JSON.stringify(webhookResult?.json));
-        
-        const responseText = JSON.stringify(webhookResult?.json || '').toLowerCase();
-        webhookAutoSetup = responseText.includes('success') || responseText.includes('saved');
-        
-        // Immediately call reconnect to establish connection
-        try {
-          const reconnectResult = await callWhatsAppAPI("reconnect", {}, { instanceId, accessToken });
-          console.log(`📋 [User ${req.user.userId}] reconnect response:`, JSON.stringify(reconnectResult?.json));
-        } catch (reconnectError: any) {
-          console.log(`⚠️ [User ${req.user.userId}] reconnect failed (non-critical):`, reconnectError.message);
-        }
-        
-        console.log(`✅ [User ${req.user.userId}] Webhook set successfully for ${instanceId}`);
-      } catch (error) {
-        console.error(`❌ [User ${req.user.userId}] Failed to set webhook (manual setup required):`, error);
+        await setWebhook(
+          instanceName,
+          {
+            url: PUBLIC_WEBHOOK_URL,
+            enabled: true,
+            events: EVOLUTION_DEFAULT_EVENTS,
+            webhookByEvents: false,
+          },
+          { baseUrl: apiUrl, apiKey },
+        );
+        webhookAutoSetup = true;
+        console.log(`[whatsapp/configure] webhook set for ${instanceName} → ${PUBLIC_WEBHOOK_URL}`);
+      } catch (err: any) {
+        console.warn(`[whatsapp/configure] auto-webhook setup failed (non-fatal):`, err.message || err);
       }
-      
-      return res.json({ 
-        status: "configured", 
+
+      return res.json({
+        status: "configured",
         instanceId: config.instanceId,
         isActive: config.isActive,
         webhookAutoSetup,
-        webhookUrl,
-        message: "WhatsApp configuration updated successfully" 
+        webhookUrl: PUBLIC_WEBHOOK_URL,
+        provider: "evolution",
+        message: "WhatsApp configuration updated successfully",
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error configuring WhatsApp:", error);
-      res.status(500).json({ error: "Failed to configure WhatsApp" });
+      res.status(500).json({ error: error?.message || "Failed to configure WhatsApp" });
     }
   });
 
-  /* ------------------------------------------------ VERIFY WEBHOOK (Authenticated) */
+  /* ------------------------------------------------ VERIFY WEBHOOK */
   app.get("/api/whatsapp/verify-webhook", requireAuth, async (req: AuthRequest, res) => {
     try {
-      const userConfig = await getUserWhatsAppConfig(req);
-      if (!userConfig) {
-        return res.status(401).json({ error: "WhatsApp not configured" });
-      }
+      const uc = await getUserEvolutionConfig(req);
+      if (!uc) return res.status(401).json({ error: "WhatsApp not configured" });
 
-      // Call WhatsApp API to get current webhook configuration
-      const result = await callWhatsAppAPI("get_webhook", {}, userConfig, "GET", 3);
-      
-      if (result.ok && result.json) {
-        return res.json({ 
-          currentWebhook: result.json.webhook_url || "Not set",
-          enabled: result.json.enabled || false,
-          apiResponse: result.json
-        });
-      }
-      
-      return res.status(500).json({ error: "Failed to fetch webhook from WhatsApp API", details: result });
+      const result = await findWebhook(uc.instanceName, { baseUrl: uc.apiUrl, apiKey: uc.apiKey });
+      const webhook = result?.webhook || result;
+      return res.json({
+        currentWebhook: webhook?.url || "Not set",
+        enabled: webhook?.enabled ?? false,
+        events: webhook?.events ?? [],
+        apiResponse: result,
+      });
     } catch (error: any) {
       console.error("Error verifying webhook:", error);
       return res.status(500).json({ error: "Failed to verify webhook", details: error.message });
     }
   });
 
-  /* ------------------------------------------------ WHITELIST MANAGEMENT (Authenticated) */
+  /* ------------------------------------------------ WHITELIST MANAGEMENT */
   app.get("/api/whatsapp/whitelist", requireAuth, async (req: AuthRequest, res) => {
     try {
       const config = await storage.getUserWhatsappConfig(req.user.userId);
       const whitelistedGroups = config?.whitelistedGroups || "";
-      const groupIds = whitelistedGroups ? whitelistedGroups.split(',').map(id => id.trim()) : [];
+      const groupIds = whitelistedGroups
+        ? whitelistedGroups.split(",").map((id) => id.trim())
+        : [];
       return res.json({ whitelistedGroups: groupIds });
     } catch (error) {
       console.error("Error fetching whitelist:", error);
@@ -266,17 +231,16 @@ export function registerSecureWhatsAppRoutes(app: Express) {
   app.post("/api/whatsapp/whitelist", requireAuth, async (req: AuthRequest, res) => {
     try {
       const { whitelistedGroups } = req.body;
-      if (typeof whitelistedGroups !== 'string') {
+      if (typeof whitelistedGroups !== "string") {
         return res.status(400).json({ error: "whitelistedGroups must be a string" });
       }
-
-      // Update user's whitelist
       await storage.updateUserWhatsappConfig(req.user.userId, { whitelistedGroups });
-
-      console.log(`✅ [User ${req.user.userId}] Whitelist updated instantly: ${whitelistedGroups}`);
-      return res.json({ 
-        success: true, 
-        whitelistedGroups: whitelistedGroups.split(',').map(id => id.trim()).filter(id => id) 
+      return res.json({
+        success: true,
+        whitelistedGroups: whitelistedGroups
+          .split(",")
+          .map((id) => id.trim())
+          .filter((id) => id),
       });
     } catch (error) {
       console.error("Error updating whitelist:", error);
@@ -284,260 +248,417 @@ export function registerSecureWhatsAppRoutes(app: Express) {
     }
   });
 
-  /* ------------------------------------------------ CONNECTION STATUS (Authenticated) */
+  /* ------------------------------------------------ CONNECTION STATUS */
   app.get("/api/whatsapp/connection-status", requireAuth, async (req: AuthRequest, res) => {
     try {
-      const userConfig = await getUserWhatsAppConfig(req);
-      if (!userConfig) {
-        return res.json({ connected: false, message: "WhatsApp not configured" });
-      }
+      const uc = await getUserEvolutionConfig(req);
+      if (!uc) return res.json({ connected: false, message: "WhatsApp not configured" });
 
-      // Get polling status
-      const pollingStatus = getPollingStatus(req.user.userId);
-
-      // PRIORITY: Check webhook health FIRST (more reliable than API calls)
-      const WEBHOOK_FRESH_MS = 5 * 60 * 1000; // 5 minutes
-      const webhookAge = pollingStatus?.lastWebhookTime 
-        ? Date.now() - pollingStatus.lastWebhookTime.getTime()
+      // Primary signal: webhook freshness from raw_webhook_events buffer
+      const freshness = await pool.query(
+        `SELECT MAX(received_at) AS most_recent
+           FROM raw_webhook_events
+          WHERE provider IN ('evolution', 'wapi24')
+            AND received_at > NOW() - INTERVAL '10 minutes'`,
+      );
+      const mostRecent = (freshness.rows[0] as any)?.most_recent as Date | null;
+      const webhookAgeSec = mostRecent
+        ? Math.floor((Date.now() - new Date(mostRecent).getTime()) / 1000)
         : Infinity;
-      const webhooksActive = webhookAge <= WEBHOOK_FRESH_MS;
+      const webhooksActive = webhookAgeSec <= 5 * 60;
 
       if (webhooksActive) {
-        // Webhooks are flowing - connection is definitely alive
         return res.json({
           connected: true,
-          instanceId: userConfig.instanceId,
+          instanceId: uc.instanceName,
           mode: "webhook",
           state: "active",
-          message: "Connected via Webhooks",
-          pollingMode: pollingStatus?.mode || 'webhook',
-          pollingActive: pollingStatus?.isActive || false,
-          lastWebhookTime: pollingStatus?.lastWebhookTime,
-          lastPollTime: pollingStatus?.lastPollTime,
-          messagesFetched: pollingStatus?.messagesFetched || 0,
-          webhookAge: Math.floor(webhookAge / 1000) // seconds
+          provider: "evolution",
+          message: "Connected via webhook",
+          lastWebhookTime: mostRecent ? new Date(mostRecent).toISOString() : null,
+          webhookAge: webhookAgeSec,
         });
       }
 
-      // Only try API check if webhooks aren't recent
+      // Fallback: ask Evolution directly
       try {
-        const result = await callWhatsAppAPI("get_groups", {}, userConfig, "POST", 3);
-        const connected = result && result.ok && result.json.status === "success";
-        
-        return res.json({ 
+        const result = await connectionState(uc.instanceName, { baseUrl: uc.apiUrl, apiKey: uc.apiKey });
+        const state = result?.instance?.state || (result as any)?.state || "unknown";
+        const connected = state === "open";
+        return res.json({
           connected,
-          instanceId: userConfig.instanceId,
-          mode: connected ? "api" : "disconnected",
-          state: result?.json?.state || "unknown",
-          message: connected ? "Connected to WhatsApp" : "Not connected to WhatsApp",
-          pollingMode: pollingStatus?.mode || 'webhook',
-          pollingActive: pollingStatus?.isActive || false,
-          lastWebhookTime: pollingStatus?.lastWebhookTime,
-          lastPollTime: pollingStatus?.lastPollTime,
-          messagesFetched: pollingStatus?.messagesFetched || 0
+          instanceId: uc.instanceName,
+          mode: "api",
+          state,
+          provider: "evolution",
+          message: connected ? "Connected (no recent webhook activity)" : `Evolution reports ${state}`,
+          lastWebhookTime: mostRecent ? new Date(mostRecent).toISOString() : null,
         });
-      } catch (apiError) {
-        // API call failed (likely IP blocking), but no recent webhooks either
-        console.log("⚠️  Connection check: API failed, no recent webhooks");
+      } catch (apiErr: any) {
         return res.json({
           connected: false,
-          instanceId: userConfig.instanceId,
-          mode: "disconnected",
+          instanceId: uc.instanceName,
+          mode: "error",
           state: "unknown",
-          message: "Connection check failed - no recent webhooks or API access",
-          pollingMode: pollingStatus?.mode || 'webhook',
-          pollingActive: pollingStatus?.isActive || false,
-          lastWebhookTime: pollingStatus?.lastWebhookTime,
-          lastPollTime: pollingStatus?.lastPollTime,
-          messagesFetched: pollingStatus?.messagesFetched || 0
+          provider: "evolution",
+          message: `Evolution check failed: ${apiErr.message || apiErr}`,
+          lastWebhookTime: mostRecent ? new Date(mostRecent).toISOString() : null,
         });
       }
     } catch (error) {
-      console.error(`Error checking connection status:`, error);
+      console.error("Error checking connection status:", error);
       res.json({ connected: false, message: "Failed to check connection" });
     }
   });
 
-  /* ------------------------------------------------ POLLING STATUS (Authenticated) */
-  app.get("/api/whatsapp/polling-status", requireAuth, async (req: AuthRequest, res) => {
-    try {
-      const pollingStatus = getPollingStatus(req.user.userId);
-      
-      if (!pollingStatus) {
-        return res.json({
-          enabled: false,
-          mode: 'webhook',
-          isActive: false,
-          message: "Polling not initialized"
-        });
-      }
-
-      return res.json({
-        enabled: true,
-        mode: pollingStatus.mode,
-        isActive: pollingStatus.isActive,
-        lastWebhookTime: pollingStatus.lastWebhookTime,
-        lastPollTime: pollingStatus.lastPollTime,
-        messagesFetched: pollingStatus.messagesFetched,
-        message: pollingStatus.isActive 
-          ? `Polling active - ${pollingStatus.messagesFetched} messages fetched`
-          : "Webhooks active - Polling on standby"
-      });
-    } catch (error) {
-      console.error("Error fetching polling status:", error);
-      res.status(500).json({ error: "Failed to fetch polling status" });
-    }
-  });
-
-  /* ------------------------------------------------ MANUAL POLL (Authenticated - for testing) */
-  app.post("/api/whatsapp/manual-poll", requireAuth, async (req: AuthRequest, res) => {
-    try {
-      await manualPoll(req.user.userId);
-      return res.json({ success: true, message: "Manual poll triggered" });
-    } catch (error) {
-      console.error("Error during manual poll:", error);
-      res.status(500).json({ error: "Manual poll failed" });
-    }
-  });
-
-  /* ------------------------------------------------ QR CODE (Authenticated) */
+  /* ------------------------------------------------ QR CODE */
   app.get("/api/whatsapp/qr-code", requireAuth, async (req: AuthRequest, res) => {
     try {
-      const userConfig = await getUserWhatsAppConfig(req);
-      if (!userConfig) {
-        return res.status(400).json({ error: "WhatsApp not configured" });
-      }
+      const uc = await getUserEvolutionConfig(req);
+      if (!uc) return res.status(400).json({ error: "WhatsApp not configured" });
 
-      const result = await callWhatsAppAPI(ENDPOINTS.getQrCode, {}, userConfig);
-      
-      if (result?.json?.qr) {
-        return res.json({ qrCode: result.json.qr });
-      } else {
-        return res.status(404).json({ error: "QR code not available" });
+      const result = await getQrCode(uc.instanceName, { baseUrl: uc.apiUrl, apiKey: uc.apiKey });
+      // Evolution returns either { base64, code, count } or { qrcode: { base64 } }
+      const base64 =
+        (result as any)?.base64 ||
+        (result as any)?.qrcode?.base64 ||
+        null;
+      if (base64) {
+        return res.json({
+          qrCode: base64.startsWith("data:") ? base64 : `data:image/png;base64,${base64.replace(/^data:image\/png;base64,/, "")}`,
+          pairingCode: (result as any)?.pairingCode || null,
+          count: (result as any)?.count ?? null,
+        });
       }
-    } catch (error) {
+      return res.status(404).json({ error: "QR code not available yet — try again in a few seconds" });
+    } catch (error: any) {
       console.error("Error fetching QR code:", error);
-      res.status(500).json({ error: "Failed to fetch QR code" });
+      res.status(500).json({ error: error.message || "Failed to fetch QR code" });
     }
   });
 
-  /* ------------------------------------------------ DELETE USER CONFIG (Authenticated) */
+  /* ------------------------------------------------ DELETE USER CONFIG */
   app.delete("/api/whatsapp/config", requireAuth, async (req: AuthRequest, res) => {
     try {
       const deleted = await storage.deleteUserWhatsappConfig(req.user.userId);
-      
       if (deleted) {
-        // Clear user's caches
         groupNameCaches.delete(req.user.userId);
         contactNameCaches.delete(req.user.userId);
-        
-        console.log(`✅ [User ${req.user.userId}] WhatsApp configuration deleted and caches cleared`);
         return res.json({ success: true, message: "WhatsApp configuration deleted" });
-      } else {
-        return res.status(404).json({ error: "No configuration found to delete" });
       }
+      return res.status(404).json({ error: "No configuration found to delete" });
     } catch (error) {
       console.error("Error deleting WhatsApp config:", error);
       res.status(500).json({ error: "Failed to delete configuration" });
     }
   });
 
-  /* ------------------------------------------------ SECURE MESSAGE SENDING (Authenticated) */
+  /* ------------------------------------------------ SEND TEXT */
   app.post("/api/whatsapp/send", requireAuth, async (req: AuthRequest, res) => {
     try {
       const { phone, message } = req.body;
-      
       if (!phone || !message) {
         return res.status(400).json({ error: "Phone number and message are required" });
       }
+      const uc = await getUserEvolutionConfig(req);
+      if (!uc) return res.status(400).json({ error: "WhatsApp not configured" });
 
-      // Get user's WhatsApp configuration
-      const userConfig = await getUserWhatsAppConfig(req);
-      if (!userConfig) {
-        return res.status(400).json({ error: "WhatsApp not configured. Please configure your WhatsApp integration first." });
-      }
-
-      console.log(`📤 [User ${req.user.userId}] Sending WhatsApp message to: ${phone}`);
-      console.log(`📤 [User ${req.user.userId}] Message: ${message}`);
-      console.log(`🔧 [User ${req.user.userId}] Using instance ID: ${userConfig.instanceId}`);
-      
-      // Clean phone number: remove spaces, dashes, parentheses, and plus sign
-      const cleanPhone = phone.replace(/[\s\-\(\)]/g, '').replace(/^\+/, '');
-      console.log(`📞 [User ${req.user.userId}] Cleaned phone: ${cleanPhone}`);
-      
-      // Use WhatsApp API exactly as documented
-      const result = await callWhatsAppAPI("send", {
-        number: cleanPhone,
-        type: "text",
-        message: message
-      }, userConfig);
-
-      console.log(`📤 [User ${req.user.userId}] API response:`, result);
-      
-      if (result.json && (result.json.status === 'success' || result.json.success === true)) {
-        res.json({ 
-          success: true, 
-          message: "Message sent successfully",
-          details: result.json
-        });
-      } else {
-        console.error(`❌ [User ${req.user.userId}] Send failed:`, result.json);
-        res.status(400).json({ 
-          error: result.json?.error || result.json?.message || "Failed to send message",
-          details: result.json
-        });
-      }
-      
-    } catch (error: any) {
-      console.error(`❌ [User ${req.user.userId}] Send message error:`, error);
-      
-      // Handle IP rejection specifically
-      if (error.message === "WHATSAPP_API_FAILED" && error.originalError?.message === "IP_REJECTED_HTML") {
-        return res.status(403).json({ 
-          error: "WhatsApp API rejected this server's IP address. Please contact support to whitelist your IP.",
-          technical_details: "IP_REJECTED_HTML",
-          suggested_solution: "Contact WhatsApp API provider support or consider using a proxy"
-        });
-      }
-      
-      res.status(500).json({ 
-        error: "Failed to send message",
-        details: error.message 
+      const number = normalizePhone(phone);
+      const result = await sendText(
+        uc.instanceName,
+        { number, text: message },
+        { baseUrl: uc.apiUrl, apiKey: uc.apiKey },
+      );
+      return res.json({
+        success: true,
+        message: "Message sent",
+        details: result,
       });
-    }
-  });
-
-  // Reconnect WhatsApp instance (soft reconnect)
-  app.post("/api/whatsapp/reconnect", requireAuth, async (req: AuthRequest, res) => {
-    try {
-      const userConfig = await getUserWhatsAppConfig(req);
-      if (!userConfig) {
-        return res.status(400).json({ error: "WhatsApp not configured" });
-      }
-      console.log(`🔄 [User ${req.user.userId}] Reconnecting instance ${userConfig.instanceId}...`);
-      const result = await callWhatsAppAPI(ENDPOINTS.reconnect, {}, userConfig);
-      console.log(`✅ [User ${req.user.userId}] Reconnect result:`, result.json);
-      res.json({ success: true, data: result.json });
     } catch (error: any) {
-      console.error(`❌ [User ${req.user.userId}] Reconnect failed:`, error.message);
-      res.status(500).json({ error: "Failed to reconnect: " + error.message });
+      console.error("Send message error:", error);
+      if (error instanceof EvolutionApiError) {
+        return res.status(error.status || 500).json({
+          error: error.message,
+          details: error.body,
+        });
+      }
+      return res.status(500).json({ error: error.message || "Failed to send message" });
     }
   });
 
-  // Reboot WhatsApp instance (hard restart)
+  /* ------------------------------------------------ RECONNECT (no-op on Evolution) */
+  app.post("/api/whatsapp/reconnect", requireAuth, async (req: AuthRequest, res) => {
+    // Evolution auto-handles reconnection. We just probe state for the UI.
+    try {
+      const uc = await getUserEvolutionConfig(req);
+      if (!uc) return res.status(400).json({ error: "WhatsApp not configured" });
+      const result = await connectionState(uc.instanceName, { baseUrl: uc.apiUrl, apiKey: uc.apiKey });
+      return res.json({ success: true, data: result, note: "Evolution reconnects automatically; this endpoint reports state only" });
+    } catch (error: any) {
+      console.error("Reconnect probe failed:", error.message);
+      res.status(500).json({ error: "Failed to probe state: " + error.message });
+    }
+  });
+
+  /* ------------------------------------------------ REBOOT (delete + recreate) */
   app.post("/api/whatsapp/reboot", requireAuth, async (req: AuthRequest, res) => {
     try {
-      const userConfig = await getUserWhatsAppConfig(req);
-      if (!userConfig) {
-        return res.status(400).json({ error: "WhatsApp not configured" });
+      const uc = await getUserEvolutionConfig(req);
+      if (!uc) return res.status(400).json({ error: "WhatsApp not configured" });
+
+      // Delete + recreate the instance. This wipes the WhatsApp session and
+      // forces a QR re-scan, which is the closest analog to wapi24's reboot.
+      try {
+        await evolutionDeleteInstance(uc.instanceName, { baseUrl: uc.apiUrl, apiKey: uc.apiKey });
+      } catch (delErr: any) {
+        // Already gone? not fatal
+        console.warn(`[reboot] delete failed (continuing):`, delErr.message);
       }
-      console.log(`🔄 [User ${req.user.userId}] Rebooting instance ${userConfig.instanceId}...`);
-      const result = await callWhatsAppAPI(ENDPOINTS.reboot, {}, userConfig);
-      console.log(`✅ [User ${req.user.userId}] Reboot result:`, result.json);
-      res.json({ success: true, data: result.json });
+
+      const created = await createInstance(
+        {
+          instanceName: uc.instanceName,
+          qrcode: true,
+          webhook: { url: PUBLIC_WEBHOOK_URL, events: EVOLUTION_DEFAULT_EVENTS, webhookByEvents: false },
+        },
+        { baseUrl: uc.apiUrl, apiKey: uc.apiKey },
+      );
+
+      return res.json({
+        success: true,
+        message: "Instance recreated; please re-scan QR",
+        data: created,
+      });
     } catch (error: any) {
-      console.error(`❌ [User ${req.user.userId}] Reboot failed:`, error.message);
+      console.error("Reboot failed:", error.message);
       res.status(500).json({ error: "Failed to reboot: " + error.message });
     }
   });
+
+  // ========================================================
+  // NEW Evolution-specific endpoints
+  // ========================================================
+
+  /* ------------------------------------------------ LIST EVOLUTION INSTANCES (admin/diagnostic) */
+  app.get("/api/whatsapp/instance/list", requireAuth, async (_req: AuthRequest, res) => {
+    try {
+      const list = await fetchInstances();
+      res.json({ instances: list });
+    } catch (error: any) {
+      console.error("Failed to list instances:", error);
+      res.status(500).json({ error: error.message || "Failed to list instances" });
+    }
+  });
+
+  /* ------------------------------------------------ CREATE INSTANCE */
+  app.post("/api/whatsapp/instance/create", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const { instanceName, evolutionApiUrl, evolutionApiKey } = req.body || {};
+      const name = String(instanceName || "").trim();
+      if (!name) return res.status(400).json({ error: "instanceName is required" });
+
+      const created = await createInstance(
+        {
+          instanceName: name,
+          qrcode: true,
+          webhook: { url: PUBLIC_WEBHOOK_URL, events: EVOLUTION_DEFAULT_EVENTS, webhookByEvents: false },
+        },
+        { baseUrl: evolutionApiUrl || undefined, apiKey: evolutionApiKey || undefined },
+      );
+
+      // Persist into user_whatsapp_config so subsequent endpoint calls find it
+      const existingConfig = await storage.getUserWhatsappConfig(req.user.userId);
+      const configData: InsertUserWhatsappConfig = {
+        userId: req.user.userId,
+        instanceId: name,
+        accessToken: evolutionApiKey || "",
+        isActive: true,
+        ...(evolutionApiUrl && { evolutionApiUrl } as any),
+        ...(evolutionApiKey && { evolutionApiKey } as any),
+        ...({ evolutionInstanceCreatedAt: new Date() } as any),
+      } as any;
+      if (existingConfig) {
+        await storage.updateUserWhatsappConfig(req.user.userId, configData);
+      } else {
+        await storage.createUserWhatsappConfig(configData);
+      }
+
+      res.json({ success: true, instance: created, webhookUrl: PUBLIC_WEBHOOK_URL });
+    } catch (error: any) {
+      console.error("Instance create failed:", error);
+      res.status(error.status || 500).json({ error: error.message || "Create failed", details: error.body });
+    }
+  });
+
+  /* ------------------------------------------------ DELETE INSTANCE */
+  app.post("/api/whatsapp/instance/delete", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const uc = await getUserEvolutionConfig(req);
+      if (!uc) return res.status(400).json({ error: "WhatsApp not configured" });
+      const out = await evolutionDeleteInstance(uc.instanceName, { baseUrl: uc.apiUrl, apiKey: uc.apiKey });
+      res.json({ success: true, data: out });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Delete failed" });
+    }
+  });
+
+  /* ------------------------------------------------ LOGOUT INSTANCE */
+  app.post("/api/whatsapp/instance/logout", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const uc = await getUserEvolutionConfig(req);
+      if (!uc) return res.status(400).json({ error: "WhatsApp not configured" });
+      const out = await logoutInstance(uc.instanceName, { baseUrl: uc.apiUrl, apiKey: uc.apiKey });
+      res.json({ success: true, data: out });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Logout failed" });
+    }
+  });
+
+  /* ------------------------------------------------ WEBHOOK SET */
+  app.post("/api/whatsapp/webhook/set", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const uc = await getUserEvolutionConfig(req);
+      if (!uc) return res.status(400).json({ error: "WhatsApp not configured" });
+      const url = (req.body?.url || PUBLIC_WEBHOOK_URL) as string;
+      const events = (req.body?.events as string[]) || EVOLUTION_DEFAULT_EVENTS;
+      const out = await setWebhook(
+        uc.instanceName,
+        { url, enabled: true, events, webhookByEvents: false },
+        { baseUrl: uc.apiUrl, apiKey: uc.apiKey },
+      );
+      res.json({ success: true, data: out, webhookUrl: url });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "setWebhook failed" });
+    }
+  });
+
+  /* ------------------------------------------------ GROUPS REFRESH */
+  app.post("/api/whatsapp/groups/refresh", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const uc = await getUserEvolutionConfig(req);
+      if (!uc) return res.status(400).json({ error: "WhatsApp not configured" });
+
+      const groups = await fetchAllGroups(uc.instanceName, false, { baseUrl: uc.apiUrl, apiKey: uc.apiKey });
+
+      let upserted = 0;
+      let errors = 0;
+      for (const g of groups) {
+        const groupJid = g.id || g.groupJid || g.remoteJid;
+        if (!groupJid) continue;
+        const groupName = g.subject || g.name || null;
+        const participantCount =
+          typeof g.size === "number"
+            ? g.size
+            : Array.isArray(g.participants)
+              ? g.participants.length
+              : null;
+        try {
+          await pool.query(
+            `INSERT INTO whatsapp_groups
+              (user_id, group_id, instance_id, group_name, participant_count, source, last_seen, updated_at)
+             VALUES ($1, $2, $3, $4, $5, 'evolution-refresh', NOW(), NOW())
+             ON CONFLICT (group_id, instance_id)
+             DO UPDATE SET
+               group_name = COALESCE(EXCLUDED.group_name, whatsapp_groups.group_name),
+               participant_count = COALESCE(EXCLUDED.participant_count, whatsapp_groups.participant_count),
+               source = 'evolution-refresh',
+               last_seen = NOW(),
+               updated_at = NOW()`,
+            [req.user.userId, groupJid, uc.instanceName, groupName, participantCount],
+          );
+          upserted++;
+        } catch {
+          errors++;
+        }
+      }
+
+      res.json({
+        success: true,
+        fetched: groups.length,
+        upserted,
+        errors,
+      });
+    } catch (error: any) {
+      console.error("Groups refresh failed:", error);
+      res.status(500).json({ error: error.message || "Failed to refresh groups" });
+    }
+  });
+
+  /* ------------------------------------------------ CONTACTS SYNC */
+  app.post("/api/whatsapp/contacts/sync", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const uc = await getUserEvolutionConfig(req);
+      if (!uc) return res.status(400).json({ error: "WhatsApp not configured" });
+
+      const contacts = await fetchAllContacts(uc.instanceName, { baseUrl: uc.apiUrl, apiKey: uc.apiKey });
+
+      let inserted = 0;
+      let errors = 0;
+      for (const c of contacts) {
+        const remoteJid = c.id || c.remoteJid || c.jid;
+        if (!remoteJid) continue;
+        const pushName = c.pushName || c.name || c.notify || c.verifiedName || null;
+        let phoneNumber: string | null = null;
+        if (remoteJid.endsWith("@s.whatsapp.net")) {
+          phoneNumber = "+" + remoteJid.replace(/@s\.whatsapp\.net$/, "").replace(/[^\d]/g, "");
+        } else if (remoteJid.endsWith("@c.us")) {
+          phoneNumber = "+" + remoteJid.replace(/@c\.us$/, "").replace(/[^\d]/g, "");
+        }
+        try {
+          await pool.query(
+            `INSERT INTO contacts
+               (user_id, push_name, phone_number, upload_batch, uploaded_at)
+             VALUES ($1, $2, $3, 'evolution-sync', NOW())
+             ON CONFLICT DO NOTHING`,
+            [req.user.userId, pushName, phoneNumber],
+          );
+          inserted++;
+        } catch {
+          errors++;
+        }
+      }
+
+      // Warm LID cache for sender-resolution at webhook time
+      try {
+        const { bulkPopulateLidCache } = await import("../contactResolver");
+        if (typeof bulkPopulateLidCache === "function") {
+          bulkPopulateLidCache(req.user.userId, contacts);
+        }
+      } catch {
+        /* contactResolver may not export this yet */
+      }
+
+      res.json({
+        success: true,
+        fetched: contacts.length,
+        inserted,
+        errors,
+      });
+    } catch (error: any) {
+      console.error("Contacts sync failed:", error);
+      res.status(500).json({ error: error.message || "Failed to sync contacts" });
+    }
+  });
+
+  /* ------------------------------------------------ SYNC STATUS */
+  app.get("/api/whatsapp/sync-status", requireAuth, async (_req: AuthRequest, res) => {
+    res.json(getSyncStatus());
+  });
+
+  /* ------------------------------------------------ MANUAL SYNC TRIGGER */
+  app.post("/api/whatsapp/sync-now", requireAuth, async (_req: AuthRequest, res) => {
+    try {
+      const status = await runSyncOnce();
+      res.json({ success: true, status });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message || "Sync run failed" });
+    }
+  });
 }
+
+// Re-export an export alias so any legacy importer of `callMBSecure` doesn't
+// crash at boot during the Commit 2 transition. It's a no-op stub.
+export async function callMBSecure(): Promise<never> {
+  throw new Error("callMBSecure is removed. Use server/evolution-client.ts methods instead.");
+}
+export const callWhatsAppAPI = callMBSecure;

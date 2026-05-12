@@ -1,7 +1,0 @@
-name = "mblaster-proxy"
-main = "worker.js"
-compatibility_date = "2024-01-01"
-account_id = "f64c61ec4f540bf3cf23100c4c8c2fd2"
-
-[vars]
-REPLIT_APP_URL = "https://df534c76-6db7-4d28-b278-c13ee606c7a1-00-3qb1r0k4e8fh2.sisko.replit.dev"

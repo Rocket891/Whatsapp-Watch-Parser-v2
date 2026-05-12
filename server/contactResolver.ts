@@ -186,6 +186,39 @@ export function processContactUpdates(contacts: any[], userId: string) {
   }
 }
 
+/**
+ * Bulk-populate the LID→phone cache from an Evolution contacts dump.
+ *
+ * Called from POST /api/whatsapp/contacts/sync and from the
+ * evolution-sync-scheduler. Reduces LID:xxx fallbacks during live
+ * webhook processing by pre-warming the cache before messages arrive.
+ *
+ * Accepts the raw array returned by evolution-client.fetchAllContacts().
+ * Each Evolution contact may have: { id, lid, name, pushName, verifiedName, notify }.
+ */
+export function bulkPopulateLidCache(userId: string, contacts: any[]): number {
+  if (!Array.isArray(contacts) || !userId) return 0;
+  let count = 0;
+  for (const c of contacts) {
+    const phoneJid =
+      c?.id?.endsWith?.("@s.whatsapp.net") ? c.id :
+      c?.jid?.endsWith?.("@s.whatsapp.net") ? c.jid :
+      null;
+    const lidJid =
+      c?.lid?.endsWith?.("@lid") ? c.lid :
+      c?.id?.endsWith?.("@lid") ? c.id :
+      null;
+    if (phoneJid && lidJid) {
+      cacheLidMapping(lidJid, phoneJid, userId);
+      count++;
+    }
+  }
+  if (count > 0) {
+    console.log(`[contactResolver] bulkPopulateLidCache: +${count} mappings for user ${userId}`);
+  }
+  return count;
+}
+
 // Helper to get current LID mappings for debugging - **SECURITY**: Now user-scoped
 export function getLidMappings(userId?: string) {
   if (userId) {
