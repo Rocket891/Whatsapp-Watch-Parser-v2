@@ -220,30 +220,55 @@ export default function WhatsAppIntegration() {
 
   // Check connection status using unified endpoint
   const checkStatus = async (): Promise<boolean> => {
-    const data = form.getValues();
-    if (!data.instanceId || !data.accessToken) {
+    const fv = form.getValues();
+    if (!fv.instanceId) {
       setStatus("disconnected");
       return false;
     }
     setStatus("connecting");
+    let didTransition = false;
     try {
-      // Use the unified connection status endpoint
-      const res = await fetch("/api/whatsapp/connection-status");
-      const data = await res.json();
-      
-      if (data.connected) {
-        setStatus("connected");
-        setLastCheck(`${new Date().toLocaleTimeString()} (${data.mode})`);
-        return true;
-      } else {
-        setStatus("disconnected");
-        setLastCheck(`${new Date().toLocaleTimeString()} (${data.mode || 'none'})`);
-        return false;
+      // Include JWT auth header so the protected endpoint accepts us
+      const token = localStorage.getItem("auth_token");
+      const headers: Record<string, string> = { Accept: "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      // 10-second timeout — if the endpoint hangs, we don't stay "connecting" forever
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 10_000);
+
+      let data: any;
+      try {
+        const res = await fetch("/api/whatsapp/connection-status", { headers, signal: controller.signal });
+        const text = await res.text();
+        try {
+          data = JSON.parse(text);
+        } catch {
+          // Non-JSON response (e.g. HTML 401 page) — treat as disconnected
+          data = { connected: false, mode: "error" };
+        }
+      } finally {
+        clearTimeout(timer);
       }
+
+      if (data?.connected) {
+        setStatus("connected");
+        setLastCheck(`${new Date().toLocaleTimeString()} (${data.mode || "webhook"})`);
+        didTransition = true;
+        return true;
+      }
+      setStatus("disconnected");
+      setLastCheck(`${new Date().toLocaleTimeString()} (${data?.mode || "none"})`);
+      didTransition = true;
+      return false;
     } catch (error) {
       console.error("Status check failed:", error);
       setStatus("error");
+      didTransition = true;
       return false;
+    } finally {
+      // Defensive: guarantee we leave the "connecting" state no matter what
+      if (!didTransition) setStatus("disconnected");
     }
   };
 

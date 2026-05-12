@@ -291,9 +291,11 @@ export default function Sidebar() {
               </span>
             </div>
           </div>
-          <div style={{ color: currentTheme.colors.textSecondary }}>
-            📱 {instanceData?.mobileNumber || 'Loading...'}
-          </div>
+          {instanceData?.mobileNumber && instanceData.mobileNumber !== 'Not configured' && (
+            <div style={{ color: currentTheme.colors.textSecondary }}>
+              📱 {instanceData.mobileNumber}
+            </div>
+          )}
           <div style={{ color: currentTheme.colors.textSecondary }}>
             Instance: {instanceData?.instanceId || 'Loading...'}
           </div>
