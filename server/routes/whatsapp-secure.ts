@@ -637,22 +637,31 @@ export function registerSecureWhatsAppRoutes(app: Express) {
       const contacts = await fetchAllContacts(uc.instanceName, { baseUrl: uc.apiUrl, apiKey: uc.apiKey });
       console.log(`[contacts/sync] Evolution returned ${contacts.length} contacts. Beginning batched insert.`);
 
-      // Pre-process: extract pushName + phoneNumber for each contact
-      const rows: Array<{ userId: string; pushName: string | null; phone: string | null }> = [];
+      // Pre-process: extract pushName + phoneNumber for each contact.
+      // contacts table has NOT NULL on push_name and phone_number, so we must
+      // skip rows missing either. WhatsApp privacy means many participants
+      // arrive as `@lid` with no phone — we count those as "skipped" not
+      // "errors" since they're expected.
+      let skippedNoPhone = 0;
+      let skippedNoName = 0;
+      const rows: Array<{ userId: string; pushName: string; phone: string }> = [];
       for (const c of contacts) {
         const remoteJid = c.id || c.remoteJid || c.jid;
-        if (!remoteJid) continue;
-        const pushName = c.pushName || c.name || c.notify || c.verifiedName || null;
-        let phoneNumber: string | null = null;
-        if (typeof remoteJid === "string") {
-          if (remoteJid.endsWith("@s.whatsapp.net")) {
-            phoneNumber = "+" + remoteJid.replace(/@s\.whatsapp\.net$/, "").replace(/[^\d]/g, "");
-          } else if (remoteJid.endsWith("@c.us")) {
-            phoneNumber = "+" + remoteJid.replace(/@c\.us$/, "").replace(/[^\d]/g, "");
-          }
+        if (!remoteJid || typeof remoteJid !== "string") continue;
+        const pushName = (c.pushName || c.name || c.notify || c.verifiedName || "").trim();
+        let phoneNumber = "";
+        if (remoteJid.endsWith("@s.whatsapp.net")) {
+          phoneNumber = "+" + remoteJid.replace(/@s\.whatsapp\.net$/, "").replace(/[^\d]/g, "");
+        } else if (remoteJid.endsWith("@c.us")) {
+          phoneNumber = "+" + remoteJid.replace(/@c\.us$/, "").replace(/[^\d]/g, "");
         }
+
+        if (!phoneNumber) { skippedNoPhone++; continue; }
+        if (!pushName) { skippedNoName++; continue; }
+
         rows.push({ userId: req.user.userId, pushName, phone: phoneNumber });
       }
+      console.log(`[contacts/sync] filtered: ${rows.length} insertable, ${skippedNoPhone} no-phone (LID), ${skippedNoName} no-name`);
 
       let inserted = 0;
       let errors = 0;
@@ -676,8 +685,21 @@ export function registerSecureWhatsAppRoutes(app: Express) {
           );
           inserted += slice.length;
         } catch (err: any) {
-          errors += slice.length;
-          console.error(`[contacts/sync] batch ${i / BATCH} failed:`, err?.message || err);
+          // Try row-by-row to identify which row(s) bad so we don't lose the whole batch
+          console.error(`[contacts/sync] batch ${Math.floor(i / BATCH)} multi-row failed, falling back to row-by-row:`, err?.message || err);
+          for (const row of slice) {
+            try {
+              await pool.query(
+                `INSERT INTO contacts (user_id, push_name, phone_number, upload_batch, uploaded_at)
+                 VALUES ($1, $2, $3, 'evolution-sync', NOW())
+                 ON CONFLICT DO NOTHING`,
+                [row.userId, row.pushName, row.phone],
+              );
+              inserted++;
+            } catch {
+              errors++;
+            }
+          }
         }
         // Heartbeat — visible in deployment logs / Shell tail
         if (i % (BATCH * 5) === 0 || i + BATCH >= rows.length) {
@@ -686,7 +708,9 @@ export function registerSecureWhatsAppRoutes(app: Express) {
           );
         }
       }
-      console.log(`[contacts/sync] DONE. fetched=${contacts.length}, inserted=${inserted}, errors=${errors}`);
+      console.log(
+        `[contacts/sync] DONE. fetched=${contacts.length}, inserted=${inserted}, errors=${errors}, skipped_no_phone=${skippedNoPhone}, skipped_no_name=${skippedNoName}`,
+      );
 
       // Warm LID cache for sender-resolution at webhook time
       try {
@@ -703,6 +727,8 @@ export function registerSecureWhatsAppRoutes(app: Express) {
         fetched: contacts.length,
         inserted,
         errors,
+        skipped_no_phone: skippedNoPhone,
+        skipped_no_name: skippedNoName,
       });
     } catch (error: any) {
       console.error("Contacts sync failed:", error);

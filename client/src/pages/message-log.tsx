@@ -161,28 +161,36 @@ export default function MessageLog() {
           <div key={`gap-${i}`} className="text-xs text-gray-400 italic">… ({i - prevIdx - 1} more lines)</div>
         );
       }
-      // Highlight tokens within the line
-      let segments: any[] = [lines[i]];
-      for (const tok of tokens) {
-        const next: any[] = [];
-        for (const seg of segments) {
-          if (typeof seg !== 'string') { next.push(seg); continue; }
-          const regex = new RegExp(`(${tok.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-          const parts = seg.split(regex);
-          parts.forEach((p, pi) => {
-            if (pi % 2 === 1) {
-              next.push(<mark key={`${i}-${tok}-${pi}`} className="bg-yellow-200 dark:bg-yellow-700 px-0.5 rounded">{p}</mark>);
-            } else if (p) {
-              next.push(p);
-            }
-          });
-        }
-        segments = next;
-      }
       const isMatch = matchedLines.has(i);
+      // Token <mark> highlights ONLY on match lines so context lines don't
+      // look like false positives. Context lines render in muted text.
+      let content: any = lines[i];
+      if (isMatch) {
+        let segments: any[] = [lines[i]];
+        for (const tok of tokens) {
+          const next: any[] = [];
+          for (const seg of segments) {
+            if (typeof seg !== 'string') { next.push(seg); continue; }
+            const regex = new RegExp(`(${tok.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+            const parts = seg.split(regex);
+            parts.forEach((p, pi) => {
+              if (pi % 2 === 1) {
+                next.push(<mark key={`${i}-${tok}-${pi}`} className="bg-yellow-200 dark:bg-yellow-700 px-0.5 rounded">{p}</mark>);
+              } else if (p) {
+                next.push(p);
+              }
+            });
+          }
+          segments = next;
+        }
+        content = segments;
+      }
       elements.push(
-        <div key={`line-${i}`} className={isMatch ? 'bg-yellow-50 dark:bg-yellow-900/30 px-1 rounded' : ''}>
-          {segments}
+        <div
+          key={`line-${i}`}
+          className={isMatch ? 'bg-yellow-50 dark:bg-yellow-900/30 px-1 rounded font-medium' : 'text-gray-500 dark:text-gray-400'}
+        >
+          {content}
         </div>
       );
       prevIdx = i;

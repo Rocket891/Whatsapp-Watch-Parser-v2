@@ -909,9 +909,13 @@ export default function Contacts() {
                       variant: "destructive",
                     });
                   } else {
+                    const parts = [`Fetched ${data.fetched}`, `inserted ${data.inserted ?? 0}`];
+                    if (data.skipped_no_phone) parts.push(`${data.skipped_no_phone} skipped (no phone — LID)`);
+                    if (data.skipped_no_name) parts.push(`${data.skipped_no_name} skipped (no name)`);
+                    if (data.errors) parts.push(`${data.errors} errors`);
                     toast({
                       title: "Contacts synced from WhatsApp",
-                      description: `Fetched ${data.fetched}, inserted ${data.inserted ?? 0}${data.errors ? `, ${data.errors} errors` : ""}`,
+                      description: parts.join(", "),
                     });
                   }
                   queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
