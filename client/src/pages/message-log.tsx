@@ -121,9 +121,72 @@ export default function MessageLog() {
 
   const formatDate = (dateString: string) => formatDateTime(dateString);
 
-  const truncateMessage = (message: string, maxLength: number = 150) => {
-    if (message.length <= maxLength) return message;
-    return message.substring(0, maxLength) + '...';
+  // Highlight search tokens inside a message + show ±2 lines of context.
+  // When searching, show only the matching line block. When not searching,
+  // show the full message (no truncation).
+  const renderMessageWithHighlight = (message: string) => {
+    const tokens = searchTerm.trim().split(/\s+/).filter((t) => t.length > 0);
+    const lines = message.split('\n');
+
+    // No search: show full message verbatim
+    if (tokens.length === 0) {
+      return <pre className="whitespace-pre-wrap font-sans text-sm">{message}</pre>;
+    }
+
+    // Find line indices containing any token (case-insensitive)
+    const lowerTokens = tokens.map((t) => t.toLowerCase());
+    const matchedLines = new Set<number>();
+    lines.forEach((line, i) => {
+      const lower = line.toLowerCase();
+      if (lowerTokens.some((t) => lower.includes(t))) matchedLines.add(i);
+    });
+
+    // Add ±2 lines of context around each match
+    const linesToShow = new Set<number>();
+    for (const i of matchedLines) {
+      for (let j = Math.max(0, i - 2); j <= Math.min(lines.length - 1, i + 2); j++) {
+        linesToShow.add(j);
+      }
+    }
+    const sortedIdx = Array.from(linesToShow).sort((a, b) => a - b);
+
+    // Build output with gap indicators
+    const elements: any[] = [];
+    let prevIdx = -2;
+    for (const i of sortedIdx) {
+      if (i > prevIdx + 1) {
+        elements.push(
+          <div key={`gap-${i}`} className="text-xs text-gray-400 italic">… ({i - prevIdx - 1} more lines)</div>
+        );
+      }
+      // Highlight tokens within the line
+      let segments: any[] = [lines[i]];
+      for (const tok of tokens) {
+        const next: any[] = [];
+        for (const seg of segments) {
+          if (typeof seg !== 'string') { next.push(seg); continue; }
+          const regex = new RegExp(`(${tok.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+          const parts = seg.split(regex);
+          parts.forEach((p, pi) => {
+            if (pi % 2 === 1) {
+              next.push(<mark key={`${i}-${tok}-${pi}`} className="bg-yellow-200 dark:bg-yellow-700 px-0.5 rounded">{p}</mark>);
+            } else if (p) {
+              next.push(p);
+            }
+          });
+        }
+        segments = next;
+      }
+      const isMatch = matchedLines.has(i);
+      elements.push(
+        <div key={`line-${i}`} className={isMatch ? 'bg-yellow-50 dark:bg-yellow-900/30 px-1 rounded' : ''}>
+          {segments}
+        </div>
+      );
+      prevIdx = i;
+    }
+
+    return <div className="whitespace-pre-wrap font-sans text-sm">{elements}</div>;
   };
 
   return (
@@ -236,11 +299,10 @@ export default function MessageLog() {
                   }}
                   className="border rounded px-3 py-2"
                 >
-                  <option value="all">All Time</option>
+                  <option value="all">All (last 14 days)</option>
                   <option value="today">Today</option>
                   <option value="yesterday">Yesterday</option>
-                  <option value="week">This Week</option>
-                  <option value="month">This Month</option>
+                  <option value="week">Last 7 days</option>
                 </select>
               </div>
             </CardContent>
@@ -330,10 +392,8 @@ export default function MessageLog() {
                           <TableCell className="text-sm text-gray-600">
                             {msg.groupName || msg.group || 'Unknown Group'}
                           </TableCell>
-                          <TableCell className="max-w-md">
-                            <div className="text-sm whitespace-pre-wrap">
-                              {truncateMessage(msg.message || '', 150)}
-                            </div>
+                          <TableCell className="max-w-2xl">
+                            {renderMessageWithHighlight(msg.message || '')}
                           </TableCell>
                           <TableCell className="text-sm text-gray-500">
                             {formatDate(msg.timestamp || msg.createdAt)}

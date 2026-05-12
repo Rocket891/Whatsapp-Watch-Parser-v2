@@ -337,16 +337,49 @@ export async function fetchAllContacts(
   instanceName: string,
   opts?: EvolutionRequestOptions,
 ): Promise<any[]> {
-  const r = await evolutionRequest<any>(
-    "GET",
-    `/contact/fetchAllContacts/${encodeURIComponent(instanceName)}`,
-    undefined,
-    opts,
-  );
-  if (Array.isArray(r)) return r;
-  if (r && Array.isArray(r.contacts)) return r.contacts;
-  if (r && Array.isArray(r.data)) return r.data;
-  return [];
+  // Evolution v2.3+ moved contact listing to POST /chat/findContacts.
+  // Older builds still accepted GET /contact/fetchAllContacts. Try the new
+  // shape first, fall back to the legacy GET on 404. Either way, normalize
+  // to an array.
+  const parse = (r: any): any[] => {
+    if (Array.isArray(r)) return r;
+    if (r && Array.isArray(r.contacts)) return r.contacts;
+    if (r && Array.isArray(r.data)) return r.data;
+    return [];
+  };
+
+  try {
+    const r = await evolutionRequest<any>(
+      "POST",
+      `/chat/findContacts/${encodeURIComponent(instanceName)}`,
+      { where: {} },
+      opts,
+    );
+    const out = parse(r);
+    if (out.length > 0) return out;
+    // Some builds return [] when no body; try legacy too before giving up
+  } catch (err: any) {
+    // 404 / 405 → legacy build, try GET below
+    if (!/404|405|not found/i.test(err?.message || "")) {
+      // any other error: re-throw so the user sees a real toast
+      throw err;
+    }
+  }
+
+  try {
+    const r = await evolutionRequest<any>(
+      "GET",
+      `/contact/fetchAllContacts/${encodeURIComponent(instanceName)}`,
+      undefined,
+      opts,
+    );
+    return parse(r);
+  } catch (err: any) {
+    if (/404|405|not found/i.test(err?.message || "")) {
+      return []; // truly unsupported on this Evolution build
+    }
+    throw err;
+  }
 }
 
 // ============================================================

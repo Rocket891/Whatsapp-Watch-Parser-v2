@@ -902,10 +902,18 @@ export default function Contacts() {
                   if (!res.ok) {
                     throw new Error(data?.error || `HTTP ${res.status}`);
                   }
-                  toast({
-                    title: "Contacts synced from WhatsApp",
-                    description: `Fetched ${data.fetched ?? 0}, inserted ${data.inserted ?? 0}${data.errors ? `, ${data.errors} errors` : ""}`,
-                  });
+                  if ((data.fetched ?? 0) === 0) {
+                    toast({
+                      title: "No contacts returned",
+                      description: "Evolution returned 0 contacts. Check the Evolution instance has been paired with WhatsApp and has contacts synced server-side. Also check Evolution version compatibility.",
+                      variant: "destructive",
+                    });
+                  } else {
+                    toast({
+                      title: "Contacts synced from WhatsApp",
+                      description: `Fetched ${data.fetched}, inserted ${data.inserted ?? 0}${data.errors ? `, ${data.errors} errors` : ""}`,
+                    });
+                  }
                   queryClient.invalidateQueries({ queryKey: ["/api/contacts"] });
                 } catch (err: any) {
                   toast({
@@ -1560,6 +1568,41 @@ John Doe +852 1234 5678
                   <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Groups Database</h2>
                   <p className="text-sm text-gray-600 dark:text-gray-400">Manage WhatsApp groups and broadcast messaging</p>
                 </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={async () => {
+                      try {
+                        const token = localStorage.getItem('auth_token');
+                        const res = await fetch("/api/whatsapp/groups/refresh", {
+                          method: "POST",
+                          headers: {
+                            "Content-Type": "application/json",
+                            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                          },
+                          credentials: "include",
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) {
+                          throw new Error(data?.error || `HTTP ${res.status}`);
+                        }
+                        toast({
+                          title: "Groups refreshed",
+                          description: `Fetched ${data.fetched ?? 0}, upserted ${data.upserted ?? 0}${data.errors ? `, ${data.errors} errors` : ""}`,
+                        });
+                        queryClient.invalidateQueries({ queryKey: ['/api/whatsapp-groups/database'] });
+                      } catch (err: any) {
+                        toast({
+                          title: "Refresh failed",
+                          description: err?.message || "Could not fetch groups",
+                          variant: "destructive",
+                        });
+                      }
+                    }}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Refresh from WhatsApp
+                  </Button>
                 <Dialog open={showGroupBroadcastDialog} onOpenChange={setShowGroupBroadcastDialog}>
                   <DialogTrigger asChild>
                     <Button 
@@ -1660,6 +1703,7 @@ John Doe +852 1234 5678
                     </div>
                   </DialogContent>
                 </Dialog>
+                </div>
               </div>
 
               {isLoadingGroups ? (

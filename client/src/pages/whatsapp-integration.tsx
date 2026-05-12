@@ -190,16 +190,17 @@ export default function WhatsAppIntegration() {
     }
   }, [form]);
 
-  // Auto-check status every 30 seconds
+  // Initial status check on mount + every 30s thereafter
   useEffect(() => {
+    // Fire immediately so the page doesn't show a stale "Error" badge
+    // before the first interval tick.
+    checkStatus();
     const interval = setInterval(() => {
-      const data = form.getValues();
-      if (data.instanceId && data.accessToken) {
-        checkStatus();
-      }
+      checkStatus();
     }, 30000);
     return () => clearInterval(interval);
-  }, [form]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Check pause status on mount
   useEffect(() => {
@@ -218,12 +219,11 @@ export default function WhatsAppIntegration() {
   };
 
   // Check connection status using unified endpoint
+  // NOTE: The backend uses the user's saved config (server-side), so we no
+  // longer require the form's instanceId to be filled — that gated initial
+  // checks and left the page showing a red Error badge while the sidebar
+  // showed Connected. The server-side check is the source of truth.
   const checkStatus = async (): Promise<boolean> => {
-    const fv = form.getValues();
-    if (!fv.instanceId) {
-      setStatus("disconnected");
-      return false;
-    }
     setStatus("connecting");
     let didTransition = false;
     try {
