@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { MessageSquare, Filter, Clock, Hash, Phone, Eye, Copy, Download } from 'lucide-react';
+import { WhatsAppBadge } from '@/components/whatsapp-badge';
 import ConnectionStatus from '@/components/connection-status';
 import { formatDistanceToNow } from 'date-fns';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -444,7 +445,72 @@ export default function IncomingMessages() {
                             {message.sender}
                           </td>
                           <td className="border border-gray-200 px-4 py-2 text-sm text-gray-700">
-                            {message.senderNumber && message.senderNumber.includes('-') ? message.senderNumber.split('-')[0] : (message.senderNumber || '-')}
+                            {(() => {
+                              const raw = message.senderNumber || '';
+                              const phone = raw.includes('-')
+                                ? raw.split('-')[0]
+                                : raw;
+                              const isResolvable =
+                                !!phone &&
+                                !phone.includes('@lid') &&
+                                phone.startsWith('+');
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <WhatsAppBadge
+                                    phoneNumber={isResolvable ? phone : ''}
+                                    size="sm"
+                                    onSendMessage={
+                                      isResolvable
+                                        ? async () => {
+                                            const template = (() => {
+                                              try {
+                                                const stored = localStorage.getItem('whatsapp_templates');
+                                                const t = stored ? JSON.parse(stored) : {};
+                                                return t.contacts || `Hi ${message.sender || ''}, regarding your message: "${message.message.slice(0, 80)}…" — let me know.`;
+                                              } catch {
+                                                return `Hi ${message.sender || ''}, regarding your message: "${message.message.slice(0, 80)}…" — let me know.`;
+                                              }
+                                            })();
+                                            const text = prompt(
+                                              `Send WhatsApp to ${phone}?\n(edit message below or cancel)`,
+                                              template,
+                                            );
+                                            if (!text) return;
+                                            try {
+                                              const token = localStorage.getItem('auth_token');
+                                              const res = await fetch('/api/whatsapp/send', {
+                                                method: 'POST',
+                                                headers: {
+                                                  'Content-Type': 'application/json',
+                                                  ...(token ? { Authorization: `Bearer ${token}` } : {}),
+                                                },
+                                                body: JSON.stringify({ phone, message: text }),
+                                              });
+                                              const data = await res.json().catch(() => ({}));
+                                              if (res.ok && data?.success) {
+                                                toast({ title: 'Message sent', description: `To ${phone}` });
+                                              } else {
+                                                toast({
+                                                  title: 'Send failed',
+                                                  description: data?.error || `HTTP ${res.status}`,
+                                                  variant: 'destructive',
+                                                });
+                                              }
+                                            } catch (err: any) {
+                                              toast({
+                                                title: 'Send error',
+                                                description: err?.message || 'Could not send',
+                                                variant: 'destructive',
+                                              });
+                                            }
+                                          }
+                                        : undefined
+                                    }
+                                  />
+                                  <span>{phone || '-'}</span>
+                                </div>
+                              );
+                            })()}
                           </td>
                           <td className="border border-gray-200 px-4 py-2 text-sm text-gray-900 max-w-md">
                             <div className="flex items-start gap-2">
