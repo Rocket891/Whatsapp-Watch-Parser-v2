@@ -646,8 +646,16 @@ export function registerSecureWhatsAppRoutes(app: Express) {
       let skippedNoName = 0;
       const rows: Array<{ userId: string; pushName: string; phone: string }> = [];
       for (const c of contacts) {
-        const remoteJid = c.id || c.remoteJid || c.jid;
-        if (!remoteJid || typeof remoteJid !== "string") continue;
+        // Evolution v2.3+ uses `remoteJid` (c.id is an internal DB uuid).
+        // Older builds use `c.id` for the JID. Try the proper JID field first.
+        let remoteJid: string | null = null;
+        for (const candidate of [c.remoteJid, c.jid, c.id]) {
+          if (typeof candidate === "string" && (candidate.includes("@s.whatsapp.net") || candidate.includes("@c.us") || candidate.includes("@lid"))) {
+            remoteJid = candidate;
+            break;
+          }
+        }
+        if (!remoteJid) continue;
         const pushName = (c.pushName || c.name || c.notify || c.verifiedName || "").trim();
         let phoneNumber = "";
         if (remoteJid.endsWith("@s.whatsapp.net")) {

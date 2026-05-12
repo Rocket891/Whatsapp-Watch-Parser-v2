@@ -1596,10 +1596,14 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Hide empty messages (default ON in UI). Filters rows where message is
-    // NULL or whitespace-only. Captures non-text events (delivery acks,
-    // stickers, deleted messages, etc.) that have no text body.
+    // NULL, whitespace-only, or any of the WhatsApp non-text event types.
+    // Some events store status codes like "[delivery_ack]" instead of NULL.
     if (filters.hideEmpty) {
-      conditions.push(sql`${messageLogs.message} IS NOT NULL AND length(trim(${messageLogs.message})) > 0`);
+      conditions.push(sql`
+        ${messageLogs.message} IS NOT NULL
+        AND length(regexp_replace(${messageLogs.message}, '[\\s\\u200B-\\u200D\\uFEFF]', '', 'g')) > 0
+        AND ${messageLogs.message} NOT IN ('[delivery_ack]', '[sticker]', '[deleted]', '[poll]', '[reaction]', '[media]', '[image]', '[video]', '[audio]', '[document]')
+      `);
     }
 
     const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
