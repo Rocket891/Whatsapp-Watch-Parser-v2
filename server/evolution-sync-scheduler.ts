@@ -83,40 +83,80 @@ async function upsertGroups(userId: string, instanceId: string, groups: any[]): 
 }
 
 /**
- * Upsert contacts into contacts table for a given user.
- * Returns count of rows touched.
+ * Replace contacts for a given user with the fresh fetch result.
+ * Idempotent — wipes previous evolution-auto-sync rows for this user before
+ * inserting, so re-running every 60 min doesn't multiply duplicates.
+ * Mirrors the logic of the manual /api/whatsapp/contacts/sync endpoint.
+ * Returns count of rows inserted.
  */
 async function upsertContacts(userId: string, contacts: any[]): Promise<number> {
-  let n = 0;
+  // 1. Parse + filter
+  const rows: Array<{ pushName: string; phone: string }> = [];
   for (const c of contacts) {
-    // Evolution returns various shapes depending on version
-    const remoteJid = c.id || c.remoteJid || c.jid;
+    // Evolution v2.3+: remoteJid is the WA JID, c.id is internal DB uuid
+    let remoteJid: string | null = null;
+    for (const candidate of [c.remoteJid, c.jid, c.id]) {
+      if (typeof candidate === "string" && (candidate.includes("@s.whatsapp.net") || candidate.includes("@c.us") || candidate.includes("@lid"))) {
+        remoteJid = candidate;
+        break;
+      }
+    }
     if (!remoteJid) continue;
-    const pushName = c.pushName || c.name || c.notify || c.verifiedName || null;
-    // Extract phone number from JID
-    let phoneNumber: string | null = null;
+    const pushName = (c.pushName || c.name || c.notify || c.verifiedName || "").trim();
+    let phoneNumber = "";
     if (remoteJid.endsWith("@s.whatsapp.net")) {
       phoneNumber = "+" + remoteJid.replace(/@s\.whatsapp\.net$/, "").replace(/[^\d]/g, "");
     } else if (remoteJid.endsWith("@c.us")) {
       phoneNumber = "+" + remoteJid.replace(/@c\.us$/, "").replace(/[^\d]/g, "");
     }
+    if (!phoneNumber || !pushName) continue;
+    rows.push({ pushName, phone: phoneNumber });
+  }
 
+  // 2. Clear previous evolution-auto-sync rows for THIS user (idempotent)
+  try {
+    await pool.query(
+      `DELETE FROM contacts WHERE user_id = $1 AND upload_batch = 'evolution-auto-sync'`,
+      [userId],
+    );
+  } catch (e: any) {
+    console.warn(`[evolution-sync] pre-clear failed for user ${userId}:`, e?.message || e);
+  }
+
+  // 3. Batch insert
+  let n = 0;
+  const BATCH = 100;
+  for (let i = 0; i < rows.length; i += BATCH) {
+    const slice = rows.slice(i, i + BATCH);
+    const values: any[] = [];
+    const placeholders: string[] = [];
+    slice.forEach((row, idx) => {
+      const base = idx * 3;
+      placeholders.push(`($${base + 1}, $${base + 2}, $${base + 3}, 'evolution-auto-sync', NOW())`);
+      values.push(userId, row.pushName, row.phone);
+    });
     try {
-      // contacts table is the user-import target. We use ON CONFLICT to keep
-      // bulk-imported entries coexisting with our auto-sync entries.
       await pool.query(
-        `
-        INSERT INTO contacts
-          (user_id, push_name, phone_number, upload_batch, uploaded_at)
-        VALUES ($1, $2, $3, 'evolution-auto-sync', NOW())
-        ON CONFLICT DO NOTHING
-        `,
-        [userId, pushName, phoneNumber],
+        `INSERT INTO contacts (user_id, push_name, phone_number, upload_batch, uploaded_at)
+         VALUES ${placeholders.join(", ")}
+         ON CONFLICT DO NOTHING`,
+        values,
       );
-      n++;
-    } catch (err) {
-      // contacts table may have different unique constraints across deploys;
-      // ON CONFLICT DO NOTHING covers most cases. Quiet failures here.
+      n += slice.length;
+    } catch (err: any) {
+      console.error(`[evolution-sync] batch ${Math.floor(i / BATCH)} for user ${userId} failed:`, err?.message || err);
+      // Row-by-row fallback
+      for (const row of slice) {
+        try {
+          await pool.query(
+            `INSERT INTO contacts (user_id, push_name, phone_number, upload_batch, uploaded_at)
+             VALUES ($1, $2, $3, 'evolution-auto-sync', NOW())
+             ON CONFLICT DO NOTHING`,
+            [userId, row.pushName, row.phone],
+          );
+          n++;
+        } catch { /* count below n */ }
+      }
     }
   }
   return n;
