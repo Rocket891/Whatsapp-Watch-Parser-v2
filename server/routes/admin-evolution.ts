@@ -19,12 +19,16 @@ import { requireApiKey } from "../middleware/apiKey";
 import { getRecentLogs } from "../log-buffer";
 
 export function registerAdminEvolutionRoutes(app: Express) {
-  // ----- GET /api/admin/logs/recent ---------------------------------
+  // ----- GET /api/migration/logs/recent -----------------------------
+  // (Note: mounted under /api/migration/ not /api/admin/ because the
+  // /api/admin/* prefix is wildcard-protected by JWT auth that runs
+  // before our X-API-Key middleware — same reason migration endpoints
+  // live here.)
   // Returns the last N captured console.* lines from the in-memory ring
   // buffer. Use ?format=text for raw plaintext (easier for shell tail),
   // ?level=warn (or error) to filter by minimum severity, ?pattern=<regex>
   // to grep, ?since=ISO_TIMESTAMP to incrementally poll.
-  app.get("/api/admin/logs/recent", requireApiKey, (req: Request, res: Response) => {
+  app.get("/api/migration/logs/recent", requireApiKey, (req: Request, res: Response) => {
     const limit = Math.max(1, Math.min(2000, parseInt(String(req.query.limit ?? "200"), 10) || 200));
     const level = (req.query.level as string) as "info" | "warn" | "error" | undefined;
     const pattern = req.query.pattern as string | undefined;
