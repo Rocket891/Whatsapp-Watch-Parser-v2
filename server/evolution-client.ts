@@ -376,10 +376,10 @@ export async function fetchAllContacts(
   instanceName: string,
   opts?: EvolutionRequestOptions,
 ): Promise<any[]> {
-  // Evolution v2.3+ moved contact listing to POST /chat/findContacts.
-  // Older builds still accepted GET /contact/fetchAllContacts. Try the new
-  // shape first, fall back to the legacy GET on 404. Either way, normalize
-  // to an array.
+  // PRIORITY: GET /contact/fetchAllContacts returns proper phone-book
+  // contacts with @s.whatsapp.net JIDs. POST /chat/findContacts returns
+  // chat-participant entries which are mostly @lid (no phone) — useless
+  // for our use case. Use GET first; only fall back to POST if GET fails.
   const parse = (r: any): any[] => {
     if (Array.isArray(r)) return r;
     if (r && Array.isArray(r.contacts)) return r.contacts;
@@ -389,33 +389,31 @@ export async function fetchAllContacts(
 
   try {
     const r = await evolutionRequest<any>(
-      "POST",
-      `/chat/findContacts/${encodeURIComponent(instanceName)}`,
-      { where: {} },
-      opts,
-    );
-    const out = parse(r);
-    if (out.length > 0) return out;
-    // Some builds return [] when no body; try legacy too before giving up
-  } catch (err: any) {
-    // 404 / 405 → legacy build, try GET below
-    if (!/404|405|not found|aborted/i.test(err?.message || "")) {
-      // any other error: re-throw so the user sees a real toast
-      throw err;
-    }
-  }
-
-  try {
-    const r = await evolutionRequest<any>(
       "GET",
       `/contact/fetchAllContacts/${encodeURIComponent(instanceName)}`,
       undefined,
       opts,
     );
+    const out = parse(r);
+    if (out.length > 0) return out;
+  } catch (err: any) {
+    if (!/404|405|not found|aborted/i.test(err?.message || "")) {
+      throw err;
+    }
+  }
+
+  // Fallback: POST /chat/findContacts (newer Evolution builds, mostly LIDs)
+  try {
+    const r = await evolutionRequest<any>(
+      "POST",
+      `/chat/findContacts/${encodeURIComponent(instanceName)}`,
+      { where: {} },
+      opts,
+    );
     return parse(r);
   } catch (err: any) {
     if (/404|405|not found|aborted/i.test(err?.message || "")) {
-      return []; // truly unsupported on this Evolution build
+      return [];
     }
     throw err;
   }

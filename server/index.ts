@@ -59,16 +59,27 @@ app.use((req, res, next) => {
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
+      // Suppress per-webhook access logs (very high volume — drowns
+      // useful logs in the dev console). Still capture into log buffer
+      // for the /api/migration/logs/recent endpoint when DEBUG_LOGGING=true.
+      const isNoisyPath =
+        path === "/api/whatsapp/webhook" ||
+        path === "/api/whatsapp/connection-status" ||
+        path === "/api/whatsapp/instance-info" ||
+        path === "/api/broadcast-reports" ||
+        path === "/api/migration/logs/recent";
+      const debug = process.env.DEBUG_LOGGING === "true";
 
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
+      if (!isNoisyPath || debug || res.statusCode >= 400) {
+        let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+        if (capturedJsonResponse) {
+          logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+        }
+        if (logLine.length > 80) {
+          logLine = logLine.slice(0, 79) + "…";
+        }
+        log(logLine);
       }
-
-      log(logLine);
     }
   });
 

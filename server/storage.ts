@@ -1523,7 +1523,9 @@ export class DatabaseStorage implements IStorage {
 
           if (existing.length > 0) {
             const key = senderNumber || senderName;
-            console.log(`[dedup] duplicate detected — sender=${key.slice(0,20)}, marking as duplicate`);
+            if (process.env.DEBUG_LOGGING === "true") {
+              console.log(`[dedup] duplicate detected — sender=${key.slice(0,20)}, marking as duplicate`);
+            }
             messageLog.status = 'duplicate';
             messageLog.processed = true;  // skip downstream parsing
           }
@@ -1727,7 +1729,10 @@ export class DatabaseStorage implements IStorage {
         console.log(`🔐 Prioritizing admin: ${selectedConfig.email}`);
       }
       
-      console.log(`🔐 Instance match: ${instanceId} → User ${selectedConfig.userId} (${selectedConfig.email})`);
+      // Per-webhook log spam. Only emit when DEBUG_LOGGING=true.
+      if (process.env.DEBUG_LOGGING === "true") {
+        console.log(`🔐 Instance match: ${instanceId} → User ${selectedConfig.userId} (${selectedConfig.email})`);
+      }
       return selectedConfig.userId;
     }
 
