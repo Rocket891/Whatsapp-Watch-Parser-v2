@@ -13,12 +13,12 @@ export function Toaster() {
 
   return (
     // Toasts persist until the user explicitly dismisses (no auto-dismiss).
-    // duration={Infinity} → Radix won't time them out, so the user has time
+    // duration={86_400_000} → Radix won't time them out, so the user has time
     // to read/copy multi-line content like sync counts and error messages.
-    <ToastProvider duration={Infinity} swipeDirection="right">
+    <ToastProvider duration={86_400_000} swipeDirection="right">
       {toasts.map(function ({ id, title, description, action, ...props }) {
         return (
-          <Toast key={id} duration={Infinity} {...props}>
+          <Toast key={id} duration={86_400_000} {...props}>
             <div className="grid gap-1">
               {title && <ToastTitle>{title}</ToastTitle>}
               {description && (

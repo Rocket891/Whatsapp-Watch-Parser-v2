@@ -1577,8 +1577,10 @@ John Doe +852 1234 5678
                   <Button
                     variant="outline"
                     onClick={async () => {
+                      console.log("[Refresh Groups] click");
                       try {
                         const token = localStorage.getItem('auth_token');
+                        console.log("[Refresh Groups] sending POST…", { hasToken: !!token });
                         const res = await fetch("/api/whatsapp/groups/refresh", {
                           method: "POST",
                           headers: {
@@ -1587,9 +1589,13 @@ John Doe +852 1234 5678
                           },
                           credentials: "include",
                         });
-                        const data = await res.json().catch(() => ({}));
+                        console.log("[Refresh Groups] response", { status: res.status, ok: res.ok });
+                        const text = await res.text();
+                        console.log("[Refresh Groups] body text:", text.slice(0, 500));
+                        let data: any = {};
+                        try { data = JSON.parse(text); } catch { /* leave empty */ }
                         if (!res.ok) {
-                          throw new Error(data?.error || `HTTP ${res.status}`);
+                          throw new Error(data?.error || `HTTP ${res.status}: ${text.slice(0, 200)}`);
                         }
                         toast({
                           title: "Groups refreshed",
@@ -1597,6 +1603,7 @@ John Doe +852 1234 5678
                         });
                         queryClient.invalidateQueries({ queryKey: ['/api/whatsapp-groups/database'] });
                       } catch (err: any) {
+                        console.error("[Refresh Groups] error:", err);
                         toast({
                           title: "Refresh failed",
                           description: err?.message || "Could not fetch groups",

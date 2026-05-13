@@ -105,11 +105,13 @@ async function retentionSweep(): Promise<void> {
     if (r.rowCount && r.rowCount > 0) {
       console.log(`[retention] purged ${r.rowCount} message_logs older than ${RETENTION_DAYS} days`);
     }
-    // Also clean up the raw_webhook_events buffer — fully-processed events older than retention
+    // Also clean up the raw_webhook_events buffer — fully-processed events older than retention.
+    // NOTE: raw_webhook_events uses `received_at`, not `created_at` (different column name
+    // than message_logs above).
     const r2 = await pool.query(
       `DELETE FROM raw_webhook_events
         WHERE processed = true
-          AND created_at < NOW() - ($1::text || ' days')::interval
+          AND received_at < NOW() - ($1::text || ' days')::interval
         RETURNING id`,
       [RETENTION_DAYS]
     );
