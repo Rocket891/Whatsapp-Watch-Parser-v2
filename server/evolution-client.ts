@@ -303,9 +303,11 @@ export async function fetchAllGroups(
   getParticipants = false,
   opts?: EvolutionRequestOptions,
 ): Promise<any[]> {
-  // Mirror the contacts approach: try the canonical Evolution endpoint first,
-  // fall back to alternative paths on 404/405 (different v2 builds use
-  // different routes). Either way, normalize to an array.
+  // Mirror the contacts approach but with a longer timeout — listing 80+
+  // WhatsApp groups can take 30-60s on a busy Evolution instance.
+  // Also: AbortError on the first attempt SHOULD fall through to the
+  // alternate endpoint (Evolution v2.3+ moved this to POST /chat/findGroups
+  // which is often faster because it skips the participants enrichment).
   const parse = (r: any): any[] => {
     if (Array.isArray(r)) return r;
     if (r && Array.isArray(r.groups)) return r.groups;
@@ -313,37 +315,41 @@ export async function fetchAllGroups(
     return [];
   };
 
-  const qs = getParticipants ? "?getParticipants=true" : "?getParticipants=false";
+  // Bump per-call timeout to 90s for group fetches (Evolution can be slow
+  // when bouncing back from heavy webhook load).
+  const groupOpts: EvolutionRequestOptions = { ...opts, timeoutMs: opts?.timeoutMs ?? 90_000 };
 
-  // Attempt 1: GET /group/fetchAllGroups (works on most v2 builds)
-  try {
-    const r = await evolutionRequest<any>(
-      "GET",
-      `/group/fetchAllGroups/${encodeURIComponent(instanceName)}${qs}`,
-      undefined,
-      opts,
-    );
-    const out = parse(r);
-    if (out.length > 0) return out;
-  } catch (err: any) {
-    if (!/404|405|not found/i.test(err?.message || "")) {
-      // Real error (auth, network, etc.) — don't try the fallback
-      throw err;
-    }
-  }
-
-  // Attempt 2: POST /chat/findGroups (newer builds, like the contacts shift)
+  // Attempt 1: POST /chat/findGroups (newer Evolution v2.3+ — usually fastest)
   try {
     const r = await evolutionRequest<any>(
       "POST",
       `/chat/findGroups/${encodeURIComponent(instanceName)}`,
       { where: {} },
-      opts,
+      groupOpts,
+    );
+    const out = parse(r);
+    if (out.length > 0) return out;
+    // Got 200 but empty — fall through to legacy endpoint just in case
+  } catch (err: any) {
+    if (!/404|405|not found|aborted/i.test(err?.message || "")) {
+      throw err;
+    }
+  }
+
+  // Attempt 2: GET /group/fetchAllGroups (legacy/canonical Evolution endpoint)
+  const qs = getParticipants ? "?getParticipants=true" : "?getParticipants=false";
+  try {
+    const r = await evolutionRequest<any>(
+      "GET",
+      `/group/fetchAllGroups/${encodeURIComponent(instanceName)}${qs}`,
+      undefined,
+      groupOpts,
     );
     return parse(r);
   } catch (err: any) {
-    if (/404|405|not found/i.test(err?.message || "")) {
-      return []; // truly unsupported on this Evolution build
+    if (/404|405|not found|aborted/i.test(err?.message || "")) {
+      console.warn(`[evolution-client] fetchAllGroups both endpoints failed/empty for ${instanceName}: ${err?.message || err}`);
+      return [];
     }
     throw err;
   }
@@ -393,7 +399,7 @@ export async function fetchAllContacts(
     // Some builds return [] when no body; try legacy too before giving up
   } catch (err: any) {
     // 404 / 405 → legacy build, try GET below
-    if (!/404|405|not found/i.test(err?.message || "")) {
+    if (!/404|405|not found|aborted/i.test(err?.message || "")) {
       // any other error: re-throw so the user sees a real toast
       throw err;
     }
@@ -408,7 +414,7 @@ export async function fetchAllContacts(
     );
     return parse(r);
   } catch (err: any) {
-    if (/404|405|not found/i.test(err?.message || "")) {
+    if (/404|405|not found|aborted/i.test(err?.message || "")) {
       return []; // truly unsupported on this Evolution build
     }
     throw err;
