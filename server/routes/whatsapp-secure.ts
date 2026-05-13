@@ -587,9 +587,11 @@ export function registerSecureWhatsAppRoutes(app: Express) {
 
       console.log(`[groups/refresh] user=${req.user.userId} fetching from Evolution instance=${uc.instanceName}`);
 
-      // Try Evolution with a tight 15s budget. If it hangs/fails, we fall
-      // back to the existing whatsapp_groups rows (populated organically by
-      // webhook events) so the button never blanks out.
+      // Try Evolution with a tight 15s budget. If it hangs/fails OR returns
+      // an empty array, we fall back to the existing whatsapp_groups rows
+      // (populated organically by webhook events). User's "watch" instance
+      // doesn't keep its group list synced internally — we get empty
+      // responses with no error.
       let groups: any[] = [];
       let stale = false;
       let evolutionError: string | null = null;
@@ -600,6 +602,12 @@ export function registerSecureWhatsAppRoutes(app: Express) {
           timeoutMs: 15_000,
         });
         console.log(`[groups/refresh] Evolution returned ${groups.length} groups`);
+        if (groups.length === 0) {
+          // Empty isn't necessarily an error from Evolution's perspective, but
+          // for the UI it's the same outcome — no fresh data. Mark stale.
+          stale = true;
+          evolutionError = "Evolution returned empty group list";
+        }
       } catch (e: any) {
         evolutionError = e?.message || String(e);
         console.warn(`[groups/refresh] Evolution fetch failed (${evolutionError}); will return cached rows`);

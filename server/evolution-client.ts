@@ -315,9 +315,10 @@ export async function fetchAllGroups(
     return [];
   };
 
-  // Bump per-call timeout to 90s for group fetches (Evolution can be slow
-  // when bouncing back from heavy webhook load).
-  const groupOpts: EvolutionRequestOptions = { ...opts, timeoutMs: opts?.timeoutMs ?? 90_000 };
+  // Caller's timeoutMs wins. Default to 20s (down from 90s — empirically the
+  // user's Evolution instance doesn't fix itself even with longer waits,
+  // so a fast-failure + cache fallback is the better UX).
+  const groupOpts: EvolutionRequestOptions = { ...opts, timeoutMs: opts?.timeoutMs ?? 20_000 };
 
   // Attempt 1: POST /chat/findGroups (newer Evolution v2.3+ — usually fastest)
   try {
