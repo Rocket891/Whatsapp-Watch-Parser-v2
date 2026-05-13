@@ -578,10 +578,16 @@ export function registerSecureWhatsAppRoutes(app: Express) {
   /* ------------------------------------------------ GROUPS REFRESH */
   app.post("/api/whatsapp/groups/refresh", requireAuth, async (req: AuthRequest, res) => {
     try {
+      console.log(`[groups/refresh] user=${req.user.userId} starting…`);
       const uc = await getUserEvolutionConfig(req);
-      if (!uc) return res.status(400).json({ error: "WhatsApp not configured" });
+      if (!uc) {
+        console.warn(`[groups/refresh] user=${req.user.userId} has NO Evolution config`);
+        return res.status(400).json({ error: "WhatsApp not configured" });
+      }
 
+      console.log(`[groups/refresh] user=${req.user.userId} fetching from Evolution instance=${uc.instanceName}`);
       const groups = await fetchAllGroups(uc.instanceName, false, { baseUrl: uc.apiUrl, apiKey: uc.apiKey });
+      console.log(`[groups/refresh] Evolution returned ${groups.length} groups`);
 
       let upserted = 0;
       let errors = 0;

@@ -303,17 +303,50 @@ export async function fetchAllGroups(
   getParticipants = false,
   opts?: EvolutionRequestOptions,
 ): Promise<any[]> {
+  // Mirror the contacts approach: try the canonical Evolution endpoint first,
+  // fall back to alternative paths on 404/405 (different v2 builds use
+  // different routes). Either way, normalize to an array.
+  const parse = (r: any): any[] => {
+    if (Array.isArray(r)) return r;
+    if (r && Array.isArray(r.groups)) return r.groups;
+    if (r && Array.isArray(r.data)) return r.data;
+    return [];
+  };
+
   const qs = getParticipants ? "?getParticipants=true" : "?getParticipants=false";
-  const r = await evolutionRequest<any>(
-    "GET",
-    `/group/fetchAllGroups/${encodeURIComponent(instanceName)}${qs}`,
-    undefined,
-    opts,
-  );
-  if (Array.isArray(r)) return r;
-  if (r && Array.isArray(r.groups)) return r.groups;
-  if (r && Array.isArray(r.data)) return r.data;
-  return [];
+
+  // Attempt 1: GET /group/fetchAllGroups (works on most v2 builds)
+  try {
+    const r = await evolutionRequest<any>(
+      "GET",
+      `/group/fetchAllGroups/${encodeURIComponent(instanceName)}${qs}`,
+      undefined,
+      opts,
+    );
+    const out = parse(r);
+    if (out.length > 0) return out;
+  } catch (err: any) {
+    if (!/404|405|not found/i.test(err?.message || "")) {
+      // Real error (auth, network, etc.) — don't try the fallback
+      throw err;
+    }
+  }
+
+  // Attempt 2: POST /chat/findGroups (newer builds, like the contacts shift)
+  try {
+    const r = await evolutionRequest<any>(
+      "POST",
+      `/chat/findGroups/${encodeURIComponent(instanceName)}`,
+      { where: {} },
+      opts,
+    );
+    return parse(r);
+  } catch (err: any) {
+    if (/404|405|not found/i.test(err?.message || "")) {
+      return []; // truly unsupported on this Evolution build
+    }
+    throw err;
+  }
 }
 
 export async function findGroupInfo(

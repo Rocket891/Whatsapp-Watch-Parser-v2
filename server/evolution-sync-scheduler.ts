@@ -164,11 +164,19 @@ async function upsertContacts(userId: string, contacts: any[]): Promise<number> 
 
 /** Run one sync pass across all active users. */
 export async function runSyncOnce(): Promise<typeof lastRunStatus> {
+  console.log("[evolution-sync] tick start");
   const users = await getActiveUsers();
+  console.log(`[evolution-sync] found ${users.length} active users to sync`);
+  if (users.length === 0) {
+    console.warn(
+      "[evolution-sync] NO active users found. Check user_whatsapp_config: is_active=true AND instance_id IS NOT NULL.",
+    );
+  }
   const userResults: Array<{ userId: string; groups: number; contacts: number; error?: string }> = [];
 
   for (const u of users) {
     try {
+      console.log(`[evolution-sync] syncing user=${u.user_id} instance=${u.instance_id}`);
       const reqOpts = {
         baseUrl: u.evolution_api_url || undefined,
         apiKey: u.evolution_api_key || undefined,
@@ -181,8 +189,10 @@ export async function runSyncOnce(): Promise<typeof lastRunStatus> {
           throw new Error(`fetchAllContacts: ${e.message || e}`);
         }),
       ]);
+      console.log(`[evolution-sync] user=${u.user_id} Evolution returned: groups=${groups.length}, contacts=${contacts.length}`);
       const gCount = await upsertGroups(u.user_id, u.instance_id, groups);
       const cCount = await upsertContacts(u.user_id, contacts);
+      console.log(`[evolution-sync] user=${u.user_id} DB writes: groups=${gCount}, contacts=${cCount}`);
       userResults.push({ userId: u.user_id, groups: gCount, contacts: cCount });
 
       // Warm LID cache (best-effort, ignore failures)
