@@ -1597,10 +1597,18 @@ John Doe +852 1234 5678
                         if (!res.ok) {
                           throw new Error(data?.error || `HTTP ${res.status}: ${text.slice(0, 200)}`);
                         }
-                        toast({
-                          title: "Groups refreshed",
-                          description: `Fetched ${data.fetched ?? 0}, upserted ${data.upserted ?? 0}${data.errors ? `, ${data.errors} errors` : ""}`,
-                        });
+                        if (data.stale) {
+                          toast({
+                            title: "Evolution slow — showing cached groups",
+                            description: data.message || `Cached: ${data.cached ?? 0} groups (from webhook auto-capture). Try again in a few minutes.`,
+                            variant: "destructive",
+                          });
+                        } else {
+                          toast({
+                            title: "Groups refreshed",
+                            description: `Fetched ${data.fetched ?? 0}, upserted ${data.upserted ?? 0}${data.errors ? `, ${data.errors} errors` : ""}`,
+                          });
+                        }
                         queryClient.invalidateQueries({ queryKey: ['/api/whatsapp-groups/database'] });
                       } catch (err: any) {
                         console.error("[Refresh Groups] error:", err);

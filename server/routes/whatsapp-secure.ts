@@ -586,8 +586,25 @@ export function registerSecureWhatsAppRoutes(app: Express) {
       }
 
       console.log(`[groups/refresh] user=${req.user.userId} fetching from Evolution instance=${uc.instanceName}`);
-      const groups = await fetchAllGroups(uc.instanceName, false, { baseUrl: uc.apiUrl, apiKey: uc.apiKey });
-      console.log(`[groups/refresh] Evolution returned ${groups.length} groups`);
+
+      // Try Evolution with a tight 15s budget. If it hangs/fails, we fall
+      // back to the existing whatsapp_groups rows (populated organically by
+      // webhook events) so the button never blanks out.
+      let groups: any[] = [];
+      let stale = false;
+      let evolutionError: string | null = null;
+      try {
+        groups = await fetchAllGroups(uc.instanceName, false, {
+          baseUrl: uc.apiUrl,
+          apiKey: uc.apiKey,
+          timeoutMs: 15_000,
+        });
+        console.log(`[groups/refresh] Evolution returned ${groups.length} groups`);
+      } catch (e: any) {
+        evolutionError = e?.message || String(e);
+        console.warn(`[groups/refresh] Evolution fetch failed (${evolutionError}); will return cached rows`);
+        stale = true;
+      }
 
       let upserted = 0;
       let errors = 0;
@@ -621,11 +638,28 @@ export function registerSecureWhatsAppRoutes(app: Express) {
         }
       }
 
+      // If Evolution gave us nothing useful, count what's cached so the user
+      // knows the button "did something" (returned the existing list).
+      let cachedCount = 0;
+      if (groups.length === 0) {
+        const cached = await pool.query(
+          `SELECT count(*)::int AS n FROM whatsapp_groups WHERE user_id = $1`,
+          [req.user.userId],
+        );
+        cachedCount = cached.rows[0]?.n || 0;
+      }
+
       res.json({
         success: true,
         fetched: groups.length,
         upserted,
         errors,
+        stale,
+        cached: cachedCount,
+        evolution_error: evolutionError,
+        message: stale
+          ? `Evolution didn't respond in time. Showing ${cachedCount} cached groups (auto-captured from webhooks).`
+          : undefined,
       });
     } catch (error: any) {
       console.error("Groups refresh failed:", error);
