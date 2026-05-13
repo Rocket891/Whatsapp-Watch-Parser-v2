@@ -671,6 +671,25 @@ export function registerSecureWhatsAppRoutes(app: Express) {
       }
       console.log(`[contacts/sync] filtered: ${rows.length} insertable, ${skippedNoPhone} no-phone (LID), ${skippedNoName} no-name`);
 
+      // IDEMPOTENT SYNC: clear previous evolution-sync rows for THIS user
+      // before inserting fresh. Without this, each sync would duplicate every
+      // contact (the table has no unique constraint on user_id+phone_number,
+      // so ON CONFLICT DO NOTHING is a no-op). Organically-captured contacts
+      // (different upload_batch) are preserved.
+      let deletedBefore = 0;
+      try {
+        const del = await pool.query(
+          `DELETE FROM contacts WHERE user_id = $1 AND upload_batch = 'evolution-sync' RETURNING id`,
+          [req.user.userId],
+        );
+        deletedBefore = del.rowCount || 0;
+        if (deletedBefore > 0) {
+          console.log(`[contacts/sync] cleared ${deletedBefore} previous evolution-sync rows for clean re-insert`);
+        }
+      } catch (e: any) {
+        console.warn(`[contacts/sync] pre-clear failed (proceeding anyway):`, e?.message || e);
+      }
+
       let inserted = 0;
       let errors = 0;
       const BATCH = 100;
@@ -737,6 +756,7 @@ export function registerSecureWhatsAppRoutes(app: Express) {
         errors,
         skipped_no_phone: skippedNoPhone,
         skipped_no_name: skippedNoName,
+        cleared_previous: deletedBefore,
       });
     } catch (error: any) {
       console.error("Contacts sync failed:", error);

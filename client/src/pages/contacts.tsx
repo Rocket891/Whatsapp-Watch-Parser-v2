@@ -910,6 +910,7 @@ export default function Contacts() {
                     });
                   } else {
                     const parts = [`Fetched ${data.fetched}`, `inserted ${data.inserted ?? 0}`];
+                    if (data.cleared_previous) parts.push(`replaced ${data.cleared_previous} old`);
                     if (data.skipped_no_phone) parts.push(`${data.skipped_no_phone} skipped (no phone — LID)`);
                     if (data.skipped_no_name) parts.push(`${data.skipped_no_name} skipped (no name)`);
                     if (data.errors) parts.push(`${data.errors} errors`);
