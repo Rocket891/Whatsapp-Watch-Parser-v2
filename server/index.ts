@@ -1,6 +1,12 @@
 import express, { type Request, Response, NextFunction } from "express";
 import https from "node:https";
 import http from "node:http";
+import { installLogBuffer } from "./log-buffer";
+
+// Capture all console output into a ring buffer BEFORE any other module runs
+// (so we don't miss startup logs). Exposed via GET /api/admin/logs/recent.
+installLogBuffer();
+
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { startSyncScheduler } from "./evolution-sync-scheduler";

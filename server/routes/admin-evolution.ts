@@ -16,8 +16,31 @@
 import type { Express, Request, Response } from "express";
 import { pool } from "../db";
 import { requireApiKey } from "../middleware/apiKey";
+import { getRecentLogs } from "../log-buffer";
 
 export function registerAdminEvolutionRoutes(app: Express) {
+  // ----- GET /api/admin/logs/recent ---------------------------------
+  // Returns the last N captured console.* lines from the in-memory ring
+  // buffer. Use ?format=text for raw plaintext (easier for shell tail),
+  // ?level=warn (or error) to filter by minimum severity, ?pattern=<regex>
+  // to grep, ?since=ISO_TIMESTAMP to incrementally poll.
+  app.get("/api/admin/logs/recent", requireApiKey, (req: Request, res: Response) => {
+    const limit = Math.max(1, Math.min(2000, parseInt(String(req.query.limit ?? "200"), 10) || 200));
+    const level = (req.query.level as string) as "info" | "warn" | "error" | undefined;
+    const pattern = req.query.pattern as string | undefined;
+    const since = req.query.since as string | undefined;
+
+    const logs = getRecentLogs(limit, { since, level, pattern });
+
+    if (req.query.format === "text") {
+      res.type("text/plain").send(
+        logs.map((l) => `${l.ts} [${l.level}] ${l.line}`).join("\n") + "\n",
+      );
+    } else {
+      res.json({ count: logs.length, logs });
+    }
+  });
+
   // ----- GET /api/migration/status -----------------------------
   app.get("/api/migration/status", requireApiKey, async (_req: Request, res: Response) => {
     try {
