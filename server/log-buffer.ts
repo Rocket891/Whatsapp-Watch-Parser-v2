@@ -30,8 +30,32 @@ function fmt(args: any[]): string {
 }
 
 function push(level: string, args: any[]) {
-  buffer.push({ ts: new Date().toISOString(), level, line: fmt(args) });
+  const entry = { ts: new Date().toISOString(), level, line: fmt(args) };
+  buffer.push(entry);
   if (buffer.length > BUFFER_SIZE) buffer.shift();
+
+  // Persist warn/error events to DB so they survive container restarts
+  // (in-memory buffer resets on every boot; impossible to diagnose crashes
+  // without persistence). Fire-and-forget — never throw from inside console.*.
+  if (level === "warn" || level === "error") {
+    persistEvent(entry).catch(() => { /* swallow — never let logging crash */ });
+  }
+}
+
+// Lazy import to avoid circular dependency with db.ts (which itself calls console.log)
+let dbModule: any = null;
+async function persistEvent(entry: { ts: string; level: string; line: string }) {
+  try {
+    if (!dbModule) {
+      dbModule = await import("./db");
+    }
+    await dbModule.pool.query(
+      `INSERT INTO system_events (ts, level, line) VALUES ($1, $2, $3)`,
+      [entry.ts, entry.level, entry.line.slice(0, 4000)],
+    );
+  } catch {
+    // Table may not exist yet, or DB unreachable. Silent skip.
+  }
 }
 
 export function installLogBuffer() {
@@ -58,6 +82,39 @@ export function installLogBuffer() {
     origErr.apply(console, a);
   };
   push("info", ["[log-buffer] installed, capturing console output"]);
+}
+
+/** Query DB-persisted warn/error events (survives container restarts). */
+export async function getPersistedEvents(
+  limit = 200,
+  opts?: { since?: string; level?: "error" | "warn"; pattern?: string },
+): Promise<Array<{ ts: string; level: string; line: string }>> {
+  try {
+    if (!dbModule) dbModule = await import("./db");
+    const conds: string[] = [];
+    const args: any[] = [];
+    if (opts?.since) {
+      conds.push(`ts > $${args.length + 1}`);
+      args.push(opts.since);
+    }
+    if (opts?.level === "error") {
+      conds.push(`level = 'error'`);
+    }
+    if (opts?.pattern) {
+      conds.push(`line ILIKE $${args.length + 1}`);
+      args.push(`%${opts.pattern}%`);
+    }
+    const whereSql = conds.length ? `WHERE ${conds.join(" AND ")}` : "";
+    args.push(Math.max(1, Math.min(2000, limit)));
+    const r = await dbModule.pool.query(
+      `SELECT ts::text AS ts, level, line FROM system_events ${whereSql}
+        ORDER BY id DESC LIMIT $${args.length}`,
+      args,
+    );
+    return r.rows.reverse(); // chronological order
+  } catch {
+    return [];
+  }
 }
 
 export function getRecentLogs(

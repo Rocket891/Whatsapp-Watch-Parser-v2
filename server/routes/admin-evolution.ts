@@ -16,7 +16,7 @@
 import type { Express, Request, Response } from "express";
 import { pool } from "../db";
 import { requireApiKey } from "../middleware/apiKey";
-import { getRecentLogs } from "../log-buffer";
+import { getRecentLogs, getPersistedEvents } from "../log-buffer";
 
 export function registerAdminEvolutionRoutes(app: Express) {
   // ----- GET /api/migration/logs/recent -----------------------------
@@ -29,19 +29,54 @@ export function registerAdminEvolutionRoutes(app: Express) {
   // ?level=warn (or error) to filter by minimum severity, ?pattern=<regex>
   // to grep, ?since=ISO_TIMESTAMP to incrementally poll.
   app.get("/api/migration/logs/recent", requireApiKey, (req: Request, res: Response) => {
-    const limit = Math.max(1, Math.min(2000, parseInt(String(req.query.limit ?? "200"), 10) || 200));
-    const level = (req.query.level as string) as "info" | "warn" | "error" | undefined;
-    const pattern = req.query.pattern as string | undefined;
-    const since = req.query.since as string | undefined;
+    try {
+      const limit = Math.max(1, Math.min(2000, parseInt(String(req.query.limit ?? "200"), 10) || 200));
+      const levelRaw = req.query.level as string | undefined;
+      const level = (levelRaw === "info" || levelRaw === "warn" || levelRaw === "error") ? levelRaw : undefined;
+      const pattern = req.query.pattern as string | undefined;
+      const since = req.query.since as string | undefined;
 
-    const logs = getRecentLogs(limit, { since, level, pattern });
+      const logs = getRecentLogs(limit, { since, level, pattern });
 
-    if (req.query.format === "text") {
-      res.type("text/plain").send(
-        logs.map((l) => `${l.ts} [${l.level}] ${l.line}`).join("\n") + "\n",
-      );
-    } else {
-      res.json({ count: logs.length, logs });
+      if (req.query.format === "text") {
+        res.type("text/plain").send(
+          logs.map((l) => `${l.ts} [${l.level}] ${l.line}`).join("\n") + "\n",
+        );
+      } else {
+        res.json({ count: logs.length, logs });
+      }
+    } catch (err: any) {
+      console.error("[logs/recent] error:", err?.message || err);
+      res.status(500).json({ error: err?.message || "Internal error" });
+    }
+  });
+
+  // ----- GET /api/migration/logs/persisted --------------------------
+  // Queries DB-backed system_events table. UNLIKE /logs/recent (in-memory),
+  // this survives container crashes/restarts. Use this to diagnose any
+  // crash after the fact. Only warn/error events are persisted (info is
+  // too high-volume).
+  // Query params: limit, level=error, pattern (ILIKE), since (ISO timestamp), format=text
+  app.get("/api/migration/logs/persisted", requireApiKey, async (req: Request, res: Response) => {
+    try {
+      const limit = Math.max(1, Math.min(2000, parseInt(String(req.query.limit ?? "200"), 10) || 200));
+      const levelRaw = req.query.level as string | undefined;
+      const level = (levelRaw === "warn" || levelRaw === "error") ? levelRaw : undefined;
+      const pattern = req.query.pattern as string | undefined;
+      const since = req.query.since as string | undefined;
+
+      const logs = await getPersistedEvents(limit, { since, level, pattern });
+
+      if (req.query.format === "text") {
+        res.type("text/plain").send(
+          logs.map((l) => `${l.ts} [${l.level}] ${l.line}`).join("\n") + "\n",
+        );
+      } else {
+        res.json({ count: logs.length, logs });
+      }
+    } catch (err: any) {
+      console.error("[logs/persisted] error:", err?.message || err);
+      res.status(500).json({ error: err?.message || "Internal error" });
     }
   });
 

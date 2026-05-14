@@ -276,6 +276,19 @@ export const rawWebhookEvents = pgTable("raw_webhook_events", {
   providerIdx: index("raw_webhook_events_provider_idx").on(table.provider),
 }));
 
+// System events log — persisted warn/error console output that survives
+// container restarts. Lets us diagnose crashes after the fact.
+// log-buffer.ts auto-inserts on every console.warn / console.error.
+export const systemEvents = pgTable("system_events", {
+  id: serial("id").primaryKey(),
+  ts: timestamp("ts").defaultNow().notNull(),
+  level: text("level").notNull(),
+  line: text("line").notNull(),
+}, (table) => ({
+  tsIdx: index("system_events_ts_idx").on(table.ts),
+  levelIdx: index("system_events_level_idx").on(table.level),
+}));
+
 export const broadcastReports = pgTable("broadcast_reports", {
   id: serial("id").primaryKey(),
   userId: uuid("user_id").references(() => users.id), // Data isolation - CRITICAL SECURITY FIX
