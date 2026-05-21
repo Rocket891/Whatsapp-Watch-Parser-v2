@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, varchar, decimal, jsonb, unique, uuid, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, bigint, boolean, timestamp, varchar, decimal, jsonb, unique, uuid, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 import { z } from "zod";
@@ -109,7 +109,7 @@ export const watchListings = pgTable("watch_listings", {
   year: text("year"),
   variant: text("variant"),
   condition: text("condition"),
-  price: integer("price"),
+  price: bigint("price", { mode: "number" }),
   chatId: text("chat_id").notNull(),
   groupName: text("group_name"),
   sender: text("sender").notNull(),
