@@ -84,42 +84,56 @@ async function processOne(row: { id: number; provider: string | null; body: any 
   }
 }
 
-// Message log retention — delete message_logs older than N days. Keeps DB lean.
-// Default 7 days; configurable via MESSAGE_LOG_RETENTION_DAYS env var. Set to 0
-// to disable retention.
-const RETENTION_DAYS = Math.max(
+// User-facing message history. Default 14 days; configurable via env var.
+const MESSAGE_LOG_RETENTION_DAYS = Math.max(
   0,
   parseInt(process.env.MESSAGE_LOG_RETENTION_DAYS || "14", 10) || 14
+);
+// Raw webhook payloads (TOAST-heavy JSONB blobs). Once processed, these are
+// redundant with message_logs / watch_listings. Keep only a short window for
+// replay safety. Default 2 days — discovered 14-day retention bloated DB
+// with ~2.7 GB of TOAST data from webhook JSONB bodies.
+const RAW_EVENTS_RETENTION_DAYS = Math.max(
+  0,
+  parseInt(process.env.RAW_EVENTS_RETENTION_DAYS || "2", 10) || 2
 );
 let lastRetentionSweep = 0;
 
 async function retentionSweep(): Promise<void> {
-  if (RETENTION_DAYS <= 0) return;
-  try {
-    const r = await pool.query(
-      `DELETE FROM message_logs
-        WHERE created_at < NOW() - ($1::text || ' days')::interval
-        RETURNING id`,
-      [RETENTION_DAYS]
-    );
-    if (r.rowCount && r.rowCount > 0) {
-      console.log(`[retention] purged ${r.rowCount} message_logs older than ${RETENTION_DAYS} days`);
+  // message_logs cleanup (14-day window)
+  if (MESSAGE_LOG_RETENTION_DAYS > 0) {
+    try {
+      const r = await pool.query(
+        `DELETE FROM message_logs
+          WHERE created_at < NOW() - ($1::text || ' days')::interval
+          RETURNING id`,
+        [MESSAGE_LOG_RETENTION_DAYS]
+      );
+      if (r.rowCount && r.rowCount > 0) {
+        console.log(`[retention] purged ${r.rowCount} message_logs older than ${MESSAGE_LOG_RETENTION_DAYS} days`);
+      }
+    } catch (e: any) {
+      console.error("[retention] message_logs sweep failed:", e?.message || e);
     }
-    // Also clean up the raw_webhook_events buffer — fully-processed events older than retention.
-    // NOTE: raw_webhook_events uses `received_at`, not `created_at` (different column name
-    // than message_logs above).
-    const r2 = await pool.query(
-      `DELETE FROM raw_webhook_events
-        WHERE processed = true
-          AND received_at < NOW() - ($1::text || ' days')::interval
-        RETURNING id`,
-      [RETENTION_DAYS]
-    );
-    if (r2.rowCount && r2.rowCount > 0) {
-      console.log(`[retention] purged ${r2.rowCount} raw_webhook_events older than ${RETENTION_DAYS} days`);
+  }
+
+  // raw_webhook_events cleanup (2-day window — separate from message_logs).
+  // NOTE: raw_webhook_events uses `received_at` (different column name).
+  if (RAW_EVENTS_RETENTION_DAYS > 0) {
+    try {
+      const r2 = await pool.query(
+        `DELETE FROM raw_webhook_events
+          WHERE processed = true
+            AND received_at < NOW() - ($1::text || ' days')::interval
+          RETURNING id`,
+        [RAW_EVENTS_RETENTION_DAYS]
+      );
+      if (r2.rowCount && r2.rowCount > 0) {
+        console.log(`[retention] purged ${r2.rowCount} raw_webhook_events older than ${RAW_EVENTS_RETENTION_DAYS} days`);
+      }
+    } catch (e: any) {
+      console.error("[retention] raw_webhook_events sweep failed:", e?.message || e);
     }
-  } catch (e: any) {
-    console.error("[retention] sweep failed:", e?.message || e);
   }
 }
 
