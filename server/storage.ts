@@ -1,6 +1,6 @@
 import { users, watchListings, processingLogs, systemStats, pidAlerts, referenceDatabase, whatsappGroups, watchRequirements, messageLogs, subscriptionPlans, teamMembers, userWhatsappConfig, type User, type InsertUser, type WatchListing, type InsertWatchListing, type ProcessingLog, type InsertProcessingLog, type SystemStats, type InsertSystemStats, type SearchFilters, type PidAlert, type InsertPidAlert, type ReferenceDatabase, type InsertReferenceDatabase, type WhatsappGroup, type InsertWhatsappGroup, type WatchRequirement, type InsertWatchRequirement, type MessageLog, type InsertMessageLog, type MessageLogFilters, type TeamMember, type InsertTeamMember, type UserWhatsappConfig, type InsertUserWhatsappConfig } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, gte, lte, ilike, desc, asc, sql, count, inArray } from "drizzle-orm";
+import { eq, and, or, not, gte, lte, ilike, desc, asc, sql, count, inArray } from "drizzle-orm";
 import { createUserAccessCondition, createWatchListingsAccessCondition, getAccessibleUserIds } from "./lib/access";
 
 export interface FeatureAccess {
@@ -506,6 +506,14 @@ export class DatabaseStorage implements IStorage {
     }
     if (filters.condition) {
       conditions.push(ilike(watchListings.condition, `%${filters.condition}%`));
+    }
+    // Multi-exclude conditions (e.g. hide "Used"): NOT-match each.
+    if (filters.conditionsExclude && filters.conditionsExclude.length > 0) {
+      for (const ex of filters.conditionsExclude) {
+        if (ex && ex.trim()) {
+          conditions.push(not(ilike(watchListings.condition, `%${ex}%`)));
+        }
+      }
     }
     if (filters.year) {
       conditions.push(eq(watchListings.year, filters.year));

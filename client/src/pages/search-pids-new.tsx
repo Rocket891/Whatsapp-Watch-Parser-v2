@@ -26,6 +26,7 @@ interface SearchFilters {
   year?: string;
   variant?: string;
   condition?: string;
+  conditionsExclude?: string[];
   currency?: string;
   groupName?: string;
   sender?: string;
@@ -185,7 +186,10 @@ export default function SearchPIDs() {
       }
       
       Object.entries(filters).forEach(([key, value]) => {
-        if (value !== undefined && value !== null && value !== '') {
+        if (value === undefined || value === null || value === '') return;
+        if (Array.isArray(value)) {
+          value.forEach((v) => { if (v !== undefined && v !== null && v !== '') params.append(key, String(v)); });
+        } else {
           params.append(key, value.toString());
         }
       });
@@ -265,12 +269,22 @@ export default function SearchPIDs() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="brand">Brand</Label>
-                  <Input
-                    id="brand"
-                    placeholder="Patek Philippe, Rolex, etc."
-                    value={filters.brand || ''}
-                    onChange={(e) => setFilters(prev => ({ ...prev, brand: e.target.value }))}
-                  />
+                  <Select value={filters.brand || 'all_brands'} onValueChange={(value) => setFilters(prev => ({ ...prev, brand: value === 'all_brands' ? undefined : value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All brands" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all_brands">All brands</SelectItem>
+                      {[
+                        "Rolex", "Patek Philippe", "Audemars Piguet", "Vacheron Constantin",
+                        "A Lange Sohne", "Richard Mille", "Tudor", "Cartier", "Omega",
+                        "Panerai", "IWC", "Jaeger Lecoultre", "Breguet", "Blancpain",
+                        "Chopard", "Bulgari", "Hublot", "F.P. Journe"
+                      ].map((b) => (
+                        <SelectItem key={b} value={b}>{b}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label htmlFor="family">Family</Label>
@@ -307,7 +321,7 @@ export default function SearchPIDs() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="condition">Condition</Label>
+                  <Label htmlFor="condition">Condition (include)</Label>
                   <Select value={filters.condition || 'all_conditions'} onValueChange={(value) => setFilters(prev => ({ ...prev, condition: value === 'all_conditions' ? undefined : value }))}>
                     <SelectTrigger>
                       <SelectValue placeholder="All conditions" />
@@ -321,19 +335,48 @@ export default function SearchPIDs() {
                   </Select>
                 </div>
                 <div>
-                  <Label htmlFor="groupName">Group Name</Label>
-                  <Select value={filters.groupName || 'all_groups'} onValueChange={(value) => setFilters(prev => ({ ...prev, groupName: value === 'all_groups' ? undefined : value }))}>
+                  <Label htmlFor="currency">Currency</Label>
+                  <Select value={filters.currency || 'all_currencies'} onValueChange={(value) => setFilters(prev => ({ ...prev, currency: value === 'all_currencies' ? undefined : value }))}>
                     <SelectTrigger>
-                      <SelectValue placeholder="All groups" />
+                      <SelectValue placeholder="All currencies" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="all_groups">All groups</SelectItem>
-                      <SelectItem value="Test 1">Test 1</SelectItem>
-                      <SelectItem value="Test3">Test3</SelectItem>
-                      <SelectItem value="Watch test">Watch test</SelectItem>
-                      <SelectItem value="Digitalbabaa Tools">Digitalbabaa Tools</SelectItem>
+                      <SelectItem value="all_currencies">All currencies</SelectItem>
+                      <SelectItem value="HKD">HKD</SelectItem>
+                      <SelectItem value="USDT">USDT</SelectItem>
+                      <SelectItem value="USD">USD</SelectItem>
+                      <SelectItem value="EUR">EUR</SelectItem>
+                      <SelectItem value="CHF">CHF</SelectItem>
                     </SelectContent>
                   </Select>
+                </div>
+              </div>
+
+              {/* Exclude conditions (multi-select) — e.g. hide Used watches */}
+              <div>
+                <Label>Exclude conditions</Label>
+                <div className="flex flex-wrap gap-3 mt-2">
+                  {["Used", "Watch Only", "NOS", "Like New"].map((cond) => {
+                    const checked = (filters.conditionsExclude || []).includes(cond);
+                    return (
+                      <label key={cond} className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 cursor-pointer"
+                          checked={checked}
+                          onChange={(e) => {
+                            setFilters(prev => {
+                              const cur = new Set(prev.conditionsExclude || []);
+                              if (e.target.checked) cur.add(cond); else cur.delete(cond);
+                              const arr = Array.from(cur);
+                              return { ...prev, conditionsExclude: arr.length ? arr : undefined };
+                            });
+                          }}
+                        />
+                        Exclude {cond}
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -691,26 +734,48 @@ export default function SearchPIDs() {
                     </div>
                   </div>
 
-                {/* Pagination */}
-                {searchResults.total > (filters.limit || 50) && (
-                  <div className="flex justify-center mt-4 space-x-2">
+                {/* Pagination + rows-per-page */}
+                {searchResults.total > 0 && (
+                  <div className="flex flex-wrap justify-center items-center mt-4 gap-2">
                     <Button
                       variant="outline"
-                      onClick={() => setFilters(prev => ({ ...prev, offset: Math.max((prev.offset || 0) - (prev.limit || 50), 0) }))}
+                      onClick={() => {
+                        setFilters(prev => ({ ...prev, offset: Math.max((prev.offset || 0) - (prev.limit || 50), 0) }));
+                        setTimeout(() => refetch(), 50);
+                      }}
                       disabled={(filters.offset || 0) === 0}
                     >
                       Previous
                     </Button>
                     <span className="py-2 px-4">
-                      Page {Math.floor((filters.offset || 0) / (filters.limit || 50)) + 1} of {Math.ceil(searchResults.total / (filters.limit || 50))}
+                      Page {Math.floor((filters.offset || 0) / (filters.limit || 50)) + 1} of {Math.max(1, Math.ceil(searchResults.total / (filters.limit || 50)))}
                     </span>
                     <Button
                       variant="outline"
-                      onClick={() => setFilters(prev => ({ ...prev, offset: (prev.offset || 0) + (prev.limit || 50) }))}
+                      onClick={() => {
+                        setFilters(prev => ({ ...prev, offset: (prev.offset || 0) + (prev.limit || 50) }));
+                        setTimeout(() => refetch(), 50);
+                      }}
                       disabled={Math.floor((filters.offset || 0) / (filters.limit || 50)) + 1 >= Math.ceil(searchResults.total / (filters.limit || 50))}
                     >
                       Next
                     </Button>
+
+                    <select
+                      className="border rounded px-3 py-2 ml-4 dark:bg-gray-800 dark:border-gray-600"
+                      value={filters.limit || 50}
+                      onChange={(e) => {
+                        const newLimit = parseInt(e.target.value, 10);
+                        // reset to page 1 when page size changes
+                        setFilters(prev => ({ ...prev, limit: newLimit, offset: 0 }));
+                        setTimeout(() => refetch(), 50);
+                      }}
+                    >
+                      <option value={50}>50 / page</option>
+                      <option value={100}>100 / page</option>
+                      <option value={200}>200 / page</option>
+                      <option value={500}>500 / page</option>
+                    </select>
                   </div>
                 )}
               </CardContent>
