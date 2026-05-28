@@ -865,8 +865,11 @@ export class WatchMessageParser {
     work = work.replace(/(\d+)\.\s+(\d+)\s*([kmKM])/g, "$1.$2$3");
 
     // Currency lookaround helpers (also used for currency-aware PID removal).
+    // Lead currency must be at window-start or preceded by a NON-digit, so a
+    // currency that's really a suffix of a prior number ("600.000hkd 5231")
+    // isn't mistaken for a prefix of the next number.
     const curBefore = (s: string): string | null => {
-      const x = s.match(/(hk\$|\$|hkd|usdt|usd|eur|chf|gbp)[\s:]*$/i);
+      const x = s.match(/(?:^|[^\d])(hk\$|\$|hkd|usdt|usd|eur|chf|gbp)[\s:]*$/i);
       return x ? x[1] : null;
     };
     const curAfter = (s: string): string | null => {
@@ -902,24 +905,35 @@ export class WatchMessageParser {
     const lower = work.toLowerCase();
     const pidDigits = knownPid ? knownPid.replace(/\D/g, "") : null;
 
-    const candidates: { amount: number; currency: string; explicit: boolean; km: boolean; pos: number }[] = [];
+    const candidates: { amount: number; currency: string; explicit: boolean; fromLead: boolean; km: boolean; pos: number }[] = [];
 
     // Scan NUMBERS only; detect currency via non-consuming lookaround windows
     // so a token like "hkd" is never "eaten" by an adjacent date/small number.
     const re = /(\d[\d.,]*)\s*([km])?/gi;
     let m: RegExpExecArray | null;
     while ((m = re.exec(lower)) !== null) {
-      const numRaw = m[1];
+      let numRaw = m[1];
       const km = m[2];
       if (!numRaw) { if (re.lastIndex === m.index) re.lastIndex++; continue; }
+      // Trim a trailing comma/dot ("400,") so it doesn't shift the after-window.
+      numRaw = numRaw.replace(/[.,]+$/, "");
+      if (!numRaw) continue;
       const start = m.index;
-      const end = start + m[0].length;
+      // Currency-after window starts AFTER the digits and any k/m suffix, but
+      // NOT after a trailing comma.
+      const digitsEnd = start + numRaw.length;
+      let end = digitsEnd;
+      if (km) {
+        const km2 = lower.slice(digitsEnd, digitsEnd + 4).match(/^\s*[km]/i);
+        if (km2) end = digitsEnd + km2[0].length;
+      }
 
       const lead = curBefore(lower.slice(Math.max(0, start - 5), start));
       const trail = curAfter(lower.slice(end, end + 6));
       const hasDollar = lead === "$" || lead === "hk$";
       let currency = normCur(lead) || normCur(trail);
       const explicit = !!currency || hasDollar;
+      const fromLead = !!(normCur(lead) || hasDollar);
       if (!currency) currency = "HKD";
 
       const cleanedComma = numRaw.replace(/,/g, "");
@@ -946,24 +960,35 @@ export class WatchMessageParser {
       }
 
       if (!isFinite(amount)) continue;
+
+      // YEAR-GLUED-TO-PRICE: a too-big number starting with a 19xx/20xx year is
+      // usually "year + price" with no separator ("2024429000" = 2024 + 429000).
+      if (!km && amount > 80000000 && /^(19|20)\d{2}\d{4,}$/.test(cleanedComma)) {
+        const f2 = parseInt(cleanedComma.slice(4), 10);
+        if (isFinite(f2) && f2 >= 1000 && f2 <= 80000000) amount = f2;
+      }
+
       // Skip years/dates: 4-digit 19xx/20xx with no k/m is never a real price.
       if (!km && /^(19|20)\d{2}$/.test(cleanedComma)) continue;
-      // Plausibility: watches ~1,000 to ~80,000,000.
-      if (amount < 1000 || amount > 80000000) continue;
+      // Plausibility: watches ~1,000 to ~80,000,000 (higher for explicit k/m).
+      const maxPlausible = km ? 300000000 : 80000000;
+      if (amount < 1000 || amount > maxPlausible) continue;
       // Skip a non-explicit number that's just the PID repeated (model number).
       if (!explicit && !km && pidDigits && cleanedComma === pidDigits) continue;
 
-      candidates.push({ amount, currency, explicit, km: !!km, pos: start });
+      candidates.push({ amount, currency, explicit, fromLead, km: !!km, pos: start });
     }
 
     if (candidates.length === 0) return null;
 
-    // Rank: explicit currency > standalone; prefer HKD; then k/m; then earliest.
+    // Rank: explicit > standalone; prefer HKD; currency-before-number wins;
+    // then k/m notation; then earliest position.
     const rankCur = (c: string) => (c === "HKD" ? 3 : c === "USDT" || c === "USD" ? 2 : 1);
     candidates.sort((a, b) => {
       if (a.explicit !== b.explicit) return a.explicit ? -1 : 1;
       const rc = rankCur(b.currency) - rankCur(a.currency);
       if (rc !== 0) return rc;
+      if (a.fromLead !== b.fromLead) return a.fromLead ? -1 : 1;
       if (a.km !== b.km) return a.km ? -1 : 1;
       return a.pos - b.pos;
     });
