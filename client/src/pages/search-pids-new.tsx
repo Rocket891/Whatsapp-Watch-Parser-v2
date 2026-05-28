@@ -15,7 +15,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Slider } from "@/components/ui/slider";
-import { ArrowUpDown, Search, Download, Send } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ArrowUpDown, Search, Download, Send, Check, X, ChevronDown } from "lucide-react";
 import { WhatsAppBadge } from "@/components/whatsapp-badge";
 
 interface SearchFilters {
@@ -26,6 +27,7 @@ interface SearchFilters {
   year?: string;
   variant?: string;
   condition?: string;
+  conditionsInclude?: string[];
   conditionsExclude?: string[];
   currency?: string;
   groupName?: string;
@@ -321,18 +323,68 @@ export default function SearchPIDs() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="condition">Condition (include)</Label>
-                  <Select value={filters.condition || 'all_conditions'} onValueChange={(value) => setFilters(prev => ({ ...prev, condition: value === 'all_conditions' ? undefined : value }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="All conditions" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all_conditions">All conditions</SelectItem>
-                      {Array.isArray(uniqueConditions) && uniqueConditions.map((condition: string) => (
-                        <SelectItem key={condition} value={condition}>{condition}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label>Condition</Label>
+                  {(() => {
+                    const CONDITIONS = ["New", "Used", "Full Set", "Watch Only", "Like New", "NOS", "Brand New", "Both Tags", "Unworn", "Mint"];
+                    const inc = filters.conditionsInclude || [];
+                    const exc = filters.conditionsExclude || [];
+                    // tri-state cycle: neutral -> include -> exclude -> neutral
+                    const cycle = (cond: string) => {
+                      setFilters(prev => {
+                        const i = new Set(prev.conditionsInclude || []);
+                        const e = new Set(prev.conditionsExclude || []);
+                        if (i.has(cond)) { i.delete(cond); e.add(cond); }          // include -> exclude
+                        else if (e.has(cond)) { e.delete(cond); }                  // exclude -> neutral
+                        else { i.add(cond); }                                      // neutral -> include
+                        const ia = Array.from(i), ea = Array.from(e);
+                        return { ...prev, conditionsInclude: ia.length ? ia : undefined, conditionsExclude: ea.length ? ea : undefined };
+                      });
+                    };
+                    const nInc = inc.length, nExc = exc.length;
+                    const summary = nInc === 0 && nExc === 0 ? "All conditions"
+                      : [nInc ? `${nInc} included` : null, nExc ? `${nExc} excluded` : null].filter(Boolean).join(", ");
+                    return (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="w-full justify-between font-normal">
+                            <span className="truncate">{summary}</span>
+                            <ChevronDown className="h-4 w-4 opacity-50 shrink-0" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-64 p-2" align="start">
+                          <p className="text-xs text-muted-foreground px-2 pb-2">
+                            Click to cycle: <span className="text-green-600">✓ include</span> → <span className="text-red-600">✗ exclude</span> → off
+                          </p>
+                          <div className="space-y-1 max-h-72 overflow-auto">
+                            {CONDITIONS.map((cond) => {
+                              const state = inc.includes(cond) ? "inc" : exc.includes(cond) ? "exc" : "off";
+                              return (
+                                <button
+                                  key={cond}
+                                  type="button"
+                                  onClick={() => cycle(cond)}
+                                  className={`w-full flex items-center justify-between px-2 py-1.5 rounded text-sm hover:bg-muted ${state === "inc" ? "bg-green-50 dark:bg-green-900/20" : state === "exc" ? "bg-red-50 dark:bg-red-900/20" : ""}`}
+                                >
+                                  <span>{cond}</span>
+                                  {state === "inc" && <Check className="h-4 w-4 text-green-600" />}
+                                  {state === "exc" && <X className="h-4 w-4 text-red-600" />}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {(nInc > 0 || nExc > 0) && (
+                            <button
+                              type="button"
+                              className="w-full mt-2 text-xs text-blue-600 hover:underline"
+                              onClick={() => setFilters(prev => ({ ...prev, conditionsInclude: undefined, conditionsExclude: undefined }))}
+                            >
+                              Clear condition filters
+                            </button>
+                          )}
+                        </PopoverContent>
+                      </Popover>
+                    );
+                  })()}
                 </div>
                 <div>
                   <Label htmlFor="currency">Currency</Label>
@@ -349,34 +401,6 @@ export default function SearchPIDs() {
                       <SelectItem value="CHF">CHF</SelectItem>
                     </SelectContent>
                   </Select>
-                </div>
-              </div>
-
-              {/* Exclude conditions (multi-select) — e.g. hide Used watches */}
-              <div>
-                <Label>Exclude conditions</Label>
-                <div className="flex flex-wrap gap-3 mt-2">
-                  {["Used", "Watch Only", "NOS", "Like New"].map((cond) => {
-                    const checked = (filters.conditionsExclude || []).includes(cond);
-                    return (
-                      <label key={cond} className="flex items-center gap-1.5 text-sm cursor-pointer select-none">
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4 cursor-pointer"
-                          checked={checked}
-                          onChange={(e) => {
-                            setFilters(prev => {
-                              const cur = new Set(prev.conditionsExclude || []);
-                              if (e.target.checked) cur.add(cond); else cur.delete(cond);
-                              const arr = Array.from(cur);
-                              return { ...prev, conditionsExclude: arr.length ? arr : undefined };
-                            });
-                          }}
-                        />
-                        Exclude {cond}
-                      </label>
-                    );
-                  })}
                 </div>
               </div>
 

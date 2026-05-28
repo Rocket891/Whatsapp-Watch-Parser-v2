@@ -513,6 +513,12 @@ export const searchFiltersSchema = z.object({
   year: z.string().optional(),
   variant: z.string().optional(),
   condition: z.string().optional(),
+  // Multi-include: show listings whose condition matches ANY of these (OR).
+  conditionsInclude: z.union([z.array(z.string()), z.string()]).optional().transform((val) => {
+    if (val === undefined) return undefined;
+    if (typeof val === "string") return val === "" ? undefined : [val];
+    return val.length ? val : undefined;
+  }),
   // Multi-exclude: hide listings whose condition matches ANY of these
   // (e.g. exclude "Used"). Accepts repeated query params or a single value.
   conditionsExclude: z.union([z.array(z.string()), z.string()]).optional().transform((val) => {

@@ -507,6 +507,13 @@ export class DatabaseStorage implements IStorage {
     if (filters.condition) {
       conditions.push(ilike(watchListings.condition, `%${filters.condition}%`));
     }
+    // Multi-include conditions (ANY/OR): show if condition matches any of these.
+    if (filters.conditionsInclude && filters.conditionsInclude.length > 0) {
+      const incl = filters.conditionsInclude
+        .filter((c) => c && c.trim())
+        .map((c) => ilike(watchListings.condition, `%${c}%`));
+      if (incl.length > 0) conditions.push(or(...incl));
+    }
     // Multi-exclude conditions (e.g. hide "Used"): NOT-match each.
     if (filters.conditionsExclude && filters.conditionsExclude.length > 0) {
       for (const ex of filters.conditionsExclude) {
