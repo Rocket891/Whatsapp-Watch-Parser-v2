@@ -238,7 +238,79 @@ export class WatchMessageParser {
     // Default: dealer listing / selling.
     return 'selling';
   }
-  
+
+  /**
+   * Split ONE physical line that packs multiple watches into one segment per
+   * watch. Dealers often post several listings on a single line, each ending
+   * in its own price, e.g.:
+   *   "126334G Blue Oys N5/26 $116500 126333G Blk Jub N5/26 $172000"
+   *   "5270J ... 1120000 HKD 7010R ... 580000 HKD 5821/1AR ... 725000 HKD"
+   * Strategy: find every number-adjacent currency anchor and cut the line just
+   * AFTER each one, so each segment carries one PID (before the price) plus its
+   * price. Only splits when ≥2 anchors are present; otherwise returns [line]
+   * unchanged so single-watch lines are never disturbed. Segments without a
+   * PID (e.g. a trailing "/ 421000u" alt-price) are harmlessly dropped later by
+   * parseChunkWithContext returning null.
+   */
+  private splitLineByWatches(line: string): string[] {
+    // Anchor = a price expression. Leading currency ($/HKD/...) may be space-
+    // separated from its number; trailing word-currency (HKD/USD/AED/u) too;
+    // but a trailing "$" must hug its number ("26,703$") so a bare year before
+    // the NEXT watch's "$115,000" is never swallowed as "2026 $".
+    const ANCHOR = /(?:hk\$|\$|hkd|usdt|usd|eur|chf|gbp|aed|rmb)\s*\d[\d.,]*\s*[km]?|\d[\d.,]*\s*[km]?\s*(?:hkd|usdt|usd|eur|chf|gbp|aed|rmb|u\b)|\d[\d.,]*\$|\d[\d.,]*\s*[km]\b/gi;
+
+    // Only a REAL price counts as a split boundary. A currency word is
+    // ambiguous: in "2015 HKD118k" the HKD is a prefix of 118k, not a suffix of
+    // the year 2015 — so an anchor whose number is a bare year (or a tiny <100
+    // value like a month "N5") must NOT trigger a split, otherwise we'd orphan
+    // the following "118k" and lose the price entirely.
+    const anchorIsRealPrice = (a: string): boolean => {
+      const s = a.toLowerCase();
+      if (/\d\s*[km]\b/.test(s)) return true;                       // any k/m amount
+      let num = s.replace(/(hk\$|\$|hkd|usdt|usd|eur|chf|gbp|aed|rmb)/g, " ").replace(/\bu\b/g, " ");
+      num = num.replace(/[^\d.,]/g, "");
+      const digitsOnly = num.replace(/[.,]/g, "");
+      if (/^(19|20)\d{2}$/.test(digitsOnly)) return false;          // bare year
+      const v = parseInt(digitsOnly, 10);
+      return isFinite(v) && v >= 100;
+    };
+
+    // Collect real-price anchors as {start,end}.
+    const anchors: { start: number; end: number }[] = [];
+    let m: RegExpExecArray | null;
+    while ((m = ANCHOR.exec(line)) !== null) {
+      if (anchorIsRealPrice(m[0])) anchors.push({ start: m.index, end: m.index + m[0].length });
+      if (ANCHOR.lastIndex === m.index) ANCHOR.lastIndex++;
+    }
+    if (anchors.length < 2) return [line];
+
+    // A boundary is placed after an anchor ONLY IF the gap to the next anchor
+    // contains real content (a new watch's PID/description). If the gap is just
+    // separators ("//", "/", "|", spaces) the next price is an ALTERNATE
+    // currency for the SAME watch (e.g. "207k USDT // 1.61m HKD") — keep them
+    // together so price ranking (HKD-preferred) still applies.
+    const ends: number[] = [];
+    for (let i = 0; i < anchors.length; i++) {
+      const isLast = i === anchors.length - 1;
+      const gap = isLast ? "" : line.slice(anchors[i].end, anchors[i + 1].start);
+      if (isLast || !/^[\s/\\|,;:～~–—-]*$/.test(gap)) ends.push(anchors[i].end);
+    }
+    if (ends.length < 2) return [line];
+
+    const segs: string[] = [];
+    let prev = 0;
+    for (const e of ends) {
+      const seg = line.slice(prev, e).trim();
+      if (seg) segs.push(seg);
+      prev = e;
+    }
+    // Attach any trailing remainder (e.g. "—— used AP") to the last segment.
+    const tail = line.slice(prev).trim();
+    if (tail && segs.length) segs[segs.length - 1] += " " + tail;
+
+    return segs.length >= 2 ? segs : [line];
+  }
+
   async parseMessage(message: string): Promise<ParsedWatchListing[]> {
     const listings: ParsedWatchListing[] = [];
     
@@ -351,38 +423,47 @@ export class WatchMessageParser {
       .map(line => line.trim())
       .filter(line => line.length > 5);
 
-    debugLog(`🔍 Processing ${parseLines.length} lines for parsing`);
-    
+    // Pre-split any line that packs multiple watches (≥2 price anchors) into
+    // one segment per watch. Each expanded entry keeps a pointer back to its
+    // original line index so it inherits the right header context.
+    const expandedLines: { text: string; ctxIdx: number }[] = [];
     for (let i = 0; i < parseLines.length; i++) {
-      const line = parseLines[i];
+      const segs = this.splitLineByWatches(parseLines[i]);
+      for (const seg of segs) expandedLines.push({ text: seg, ctxIdx: i });
+    }
+
+    debugLog(`🔍 Processing ${parseLines.length} lines (${expandedLines.length} watch segments) for parsing`);
+
+    for (let j = 0; j < expandedLines.length; j++) {
+      const line = expandedLines[j].text;
       debugLog(`🔍 Checking line: "${line}"`);
-      
-      // Get context for this specific line
-      const lineContext = contextsPerLine[i];
-      
+
+      // Get context for this specific line (via its original line index)
+      const lineContext = contextsPerLine[expandedLines[j].ctxIdx];
+
       // Check if this line contains our A.Lange&Sohne pattern directly
       const langePattern = /\b(\d{3}\.\d{3})\b/;
       const langeMatch = line.match(langePattern);
       if (langeMatch) {
         debugLog(`✅ Found A.Lange&Sohne PID in line: ${langeMatch[1]}`);
       }
-      
+
       // Handle cases where price is on separate line or multi-line format (2 or 3 lines per watch)
       let combinedLine = line;
-      const nextLine = parseLines[i + 1];
-      const nextNextLine = parseLines[i + 2];
-      
+      const nextLine = expandedLines[j + 1]?.text;
+      const nextNextLine = expandedLines[j + 2]?.text;
+
       // If current line has PID but no price, try combining with next 1-2 lines
       if (this.extractPID(line) && !this.extractPrice(line) && nextLine) {
         const nextLinePid = this.extractPID(nextLine);
-        
+
         // Only combine if next line doesn't have its own PID, or it's a price-only line
         const nextLineHasPrice = this.extractPrice(nextLine);
         if (!nextLinePid || nextLineHasPrice || /^\d{5,6}(hkd|usd|eur)?$/i.test(nextLine.trim())) {
           combinedLine = `${line} ${nextLine}`;
           debugLog(`Combining 2 lines: "${line}" + "${nextLine}"`);
-          i++; // Skip the next line
-          
+          j++; // Skip the next line
+
           // Check if still no price, try adding third line (3-line format: PID / year+condition / price)
           if (!this.extractPrice(combinedLine) && nextNextLine) {
             const nextNextPid = this.extractPID(nextNextLine);
@@ -391,12 +472,12 @@ export class WatchMessageParser {
             if (!nextNextPid || nextNextHasPrice || /^\d{5,6}(hkd|usd|eur)?$/i.test(nextNextLine.trim())) {
               combinedLine = `${combinedLine} ${nextNextLine}`;
               debugLog(`Combining 3rd line: + "${nextNextLine}"`);
-              i++; // Skip the third line too
+              j++; // Skip the third line too
             }
           }
         }
       }
-      
+
       const result = await this.parseChunkWithContext(combinedLine, lineContext);
       if (result && result.pid) {
         debugLog(`✅ Successfully parsed PID from line: ${result.pid} (Context: Year=${lineContext?.year}, Condition=${lineContext?.condition})`);
@@ -452,12 +533,27 @@ export class WatchMessageParser {
       return true;
     }
     
+    // A price anchor = a word-currency, a $-amount (incl. comma grouping), or a
+    // number glued to a currency. Broader than pricePattern alone.
+    const priceAnchor = currencyPattern.test(message) || pricePattern.test(message) ||
+      /(?:hk\$|\$)\s*\d/i.test(message) ||
+      /\d[\d.,]*\s*(?:hkd|usdt|usd|eur|chf|gbp|aed|rmb)\b/i.test(message) ||
+      /\d[\d.,]*\$/.test(message);
+
     // Check for PID + currency/price combination
-    if (pidPattern.test(message) && (currencyPattern.test(message) || pricePattern.test(message))) {
+    if (pidPattern.test(message) && priceAnchor) {
       debugLog("🔍 PID + Currency/Price detected:", message);
       return true;
     }
-    
+
+    // BROADER: the gate's pidPattern is narrower than extractPID (it misses
+    // "126234VI", "RM30-01", "WSBB0068", "126598TBR"...). If extractPID can find
+    // a real reference AND there's a price anchor, it's a listing — accept it.
+    if (priceAnchor && this.extractPID(message)) {
+      debugLog("🔍 extractPID + price anchor detected:", message);
+      return true;
+    }
+
     // Check for hard brand indicators
     if (hardPattern.test(message)) {
       debugLog("🔍 Hard brand indicator detected:", message);
@@ -692,8 +788,8 @@ export class WatchMessageParser {
     
     // Currency patterns to avoid false matches
     const currencyPatterns = [
-      /(?:HKD|USD|EUR|CHF|GBP|USDT)\d+/i,
-      /\d+(?:HKD|USD|EUR|CHF|GBP|USDT)/i,
+      /(?:HKD|USD|EUR|CHF|GBP|USDT|AED|RMB)\d+/i,
+      /\d+(?:HKD|USD|EUR|CHF|GBP|USDT|AED|RMB)/i,
       /\$\d+/,
       /\d+k\b/i,
       /\d+m\b/i
@@ -703,13 +799,33 @@ export class WatchMessageParser {
       const matches = text.matchAll(new RegExp(pattern.source, 'gi'));
       for (const match of matches) {
         const candidate = match[1].replace(/\s+/g, '').toUpperCase(); // Use capture group [1]
-        
+
         // CRITICAL FIX: Skip if this looks like a year (2020Y, 2024Y, etc.)
         if (/^(19|20)\d{2}Y?$/.test(candidate)) {
           debugLog(`🚫 Skipping year pattern as PID: ${candidate}`);
           continue; // Skip years disguised as PIDs
         }
-        
+        // Skip year+condition tokens misread as PIDs: "2026NEW", "2023USED",
+        // "2025UNWORN", "2024NOS" — these are <year><condition>, not a model ref.
+        if (/^(19|20)\d{2}(NEW|USED|UNWORN|NOS|FULLSET|MINT)$/i.test(candidate)) {
+          debugLog(`🚫 Skipping year+condition as PID: ${candidate}`);
+          continue;
+        }
+        // Skip a PURELY-NUMERIC token that is actually a price — i.e. it sits
+        // immediately next to a currency marker ("455000$", "1430000 hkd",
+        // "421000u"). Real model refs with letters (26730BA) are unaffected.
+        if (/^\d{4,8}$/.test(candidate)) {
+          const off = (match.index ?? 0);
+          const after = text.slice(off + match[0].length, off + match[0].length + 6);
+          const before = text.slice(Math.max(0, off - 2), off);
+          if (/^\s*(hkd|usdt|usd|eur|chf|gbp|aed|rmb|u)\b/i.test(after) ||
+              /^\s*\$/.test(after) ||
+              /(?:hk\$|\$)\s*$/i.test(before)) {
+            debugLog(`🚫 Skipping currency-adjacent number as PID: ${candidate}`);
+            continue;
+          }
+        }
+
         // Check if it's not a currency amount
         let isCurrency = false;
         for (const cp of currencyPatterns) {
@@ -722,7 +838,11 @@ export class WatchMessageParser {
         // CRITICAL FIX: Skip invalid PIDs like "SECOND-HAND", "ALL", etc.
         const invalidPidPatterns = [
           /^SECOND-HAND$/i,
-          /^SECOND$/i, 
+          /^BRAND-?NEW$/i,
+          /^FULL-?SET$/i,
+          /^LIKE-?NEW$/i,
+          /^WATCH-?ONLY$/i,
+          /^SECOND$/i,
           /^HAND$/i,
           /^ALL$/i,
           /^CONFIRM$/i,
@@ -947,6 +1067,10 @@ export class WatchMessageParser {
       } else if (/^\d{1,3}\.\d{3}$/.test(numRaw)) {
         // European thousands: "900.000" -> 900000
         amount = parseInt(numRaw.replace(/\./g, ""), 10);
+      } else if (/^\d{1,3}\.\d{3}[.,]\d{2,3}$/.test(numRaw)) {
+        // European thousands with an extra group: "1.830,000" -> 1830000,
+        // "1.472.00" -> 147200. Strip all separators.
+        amount = parseInt(numRaw.replace(/[.,]/g, ""), 10);
       } else {
         const f = parseFloat(cleanedComma);
         if (isNaN(f)) continue;
@@ -956,6 +1080,12 @@ export class WatchMessageParser {
         // ("hkd605" -> 605000, "127 HKD" -> 127000)
         if (explicit && amount >= 100 && amount <= 999 && /^\d{3}$/.test(plain)) {
           amount = amount * 1000;
+        }
+        // MILLION SHORTHAND: explicit currency + small decimal -> ×1,000,000.
+        // In this market "1.32 USD" / "2.32 HKD" always means 1.32M / 2.32M;
+        // no watch is ever priced at single/double digits.
+        else if (explicit && amount < 50 && /^\d{1,2}\.\d{1,2}$/.test(numRaw)) {
+          amount = Math.round(parseFloat(numRaw) * 1000000);
         }
       }
 
