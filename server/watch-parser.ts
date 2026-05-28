@@ -623,7 +623,7 @@ export class WatchMessageParser {
       debugLog(`📋 Applied contextual condition: ${context.condition} to PID: ${result.pid}`);
     }
     
-    const priceInfo = this.extractPrice(chunk);
+    const priceInfo = this.extractPrice(chunk, result.pid);
     if (priceInfo) {
       result.price = priceInfo.amount;
       result.currency = priceInfo.currency;
@@ -844,96 +844,131 @@ export class WatchMessageParser {
     return undefined;
   }
 
-  private extractPrice(text: string): { amount: number; currency: string } | null {
-    // Based on reference code parse_price function
-    const t = text.replace(/[$,]/g, '').toLowerCase();
-    
-    // Handle decimal + k/m formats
-    let match = t.match(/(\d+\.\d+)\s*k/);
-    if (match) {
-      return {
-        amount: Math.round(parseFloat(match[1]) * 1000),
-        currency: this.extractCurrency(text)
-      };
+  /**
+   * PID-aware price extraction. Rebuilt from real-message analysis (see
+   * _partest.cjs harness — 41 cases + 1200-row DB validation).
+   *
+   * Handles: spaces between number and currency ("76500 USDT"), 5-digit
+   * prices, shorthand ("hkd605" → 605000, "127 HKD" → 127000), European
+   * decimals ("900.000", "1,49m"), "HK$" / "$" prefixes, "HKD:" colons,
+   * dual-currency listings (prefers HKD), and excludes PID digits from being
+   * read as a price. Collects ALL candidates then ranks (explicit currency >
+   * standalone; HKD preferred; k/m preferred; earliest position).
+   */
+  private extractPrice(text: string, knownPid?: string): { amount: number; currency: string } | null {
+    if (!text) return null;
+    let work = text;
+
+    // Normalize separators: Chinese/full-width comma & colon, zero-width.
+    work = work.replace(/[，、]/g, ",").replace(/[：]/g, ":").replace(/​/g, "");
+    // Collapse split decimals like "113. 5k" -> "113.5k".
+    work = work.replace(/(\d+)\.\s+(\d+)\s*([kmKM])/g, "$1.$2$3");
+
+    // Currency lookaround helpers (also used for currency-aware PID removal).
+    const curBefore = (s: string): string | null => {
+      const x = s.match(/(hk\$|\$|hkd|usdt|usd|eur|chf|gbp)[\s:]*$/i);
+      return x ? x[1] : null;
+    };
+    const curAfter = (s: string): string | null => {
+      const x = s.match(/^\s*(hkd|usdt|usd|eur|chf|gbp)/i);
+      return x ? x[1] : null;
+    };
+    const normCur = (token: string | null): string | null => {
+      if (!token) return null;
+      const t = token.toLowerCase();
+      if (t.includes("usdt")) return "USDT";
+      if (t.includes("usd")) return "USD";
+      if (t.includes("eur")) return "EUR";
+      if (t.includes("chf")) return "CHF";
+      if (t.includes("gbp")) return "GBP";
+      if (t.includes("hkd") || t.includes("hk$")) return "HKD";
+      return null; // bare "$" -> caller defaults to HKD
+    };
+
+    // Remove the known PID so its digits aren't read as a price — but KEEP any
+    // occurrence sitting next to a currency marker (corrupt rows stored the
+    // price as the pid, e.g. Hublot "645.QG.5217.RX" → pid "345000" with the
+    // real price being "$345000"; removing it would delete the price).
+    if (knownPid) {
+      const pidEsc = knownPid.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
+      work = work.replace(new RegExp(pidEsc, "ig"), (match: string, offset: number, full: string) => {
+        const before = full.slice(Math.max(0, offset - 5), offset);
+        const after = full.slice(offset + match.length, offset + match.length + 6);
+        if (curBefore(before) || curAfter(after)) return match; // keep — it's a price
+        return " ";
+      });
     }
-    
-    match = t.match(/(\d+\.\d+)\s*m/);
-    if (match) {
-      return {
-        amount: Math.round(parseFloat(match[1]) * 1000000),
-        currency: this.extractCurrency(text)
-      };
-    }
-    
-    // Handle integer + k/m formats
-    match = t.match(/(\d+)\s*k\b/);
-    if (match) {
-      return {
-        amount: parseInt(match[1]) * 1000,
-        currency: this.extractCurrency(text)
-      };
-    }
-    
-    match = t.match(/(\d+)\s*m\b/);
-    if (match) {
-      return {
-        amount: parseInt(match[1]) * 1000000,
-        currency: this.extractCurrency(text)
-      };
-    }
-    
-    // Handle million spelled out
-    match = t.match(/(\d+\.\d+)\s*mill/);
-    if (match) {
-      return {
-        amount: Math.round(parseFloat(match[1]) * 1000000),
-        currency: this.extractCurrency(text)
-      };
-    }
-    
-    // Handle currency prefixed prices with colon/space
-    match = t.match(/(?:hkd|usd|eur|chf|usdt)[: ]\s*(\d{5,})/);
-    if (match) {
-      return {
-        amount: parseInt(match[1]),
-        currency: this.extractCurrency(text)
-      };
-    }
-    
-    // Handle currency suffixed prices (most common format: 123000hkd)
-    match = t.match(/(\d{5,})(?:hkd|usd|eur|chf|usdt)/);
-    if (match) {
-      return {
-        amount: parseInt(match[1]),
-        currency: this.extractCurrency(text)
-      };
-    }
-    
-    // Handle currency directly attached to price (old format)
-    match = t.match(/(?:hkd|usd|eur|chf|usdt)(\d{5,})/);
-    if (match) {
-      return {
-        amount: parseInt(match[1]),
-        currency: this.extractCurrency(text)
-      };
-    }
-    
-    // Handle standalone large numbers (6+ digits) - but avoid PID numbers  
-    // PIDs like 116508, 126508 should not be treated as prices
-    match = t.match(/\b(\d{6,})\b/);
-    if (match) {
-      const number = match[1];
-      // Skip if it looks like a Rolex PID (starts with specific patterns)
-      if (/^(11|12|13|22|32|33|11650[0-9]|12650[0-9]|22823[0-9])/.test(number)) {
-        return null;
+
+    const lower = work.toLowerCase();
+    const pidDigits = knownPid ? knownPid.replace(/\D/g, "") : null;
+
+    const candidates: { amount: number; currency: string; explicit: boolean; km: boolean; pos: number }[] = [];
+
+    // Scan NUMBERS only; detect currency via non-consuming lookaround windows
+    // so a token like "hkd" is never "eaten" by an adjacent date/small number.
+    const re = /(\d[\d.,]*)\s*([km])?/gi;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(lower)) !== null) {
+      const numRaw = m[1];
+      const km = m[2];
+      if (!numRaw) { if (re.lastIndex === m.index) re.lastIndex++; continue; }
+      const start = m.index;
+      const end = start + m[0].length;
+
+      const lead = curBefore(lower.slice(Math.max(0, start - 5), start));
+      const trail = curAfter(lower.slice(end, end + 6));
+      const hasDollar = lead === "$" || lead === "hk$";
+      let currency = normCur(lead) || normCur(trail);
+      const explicit = !!currency || hasDollar;
+      if (!currency) currency = "HKD";
+
+      const cleanedComma = numRaw.replace(/,/g, "");
+      let amount: number;
+      if (km) {
+        // European sellers use comma as decimal ("1,49m" = 1.49m).
+        const numStr = /^\d{1,3},\d{1,2}$/.test(numRaw) ? numRaw.replace(",", ".") : numRaw.replace(/,/g, "");
+        const f = parseFloat(numStr);
+        if (isNaN(f)) continue;
+        amount = Math.round(f * (km.toLowerCase() === "k" ? 1000 : 1000000));
+      } else if (/^\d{1,3}\.\d{3}$/.test(numRaw)) {
+        // European thousands: "900.000" -> 900000
+        amount = parseInt(numRaw.replace(/\./g, ""), 10);
+      } else {
+        const f = parseFloat(cleanedComma);
+        if (isNaN(f)) continue;
+        amount = Math.round(f);
+        const plain = cleanedComma.replace(/\.\d+$/, "");
+        // SHORTHAND: explicit currency + 3-digit value -> ×1000
+        // ("hkd605" -> 605000, "127 HKD" -> 127000)
+        if (explicit && amount >= 100 && amount <= 999 && /^\d{3}$/.test(plain)) {
+          amount = amount * 1000;
+        }
       }
-      return {
-        amount: parseInt(match[1]),
-        currency: this.extractCurrency(text)
-      };
+
+      if (!isFinite(amount)) continue;
+      // Skip years/dates: 4-digit 19xx/20xx with no k/m is never a real price.
+      if (!km && /^(19|20)\d{2}$/.test(cleanedComma)) continue;
+      // Plausibility: watches ~1,000 to ~80,000,000.
+      if (amount < 1000 || amount > 80000000) continue;
+      // Skip a non-explicit number that's just the PID repeated (model number).
+      if (!explicit && !km && pidDigits && cleanedComma === pidDigits) continue;
+
+      candidates.push({ amount, currency, explicit, km: !!km, pos: start });
     }
-    
-    return null;
+
+    if (candidates.length === 0) return null;
+
+    // Rank: explicit currency > standalone; prefer HKD; then k/m; then earliest.
+    const rankCur = (c: string) => (c === "HKD" ? 3 : c === "USDT" || c === "USD" ? 2 : 1);
+    candidates.sort((a, b) => {
+      if (a.explicit !== b.explicit) return a.explicit ? -1 : 1;
+      const rc = rankCur(b.currency) - rankCur(a.currency);
+      if (rc !== 0) return rc;
+      if (a.km !== b.km) return a.km ? -1 : 1;
+      return a.pos - b.pos;
+    });
+
+    return { amount: candidates[0].amount, currency: candidates[0].currency };
   }
 
   private extractCurrency(text: string): string {
