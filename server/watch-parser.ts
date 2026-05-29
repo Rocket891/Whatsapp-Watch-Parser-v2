@@ -254,19 +254,26 @@ export class WatchMessageParser {
    */
   private splitLineByWatches(line: string): string[] {
     // Anchor = a price expression. Leading currency ($/HKD/...) may be space-
-    // separated from its number; trailing word-currency (HKD/USD/AED/u) too;
-    // but a trailing "$" must hug its number ("26,703$") so a bare year before
-    // the NEXT watch's "$115,000" is never swallowed as "2026 $".
-    const ANCHOR = /(?:hk\$|\$|hkd|usdt|usd|eur|chf|gbp|aed|rmb)\s*\d[\d.,]*\s*[km]?|\d[\d.,]*\s*[km]?\s*(?:hkd|usdt|usd|eur|chf|gbp|aed|rmb|u\b)|\d[\d.,]*\$|\d[\d.,]*\s*[km]\b/gi;
+    // separated from its number; trailing word-currency (HKD/USD/AED) too; a
+    // trailing "$" must hug its number ("26,703$") so a bare year before the
+    // NEXT watch's "$115,000" is never swallowed as "2026 $". The bare-"u" USD
+    // suffix ("421000u") is only honoured after 5+ digits, so Vacheron refs
+    // like "4000U" are NOT mistaken for a $4000 price.
+    const ANCHOR = /(?:hk\$|\$|hkd|usdt|usd|eur|chf|gbp|aed|rmb)\s*\d[\d.,]*\s*[km]?|\d[\d.,]*\s*[km]?\s*(?:hkd|usdt|usd|eur|chf|gbp|aed|rmb)\b|\d{5,}\s*u\b|\d[\d.,]*\$|\d[\d.,]*\s*[km]\b/gi;
 
     // Only a REAL price counts as a split boundary. A currency word is
     // ambiguous: in "2015 HKD118k" the HKD is a prefix of 118k, not a suffix of
-    // the year 2015 — so an anchor whose number is a bare year (or a tiny <100
-    // value like a month "N5") must NOT trigger a split, otherwise we'd orphan
-    // the following "118k" and lose the price entirely.
+    // the year 2015 — so an anchor whose number is a bare year (or a tiny value
+    // like a month "N5", or a garbage "000M" reference fragment) must NOT
+    // trigger a split, otherwise we'd orphan the real price or split a ref.
     const anchorIsRealPrice = (a: string): boolean => {
       const s = a.toLowerCase();
-      if (/\d\s*[km]\b/.test(s)) return true;                       // any k/m amount
+      const km = /(\d[\d.,]*)\s*([km])\b/.exec(s);
+      if (km) {
+        const n = /^\d{1,3},\d{1,3}$/.test(km[1]) ? km[1].replace(",", ".") : km[1].replace(/,/g, "");
+        const val = parseFloat(n) * (km[2] === "k" ? 1000 : 1000000);
+        return isFinite(val) && val >= 1000;                        // "000m" -> 0 -> not a price
+      }
       let num = s.replace(/(hk\$|\$|hkd|usdt|usd|eur|chf|gbp|aed|rmb)/g, " ").replace(/\bu\b/g, " ");
       num = num.replace(/[^\d.,]/g, "");
       const digitsOnly = num.replace(/[.,]/g, "");
@@ -757,7 +764,10 @@ export class WatchMessageParser {
       // Brand-specific complete patterns
       /\b(RM\s*\d{2,3}(?:-\d{2,3})?)\b/i,                  // RM 65-01
       /\b(AP\s*\d{5}[A-Z]{0,2})\b/i,                       // AP 26730Ba
-      
+      // Hublot dotted reference: 541.NX.5170.VR, 431.NM.1337.RX, with optional
+      // trailing edition codes (.UCL25, .UEL23, .OO.1180.RX ...)
+      /\b(\d{3}\.[A-Z]{2}\.\d{3,4}\.[A-Z]{2}(?:\.[A-Z0-9]{2,7})*)\b/i,
+
       // Medium specificity patterns
       /\b([A-Z0-9]{4,}-[A-Z0-9]{3,}-[A-Z0-9]{3,})\b/i,    // Complex formats
       /\b(\d{4}[A-Z]?\/\d{3}[A-Z]-[A-Z]\d{3})\b/i,        // 5990/1R-A001
@@ -1059,8 +1069,9 @@ export class WatchMessageParser {
       const cleanedComma = numRaw.replace(/,/g, "");
       let amount: number;
       if (km) {
-        // European sellers use comma as decimal ("1,49m" = 1.49m).
-        const numStr = /^\d{1,3},\d{1,2}$/.test(numRaw) ? numRaw.replace(",", ".") : numRaw.replace(/,/g, "");
+        // European sellers use comma as decimal ("1,49m" = 1.49m, "1,096m" =
+        // 1.096m = 1,096,000). A single comma + 1-3 digits is a decimal here.
+        const numStr = /^\d{1,3},\d{1,3}$/.test(numRaw) ? numRaw.replace(",", ".") : numRaw.replace(/,/g, "");
         const f = parseFloat(numStr);
         if (isNaN(f)) continue;
         amount = Math.round(f * (km.toLowerCase() === "k" ? 1000 : 1000000));
