@@ -166,8 +166,34 @@ export class WatchMessageParser {
         debugLog(`🏷️ Simple header context: "Used"`);
         return { condition: 'Used' };
       }
+
+      // Emoji-decorated sub-header that is JUST a condition phrase, e.g.
+      // "✨used full set✨", "⭐ brand new ⭐", "💎 unused full set 💎",
+      // "✨watch only✨", "* NOS *". Strip non-letter chars and match the
+      // cleaned string against a fixed phrase list — naturally excludes
+      // listing lines (those don't reduce to a pure condition phrase).
+      const cleaned = line.replace(/[^A-Za-z]+/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+      if (cleaned.length > 0 && cleaned.length <= 24) {
+        const condMap: Record<string, string> = {
+          "unused full set": "Unused Full Set", "used full set": "Used Full Set",
+          "new full set": "New Full Set", "brand new full set": "New Full Set",
+          "brand new sealed": "Brand New", "brand new": "Brand New",
+          "like new": "Like New", "like new full set": "Like New",
+          "unworn": "Unworn", "unworn full set": "Unworn",
+          "nos": "NOS", "new old stock": "NOS",
+          "fullset": "Full Set", "full set": "Full Set",
+          "watch only": "Watch Only", "only watch": "Watch Only",
+          "both tags": "Both Tags", "mint": "Mint",
+          "used": "Used", "preowned": "Used", "pre owned": "Used", "second hand": "Used",
+          "new": "New", "unused": "Unused Full Set",
+        };
+        if (condMap[cleaned]) {
+          debugLog(`🏷️ Emoji-decorated condition header: "${condMap[cleaned]}" (from "${line}")`);
+          return { condition: condMap[cleaned] };
+        }
+      }
     }
-    
+
     return null;
   }
 
