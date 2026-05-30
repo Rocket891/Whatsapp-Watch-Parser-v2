@@ -173,16 +173,17 @@ export class WatchMessageParser {
       // cleaned string against a fixed phrase list — naturally excludes
       // listing lines (those don't reduce to a pure condition phrase).
       const cleaned = line.replace(/[^A-Za-z]+/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
-      if (cleaned.length > 0 && cleaned.length <= 24) {
+      if (cleaned.length > 0 && cleaned.length <= 28) {
         const condMap: Record<string, string> = {
           "unused full set": "Unused Full Set", "used full set": "Used Full Set",
+          "all fullset": "Full Set", "all full set": "Full Set",
           "new full set": "New Full Set", "brand new full set": "New Full Set",
           "brand new sealed": "Brand New", "brand new": "Brand New",
           "like new": "Like New", "like new full set": "Like New",
           "unworn": "Unworn", "unworn full set": "Unworn",
           "nos": "NOS", "new old stock": "NOS",
           "fullset": "Full Set", "full set": "Full Set",
-          "watch only": "Watch Only", "only watch": "Watch Only",
+          "watch only": "Watch Only", "only watch": "Watch Only", "naked": "Watch Only",
           "both tags": "Both Tags", "mint": "Mint",
           "used": "Used", "preowned": "Used", "pre owned": "Used", "second hand": "Used",
           "new": "New", "unused": "Unused Full Set",
@@ -190,6 +191,15 @@ export class WatchMessageParser {
         if (condMap[cleaned]) {
           debugLog(`🏷️ Emoji-decorated condition header: "${condMap[cleaned]}" (from "${line}")`);
           return { condition: condMap[cleaned] };
+        }
+        // "Used <brand>" / "New <brand>" headers like "Used Zenith", "New Patek":
+        // map first word to condition (use existing brand name as the brand).
+        const cb = cleaned.match(/^(used|unused|preowned|new|brand new)\s+(zenith|patek|rolex|ap|pp|vc|cartier|omega|hublot|tudor|piaget|vacheron|iwc|chopard|panerai|blancpain|jlc|jaeger|fpj|lange|alange|breitling|tag|tag heuer|grand seiko|gs|seiko)$/);
+        if (cb) {
+          const c = cb[1] === "new" || cb[1] === "brand new" ? "Brand New"
+                  : cb[1] === "unused" ? "Unused Full Set" : "Used";
+          debugLog(`🏷️ "Condition <brand>" header detected: "${c}" (from "${line}")`);
+          return { condition: c };
         }
       }
     }
@@ -544,7 +554,7 @@ export class WatchMessageParser {
 
   private isWatchMessage(message: string): boolean {
     // Hard indicators - brand names and watch models (including A.Lange&Sohne)
-    const hardPattern = /\b(RM|AP|PATEK|ROLEX|OMEGA|CARTIER|VACHERON|LANGE|A\.LANGE|NAUTILUS|ROYAL\s*OAK|F\.?P\.?J)\b/i;
+    const hardPattern = /\b(RM|AP|PATEK|ROLEX|OMEGA|CARTIER|VACHERON|LANGE|A\.LANGE|NAUTILUS|ROYAL\s*OAK|F\.?P\.?J|ZENITH|HUBLOT|BREITLING|PIAGET|IWC|TUDOR|JLC|BLANCPAIN|CHOPARD|TAG\s*HEUER)\b/i;
     
     // Enhanced PID pattern - handles 126505, 126506, 228238, 336938, 5159R, 4948R, 5270/1R, 5905P, 5905R, A.Lange&Sohne (363.608, 139.021), Q3523490, G0A45004
     const pidPattern = /\b\d{6,8}\b|\b\d{4}[A-Z]+\b|\b\d{4}[A-Z]?[-/]\d{1,3}[A-Z]?\b|\b\d{5}[A-Z]+\b|\b\d{3}\.\d{3}\b|\b[A-Z]\d{6,8}\b|\b[A-Z]\d[A-Z]\d{4,5}\b|\bQ\d{7}\b/i;
@@ -793,6 +803,10 @@ export class WatchMessageParser {
       // Hublot dotted reference: 541.NX.5170.VR, 431.NM.1337.RX, with optional
       // trailing edition codes (.UCL25, .UEL23, .OO.1180.RX ...)
       /\b(\d{3}\.[A-Z]{2}\.\d{3,4}\.[A-Z]{2}(?:\.[A-Z0-9]{2,7})*)\b/i,
+      // Zenith reference: NN.NNNN.NNN[N][/NN.[A-Z]{0-2}NNN[N]] — e.g.
+      // 03.9300.3620/78.I001, 10.9000.670/80.R795, 03.A3642.670/75.M3642,
+      // 96.2437.693 (short form), 03.9200.670/01.MI001.
+      /\b(\d{2}\.[A-Z]?\d{3,4}\.[A-Z]?\d{3,4}(?:\/\d{2}\.[A-Z]{0,2}\d{3,4})?)\b/i,
 
       // Medium specificity patterns
       /\b([A-Z0-9]{4,}-[A-Z0-9]{3,}-[A-Z0-9]{3,})\b/i,    // Complex formats
@@ -977,13 +991,17 @@ export class WatchMessageParser {
 
   private extractCondition(text: string): string | undefined {
     const lowerText = text.toLowerCase();
-    
+
     // Combined conditions FIRST (most specific before general)
     if (/(?:brand\s*)?new\s+full\s*set/.test(lowerText)) return 'New Full Set';
     if (/100%\s*new/.test(lowerText)) return 'Brand New';
     if (/brand\s*new\s*in\s*box|bnib/.test(lowerText)) return 'Brand New';
     if (/like\s*new\s*in\s*box|lnib/.test(lowerText)) return 'Like New';
     if (/brand\s*new/.test(lowerText)) return 'Brand New';
+    // Line that STARTS with "NEW" (possibly after leading emoji/punct) — a
+    // common dealer convention prefixing the PID, e.g. "🍀NEW 03.9300.3620…".
+    if (/^[^a-z0-9]*new\b/i.test(text.trim())) return 'Brand New';
+    if (/\bnaked\b/i.test(text)) return 'Watch Only';   // dealer slang for no-box/no-papers
     if (/\b(unworn|unused)\b/.test(lowerText)) return 'Unworn';
     if (/like\s*new/.test(lowerText)) return 'Like New';
     if (/both\s*tags?/.test(lowerText)) return 'Both Tags';
