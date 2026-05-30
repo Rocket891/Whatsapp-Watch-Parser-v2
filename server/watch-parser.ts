@@ -828,7 +828,7 @@ export class WatchMessageParser {
           const off = (match.index ?? 0);
           const after = text.slice(off + match[0].length, off + match[0].length + 6);
           const before = text.slice(Math.max(0, off - 2), off);
-          if (/^\s*(hkd|usdt|usd|eur|chf|gbp|aed|rmb|u)\b/i.test(after) ||
+          if (/^\s*(hkd|usdt|usd|eur|chf|gbp|aed|rmb|u|[km])\b/i.test(after) ||
               /^\s*\$/.test(after) ||
               /(?:hk\$|\$)\s*$/i.test(before)) {
             debugLog(`🚫 Skipping currency-adjacent number as PID: ${candidate}`);
@@ -1074,7 +1074,20 @@ export class WatchMessageParser {
         const numStr = /^\d{1,3},\d{1,3}$/.test(numRaw) ? numRaw.replace(",", ".") : numRaw.replace(/,/g, "");
         const f = parseFloat(numStr);
         if (isNaN(f)) continue;
-        amount = Math.round(f * (km.toLowerCase() === "k" ? 1000 : 1000000));
+        const kmMul = km.toLowerCase() === "k" ? 1000 : 1000000;
+        amount = Math.round(f * kmMul);
+        // YEAR-GLUED-TO-K/M: one sender writes "<PID> <year><price>k" with no
+        // separator — "2022105k" = 2022 + 105k = 105,000, "201926k" = 2019 +
+        // 26k = 26,000. Peel a 19xx/20xx prefix when the remainder is a
+        // plausible k/m price. (Without comma/decimal in numRaw.)
+        const digitsOnly = numStr.replace(/[^0-9]/g, "");
+        if (!numStr.includes(".") && /^(19|20)\d{2}\d{1,5}$/.test(digitsOnly)) {
+          const rest = parseInt(digitsOnly.slice(4), 10);
+          const restAmt = rest * kmMul;
+          if (isFinite(restAmt) && restAmt >= 1000 && restAmt <= 300000000) {
+            amount = restAmt;
+          }
+        }
       } else if (/^\d{1,3}\.\d{3}$/.test(numRaw)) {
         // European thousands: "900.000" -> 900000
         amount = parseInt(numRaw.replace(/\./g, ""), 10);
