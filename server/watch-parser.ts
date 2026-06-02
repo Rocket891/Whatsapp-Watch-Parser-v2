@@ -1037,6 +1037,11 @@ export class WatchMessageParser {
     work = work.replace(/[，、]/g, ",").replace(/[：]/g, ":").replace(/​/g, "");
     // Collapse split decimals like "113. 5k" -> "113.5k".
     work = work.replace(/(\d+)\.\s+(\d+)\s*([kmKM])/g, "$1.$2$3");
+    // PRICE-SEPARATOR COMMA: "N10/2025,3.45m hkd" — a comma between a number
+    // and a small-decimal value (1-2 digits before the dot) is NEVER a US
+    // thousands separator (which is always ",000"). Insert a space so the
+    // number scanner doesn't merge "2025,3.45" into "2025.45" → 2 billion.
+    work = work.replace(/(\d),(?=\d{1,2}\.\d)/g, "$1 ");
 
     // Currency lookaround helpers (also used for currency-aware PID removal).
     // Lead currency must be at window-start or preceded by a NON-digit, so a
