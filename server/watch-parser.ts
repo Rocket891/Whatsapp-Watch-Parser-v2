@@ -788,6 +788,9 @@ export class WatchMessageParser {
       
       // PRIORITY: Fix 7118/1200r format - needs to capture full PID
       /\b(\d{4}\/\d{3,4}[A-Z]*)\b/i,                       // 7118/1200R, 5267/200A format (priority fix)
+      // Broader Patek-slash: 1-4 digits + 1-3 letters + optional "-NNN" — covers
+      // 5980/1AR-001, 5235/50R-001, 5235/50R that the more-specific patterns miss.
+      /\b(\d{4}\/\d{1,4}[A-Z]{1,3}(?:-\d{3})?)\b/i,
       
       // PRIORITY: Fix G0A45004 format - letter + digit + letter + 4-5 digits
       /\b([A-Z]\d[A-Z]\d{4,5})\b/i,                        // G0A45004 format (priority fix)
@@ -867,10 +870,13 @@ export class WatchMessageParser {
         if (/^\d{4,8}$/.test(candidate)) {
           const off = (match.index ?? 0);
           const after = text.slice(off + match[0].length, off + match[0].length + 6);
-          const before = text.slice(Math.max(0, off - 2), off);
+          const before = text.slice(Math.max(0, off - 6), off);
           if (/^\s*(hkd|usdt|usd|eur|chf|gbp|aed|rmb|u|[km])\b/i.test(after) ||
               /^\s*\$/.test(after) ||
-              /(?:hk\$|\$)\s*$/i.test(before)) {
+              /(?:hk\$|\$)\s*$/i.test(before) ||
+              // Word currency immediately before the number ("HKD:1200000",
+              // "HKD 130450", "USDT: 500000") — the number is a price, not PID.
+              /(?:hkd|usdt|usd|eur|chf|gbp|aed|rmb)\s*:?\s*$/i.test(before)) {
             debugLog(`🚫 Skipping currency-adjacent number as PID: ${candidate}`);
             continue;
           }
@@ -1114,6 +1120,17 @@ export class WatchMessageParser {
       const explicit = !!currency || hasDollar;
       const fromLead = !!(normCur(lead) || hasDollar);
       if (!currency) currency = "HKD";
+      // PARENTHETICAL CURRENCY OVERRIDE: "$2.55M（usdt）" — the $ defaults
+      // currency to HKD, but a parenthesised "(usdt)" / "(usd)" right after
+      // the amount tells us the real currency. Handle ASCII + full-width parens.
+      {
+        const parTail = lower.slice(end, end + 16);
+        const pm = parTail.match(/[(（]\s*(usdt|usd|eur|chf|gbp)\s*[)）]/i);
+        if (pm) {
+          const c = pm[1].toLowerCase();
+          currency = c === "usdt" ? "USDT" : c === "usd" ? "USD" : c.toUpperCase();
+        }
+      }
 
       const cleanedComma = numRaw.replace(/,/g, "");
       let amount: number;
