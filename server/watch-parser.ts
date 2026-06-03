@@ -496,8 +496,12 @@ export class WatchMessageParser {
       const nextLine = expandedLines[j + 1]?.text;
       const nextNextLine = expandedLines[j + 2]?.text;
 
-      // If current line has PID but no price, try combining with next 1-2 lines
-      if (this.extractPID(line) && !this.extractPrice(line) && nextLine) {
+      // If current line has PID but no price, try combining with next 1-2 lines.
+      // CRITICAL: pass the PID to extractPrice so the PID's own digits aren't
+      // mis-read as a "price" — e.g. "7930V/210T-H075 N5/2026" would otherwise
+      // give 7930 (from the PID) as a fake price and the combine never fires.
+      const linePid = this.extractPID(line);
+      if (linePid && !this.extractPrice(line, linePid) && nextLine) {
         const nextLinePid = this.extractPID(nextLine);
 
         // Only combine if next line doesn't have its own PID, or it's a price-only line
@@ -508,7 +512,7 @@ export class WatchMessageParser {
           j++; // Skip the next line
 
           // Check if still no price, try adding third line (3-line format: PID / year+condition / price)
-          if (!this.extractPrice(combinedLine) && nextNextLine) {
+          if (!this.extractPrice(combinedLine, linePid) && nextNextLine) {
             const nextNextPid = this.extractPID(nextNextLine);
             const nextNextHasPrice = this.extractPrice(nextNextLine);
             // Combine if: no PID in next line, OR it has a price (e.g., "HKD 480000"), OR it's just a number+currency
