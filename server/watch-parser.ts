@@ -867,7 +867,10 @@ export class WatchMessageParser {
         // Skip a PURELY-NUMERIC token that is actually a price — i.e. it sits
         // immediately next to a currency marker ("455000$", "1430000 hkd",
         // "421000u"). Real model refs with letters (26730BA) are unaffected.
-        if (/^\d{4,8}$/.test(candidate)) {
+        // Skip purely-numeric ("1200000") OR euro-decimal ("101.000") candidates
+        // when they're a price, not a model ref — i.e. immediately adjacent to a
+        // currency marker. Real PIDs with letters (26730BA, RM07-01) unaffected.
+        if (/^\d{4,8}$/.test(candidate) || /^\d{3}\.\d{3}$/.test(candidate)) {
           const off = (match.index ?? 0);
           const after = text.slice(off + match[0].length, off + match[0].length + 6);
           const before = text.slice(Math.max(0, off - 6), off);
