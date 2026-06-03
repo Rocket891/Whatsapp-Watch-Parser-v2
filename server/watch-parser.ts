@@ -806,6 +806,9 @@ export class WatchMessageParser {
       // Hublot dotted reference: 541.NX.5170.VR, 431.NM.1337.RX, with optional
       // trailing edition codes (.UCL25, .UEL23, .OO.1180.RX ...)
       /\b(\d{3}\.[A-Z]{2}\.\d{3,4}\.[A-Z]{2}(?:\.[A-Z0-9]{2,7})*)\b/i,
+      // Breitling reference: AB0147101C1A1, RB0134101L1S1 (2 letters + 7 digits
+      // + letter + digit + letter + digit pattern)
+      /\b([A-Z]{2}\d{7}[A-Z]\d[A-Z]\d)\b/i,
       // Zenith reference: NN.NNNN.NNN[N][/NN.[A-Z]{0-2}NNN[N]] — e.g.
       // 03.9300.3620/78.I001, 10.9000.670/80.R795, 03.A3642.670/75.M3642,
       // 96.2437.693 (short form), 03.9200.670/01.MI001.
@@ -874,8 +877,12 @@ export class WatchMessageParser {
           const off = (match.index ?? 0);
           const after = text.slice(off + match[0].length, off + match[0].length + 6);
           const before = text.slice(Math.max(0, off - 6), off);
-          if (/^\s*(hkd|usdt|usd|eur|chf|gbp|aed|rmb|u|[km])\b/i.test(after) ||
-              /^\s*\$/.test(after) ||
+          // AFTER: require currency to be IMMEDIATELY adjacent (no whitespace
+          // gap). "124060 $100000" — the "$" starts the NEXT token, so 124060
+          // is the PID. Only "455000$" / "455000hkd" (glued) marks 455000
+          // as a price.
+          if (/^(hkd|usdt|usd|eur|chf|gbp|aed|rmb|u|[km])\b/i.test(after) ||
+              /^\$/.test(after) ||
               /(?:hk\$|\$)\s*$/i.test(before) ||
               // Word currency immediately before the number ("HKD:1200000",
               // "HKD 130450", "USDT: 500000") — the number is a price, not PID.
@@ -1164,6 +1171,9 @@ export class WatchMessageParser {
         // European thousands with an extra group: "1.830,000" -> 1830000,
         // "1.472.00" -> 147200. Strip all separators.
         amount = parseInt(numRaw.replace(/[.,]/g, ""), 10);
+      } else if (/^\d{1,3}\.\d{3}(?:\.\d{3})+$/.test(numRaw)) {
+        // European thousands 3+ groups: "1.617.000" -> 1617000, "320.000" -> 320000.
+        amount = parseInt(numRaw.replace(/\./g, ""), 10);
       } else {
         const f = parseFloat(cleanedComma);
         if (isNaN(f)) continue;
