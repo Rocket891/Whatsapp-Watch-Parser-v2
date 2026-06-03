@@ -884,9 +884,10 @@ export class WatchMessageParser {
           // AFTER: require currency to be IMMEDIATELY adjacent (no whitespace
           // gap). "124060 $100000" — the "$" starts the NEXT token, so 124060
           // is the PID. Only "455000$" / "455000hkd" (glued) marks 455000
-          // as a price.
+          // as a price. Also skip bare-price-with-discount form "113000-10%".
           if (/^(hkd|usdt|usd|eur|chf|gbp|aed|rmb|u|[km])\b/i.test(after) ||
               /^\$/.test(after) ||
+              /^-\d{1,2}%/.test(after) ||
               /(?:hk\$|\$)\s*$/i.test(before) ||
               // Word currency immediately before the number ("HKD:1200000",
               // "HKD 130450", "USDT: 500000") — the number is a price, not PID.
