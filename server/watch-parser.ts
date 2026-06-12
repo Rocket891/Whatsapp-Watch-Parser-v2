@@ -1109,7 +1109,12 @@ export class WatchMessageParser {
 
     // Scan NUMBERS only; detect currency via non-consuming lookaround windows
     // so a token like "hkd" is never "eaten" by an adjacent date/small number.
-    const re = /(\d[\d.,]*)\s*([km])?/gi;
+    // The [km] multiplier must be a REAL suffix, not the first letter of a trailing
+    // word — e.g. "HK$71,000  May-2026" must NOT become 71,000,000, and "Mint"/"Mar"
+    // dials/months starting with k/m must not hijack the price. Accept k/m only when
+    // followed by a non-letter, OR glued directly to a currency keyword ("358kusdt",
+    // "1.83MHKD" — 1228 such rows in 14d, so we can't just forbid a trailing letter).
+    const re = /(\d[\d.,]*)\s*([km](?![a-z])|[km](?=usdt|usd|hkd|eur|chf|gbp|rmb|aed))?/gi;
     let m: RegExpExecArray | null;
     while ((m = re.exec(lower)) !== null) {
       let numRaw = m[1];
