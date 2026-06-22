@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { Clock, BarChart3, Search, Database, AlertTriangle, Settings, Cog, Sheet, Smartphone, Brain, MessageSquare, Library, Bell, TestTube, ClipboardList, Package, Users, TrendingUp, FileText, User, Shield } from "lucide-react";
+import { Clock, BarChart3, Search, Database, AlertTriangle, Settings, Cog, Sheet, Smartphone, Brain, MessageSquare, Library, Bell, TestTube, ClipboardList, Package, Users, TrendingUp, FileText, User, Shield, Trophy, Layers } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "@/contexts/theme-context";
@@ -11,6 +11,8 @@ const navigation = [
   { name: "All Records", href: "/all-records", icon: Database },
   { name: "Requirements", href: "/requirements", icon: ClipboardList },
   { name: "Inventory", href: "/inventory", icon: Package },
+  { name: "Demand Tiers", href: "/demand-tiers", icon: Trophy },
+  { name: "My Tier Lists", href: "/custom-tiers", icon: Layers },
   { name: "Contacts", href: "/contacts", icon: Users },
   { name: "Reference Database", href: "/reference-database", icon: Library },
   { name: "PID Alerts", href: "/pid-alerts", icon: Bell },

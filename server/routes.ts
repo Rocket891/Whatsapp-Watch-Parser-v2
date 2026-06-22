@@ -16,6 +16,8 @@ import { registerSecureWhatsAppRoutes } from "./routes/whatsapp-secure";
 import { registerSecureWebhookRoutes } from "./routes/webhook-secure";
 import { registerPriceStatsRoutes } from "./routes/price-stats";
 import { registerDemandStatsRoutes } from "./routes/demand-stats";
+import { registerDemandTiersRoutes } from "./routes/demand-tiers";
+import { registerCustomTiersRoutes } from "./routes/custom-tiers";
 import { registerReferenceImportRoutes } from "./routes/reference-import";
 import { registerMessageLogBackfillRoutes } from "./routes/message-log-backfill";
 import { registerRawEventsRoutes } from "./routes/raw-events";
@@ -2920,6 +2922,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Register demand-stats endpoints (X-API-Key protected, read-only demand signal)
   registerDemandStatsRoutes(app);
+
+  // Register Demand Tiers endpoints (public CORS read + X-API-Key snapshot/upsert)
+  registerDemandTiersRoutes(app);
+
+  // Register Custom Tier Lists endpoints (JWT, user-scoped CRUD)
+  registerCustomTiersRoutes(app);
 
   // Register reference-database import endpoint (X-API-Key protected, upsert)
   registerReferenceImportRoutes(app);

@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, bigint, boolean, timestamp, varchar, decimal, jsonb, unique, uuid, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, bigint, boolean, timestamp, varchar, decimal, jsonb, unique, uuid, index, uniqueIndex, primaryKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 import { z } from "zod";
@@ -370,6 +370,47 @@ export const teamMembers = pgTable("team_members", {
   // Ensure unique workspace-member combinations
   workspaceMemberUnique: unique().on(table.workspaceOwnerId, table.memberUserId),
 }));
+
+// ------------------------------------------------------------------
+// Demand Tiers feature tables
+// ------------------------------------------------------------------
+
+// Manufacturer's recommended/retail price (MRP) per Rolex base reference.
+// Editable via /api/model-mrp/upsert; seeded on first snapshot run.
+export const modelMrp = pgTable("model_mrp", {
+  ref: text("ref").primaryKey(),
+  name: text("name"),
+  collection: text("collection"),
+  mrpUsd: integer("mrp_usd"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Per-quarter snapshot of the market price (USD) for each base reference.
+// watch_listings is pruned to ~30 days, so we snapshot the computed median
+// each quarter to preserve history. Composite PK on (period, ref).
+export const demandTierSnapshots = pgTable("demand_tier_snapshots", {
+  period: text("period").notNull(),
+  ref: text("ref").notNull(),
+  name: text("name"),
+  collection: text("collection"),
+  marketUsd: integer("market_usd"),
+  sampleSize: integer("sample_size"),
+  fxRates: jsonb("fx_rates"),
+  computedAt: timestamp("computed_at").defaultNow(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.period, table.ref] }),
+}));
+
+// User-authored custom tier lists (drag-and-drop tier rankings).
+// data is jsonb: { tiers: { "S+": ["126500", ...], ... }, pool: ["ref", ...] }
+export const customTierLists = pgTable("custom_tier_lists", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: uuid("user_id").references(() => users.id),
+  name: text("name").notNull(),
+  data: jsonb("data").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
 
 // Relations
 export const watchListingsRelations = relations(watchListings, ({ many }) => ({
