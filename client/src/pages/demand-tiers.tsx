@@ -12,9 +12,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { Activity, Info, TrendingUp } from "lucide-react";
 import { TierRow } from "@/components/tiers/TierRow";
 import { WatchCard } from "@/components/tiers/WatchCard";
+import { CustomBoard } from "@/components/tiers/CustomBoard";
 import {
   TIER_ORDER,
   type DemandTiersPublicResponse,
@@ -24,6 +31,8 @@ import {
 export default function DemandTiers() {
   // Empty string = "use whatever quarter the server returns by default".
   const [quarter, setQuarter] = useState<string>("");
+  // The "?" (no-MRP) bucket can be large; collapse it by default.
+  const [showAllUnrated, setShowAllUnrated] = useState(false);
 
   const queryKey = quarter
     ? `/api/demand-tiers/public?quarter=${encodeURIComponent(quarter)}`
@@ -72,6 +81,24 @@ export default function DemandTiers() {
           className="p-6 space-y-6"
           style={{ background: "var(--gradient-background)" }}
         >
+          <Tabs defaultValue="live" className="space-y-6">
+            <TabsList className="inline-flex h-11 items-center gap-1 rounded-full bg-muted/70 p-1 backdrop-blur">
+              <TabsTrigger
+                value="live"
+                className="rounded-full px-5 py-1.5 text-sm font-semibold data-[state=active]:bg-background data-[state=active]:shadow-sm"
+              >
+                Live Market
+              </TabsTrigger>
+              <TabsTrigger
+                value="custom"
+                className="rounded-full px-5 py-1.5 text-sm font-semibold data-[state=active]:bg-background data-[state=active]:shadow-sm"
+              >
+                My Lists
+              </TabsTrigger>
+            </TabsList>
+
+            {/* ---- Tab: Live Market ---- */}
+            <TabsContent value="live" className="mt-0 space-y-6">
           {/* Gradient header card */}
           <Card className="overflow-hidden rounded-2xl border-0 shadow-md">
             <div
@@ -210,16 +237,41 @@ export default function DemandTiers() {
                 );
               })}
 
-              {/* Unrated "?" row only when there are unrated models */}
+              {/* Unrated "?" — collapsed by default (can be hundreds) */}
               {unrated.length > 0 && (
-                <TierRow tier="?" count={unrated.length}>
-                  {unrated.map((m) => (
-                    <WatchCard key={m.ref} model={m} variant="full" />
-                  ))}
-                </TierRow>
+                <div className="space-y-2">
+                  <TierRow tier="?" count={unrated.length}>
+                    {(showAllUnrated ? unrated : unrated.slice(0, 18)).map((m) => (
+                      <WatchCard key={m.ref} model={m} variant="full" />
+                    ))}
+                  </TierRow>
+                  <div className="pl-1">
+                    {unrated.length > 18 && (
+                      <button
+                        onClick={() => setShowAllUnrated((s) => !s)}
+                        className="text-sm font-semibold text-primary hover:underline"
+                      >
+                        {showAllUnrated
+                          ? "Show fewer"
+                          : `Show all ${unrated.length} unrated models`}
+                      </button>
+                    )}
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      “?” means no official retail (MRP) is on file yet, so a premium
+                      can’t be computed. These are ranked once their MRP is added.
+                    </p>
+                  </div>
+                </div>
               )}
             </div>
           )}
+            </TabsContent>
+
+            {/* ---- Tab: My Lists ---- */}
+            <TabsContent value="custom" className="mt-0">
+              <CustomBoard />
+            </TabsContent>
+          </Tabs>
         </div>
       </main>
     </div>

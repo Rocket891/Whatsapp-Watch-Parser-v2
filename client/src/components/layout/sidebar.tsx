@@ -12,7 +12,6 @@ const navigation = [
   { name: "Requirements", href: "/requirements", icon: ClipboardList },
   { name: "Inventory", href: "/inventory", icon: Package },
   { name: "Demand Tiers", href: "/demand-tiers", icon: Trophy },
-  { name: "My Tier Lists", href: "/custom-tiers", icon: Layers },
   { name: "Contacts", href: "/contacts", icon: Users },
   { name: "Reference Database", href: "/reference-database", icon: Library },
   { name: "PID Alerts", href: "/pid-alerts", icon: Bell },

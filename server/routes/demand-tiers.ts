@@ -235,7 +235,7 @@ export function registerDemandTiersRoutes(app: Express) {
         ref_agg AS (
           SELECT
             base_ref,
-            (array_agg(name      ORDER BY length(pid)))[1]       AS name,
+            (array_agg(COALESCE(NULLIF(model,''), name) ORDER BY length(pid)))[1] AS name,
             (array_agg(collection ORDER BY length(pid)))[1]      AS collection,
             bool_or(has_image)                                   AS has_image
           FROM (
@@ -243,6 +243,7 @@ export function registerDemandTiersRoutes(app: Express) {
               substring(pid from '^[0-9]+') AS base_ref,
               pid,
               name,
+              model,
               collection,
               (img_b64 IS NOT NULL) AS has_image
             FROM reference_database
@@ -417,7 +418,7 @@ export function registerDemandTiersRoutes(app: Express) {
         rolex AS (
           SELECT
             substring(pid from '^[0-9]+') AS base_ref,
-            (array_agg(name      ORDER BY length(pid)))[1] AS name,
+            (array_agg(COALESCE(NULLIF(model,''), name) ORDER BY length(pid)))[1] AS name,
             (array_agg(collection ORDER BY length(pid)))[1] AS collection
           FROM reference_database
           WHERE brand ILIKE 'rolex'
