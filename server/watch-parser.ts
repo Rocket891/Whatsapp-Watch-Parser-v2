@@ -1166,13 +1166,25 @@ export class WatchMessageParser {
         // separator — "2022105k" = 2022 + 105k = 105,000, "201926k" = 2019 +
         // 26k = 26,000. Peel a 19xx/20xx prefix when the remainder is a
         // plausible k/m price. (Without comma/decimal in numRaw.)
-        const digitsOnly = numStr.replace(/[^0-9]/g, "");
-        if (!numStr.includes(".") && /^(19|20)\d{2}\d{1,5}$/.test(digitsOnly)) {
-          const rest = parseInt(digitsOnly.slice(4), 10);
-          const restAmt = rest * kmMul;
+        // YEAR-GLUED-TO-K/M: "2022105k" = 2022 + 105k (integer), and the decimal
+        // form "20194.08m" = 2019 + 4.08m. Only peel when the whole value is
+        // absurd (>300M cap); a leading 19xx/20xx is then a glued year.
+        if (/^(19|20)\d{2}/.test(numStr) && amount > 300000000) {
+          const restAmt = Math.round(parseFloat(numStr.slice(4)) * kmMul);
           if (isFinite(restAmt) && restAmt >= 1000 && restAmt <= 300000000) {
             amount = restAmt;
           }
+        }
+        // LOOSE-MULTIPLIER SANITY: some dealers overshoot the multiplier —
+        // "935m"/"407m"/"984m" meaning 935k/407k/984k, or "440000k" meaning
+        // 440000. If the multiplied amount blows past the watch cap (300M) but
+        // stepping the multiplier DOWN one notch (m→k, k→none) is plausible,
+        // use that. This only RECOVERS values that would otherwise be rejected
+        // as absurd (>300M → null); legit millions like "4.08m" (under the cap)
+        // are never touched, so there is no regression risk on valid prices.
+        if (amount > 300000000) {
+          const stepped = km.toLowerCase() === "m" ? Math.round(f * 1000) : Math.round(f);
+          if (stepped >= 1000 && stepped <= 300000000) amount = stepped;
         }
       } else if (/^\d{1,3}\.\d{3}$/.test(numRaw)) {
         // European thousands: "900.000" -> 900000
