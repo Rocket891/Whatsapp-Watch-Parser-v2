@@ -97,6 +97,15 @@ const RAW_EVENTS_RETENTION_DAYS = Math.max(
   0,
   parseInt(process.env.RAW_EVENTS_RETENTION_DAYS || "2", 10) || 2
 );
+// Parsed listings. THE big table (~200K rows/day) — without retention it grows
+// unbounded (reached 12.9M rows / 4.8 GB by Jul 2026 and degraded every query).
+// Deleted in small id-batches so no single statement can hit a timeout.
+const WATCH_LISTINGS_RETENTION_DAYS = Math.max(
+  0,
+  parseInt(process.env.WATCH_LISTINGS_RETENTION_DAYS || "30", 10) || 30
+);
+const LISTINGS_SWEEP_BATCH = 20000;   // rows per DELETE statement
+const LISTINGS_SWEEP_MAX_BATCHES = 5; // per sweep (sweep runs ~every 6h)
 let lastRetentionSweep = 0;
 
 async function retentionSweep(): Promise<void> {
@@ -133,6 +142,37 @@ async function retentionSweep(): Promise<void> {
       }
     } catch (e: any) {
       console.error("[retention] raw_webhook_events sweep failed:", e?.message || e);
+    }
+  }
+
+  // watch_listings cleanup (30-day window). Batched by id so each DELETE is
+  // small and fast — a single unbounded DELETE over millions of rows times out
+  // on Neon's HTTP driver and then NOTHING gets deleted (the failure mode that
+  // let the table grow to 12.9M rows). Up to BATCHES×BATCH rows per sweep;
+  // steady-state inflow is well under that, so it keeps up and self-recovers.
+  if (WATCH_LISTINGS_RETENTION_DAYS > 0) {
+    try {
+      let total = 0;
+      for (let i = 0; i < LISTINGS_SWEEP_MAX_BATCHES; i++) {
+        const r3 = await pool.query(
+          `DELETE FROM watch_listings
+            WHERE id IN (
+              SELECT id FROM watch_listings
+               WHERE created_at < NOW() - ($1::text || ' days')::interval
+               ORDER BY id
+               LIMIT $2
+            )`,
+          [WATCH_LISTINGS_RETENTION_DAYS, LISTINGS_SWEEP_BATCH]
+        );
+        const n = r3.rowCount || 0;
+        total += n;
+        if (n < LISTINGS_SWEEP_BATCH) break; // backlog cleared for this sweep
+      }
+      if (total > 0) {
+        console.log(`[retention] purged ${total} watch_listings older than ${WATCH_LISTINGS_RETENTION_DAYS} days`);
+      }
+    } catch (e: any) {
+      console.error("[retention] watch_listings sweep failed:", e?.message || e);
     }
   }
 }

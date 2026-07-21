@@ -1183,8 +1183,14 @@ export class WatchMessageParser {
         // as absurd (>300M → null); legit millions like "4.08m" (under the cap)
         // are never touched, so there is no regression risk on valid prices.
         if (amount > 300000000) {
-          const stepped = km.toLowerCase() === "m" ? Math.round(f * 1000) : Math.round(f);
-          if (stepped >= 1000 && stepped <= 300000000) amount = stepped;
+          // Cascade down: m→k→plain, k→plain. First plausible step wins.
+          // e.g. "935m"→935k, but "4375000m"→4,375,000 (the 'm' is pure junk).
+          const steps = km.toLowerCase() === "m"
+            ? [Math.round(f * 1000), Math.round(f)]
+            : [Math.round(f)];
+          for (const stepped of steps) {
+            if (stepped >= 1000 && stepped <= 300000000) { amount = stepped; break; }
+          }
         }
       } else if (/^\d{1,3}\.\d{3}$/.test(numRaw)) {
         // European thousands: "900.000" -> 900000
@@ -1196,6 +1202,12 @@ export class WatchMessageParser {
       } else if (/^\d{1,3}\.\d{3}(?:\.\d{3})+$/.test(numRaw)) {
         // European thousands 3+ groups: "1.617.000" -> 1617000, "320.000" -> 320000.
         amount = parseInt(numRaw.replace(/\./g, ""), 10);
+      } else if (/^\d{1,3}(?:,\d{3})+,\d{2}$/.test(numRaw)) {
+        // COMMA-CENTS: "$1,820,000,00" = 1,820,000.00 — comma-thousands with a
+        // trailing 2-digit cents group also comma-separated. Naively stripping
+        // commas would read 182,000,000 (×100 too big → rejected → null).
+        // Drop the cents group, strip the thousand-commas.
+        amount = parseInt(numRaw.replace(/,\d{2}$/, "").replace(/,/g, ""), 10);
       } else {
         const f = parseFloat(cleanedComma);
         if (isNaN(f)) continue;
