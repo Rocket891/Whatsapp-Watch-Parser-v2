@@ -356,7 +356,25 @@ export class WatchMessageParser {
 
   async parseMessage(message: string): Promise<ParsedWatchListing[]> {
     const listings: ParsedWatchListing[] = [];
-    
+
+    // UNICODE DASH NORMALIZATION: some dealers' lists use non-breaking hyphens
+    // (U+2011) or en/em dashes in refs ("RM07‑01", "PFC283‑1062500") which
+    // break every ref pattern. Fold all dash variants to ASCII '-'.
+    message = (message || "").replace(/[‐-―−]/g, "-");
+    // CSV TRAILING PRICE: comma-separated lists ("Wssa0083,7/2026,109000") end
+    // in a bare number with no currency marker — the anchor scan can't see it
+    // AND the bare number can hijack PID extraction. Prefix it with '$' so the
+    // whole existing pipeline (price anchor + currency-adjacent PID guard)
+    // handles it natively. Comma-thousands prices ("$2,210,000") are untouched
+    // because their final group is exactly 3 digits.
+    message = message.replace(/,\s*(\d{4,9})\s*$/gm, (_m, num) => `, $${num}`);
+    // TRUNCATED RM CONTINUATIONS: under a bare "RM" section header some lists
+    // drop the prefix on following lines ("07-04 green,...", "30-01 blue ntpt").
+    // Restore the prefix so they parse as Richard Mille refs.
+    if (/^\s*RM\s*$/m.test(message)) {
+      message = message.replace(/^(\d{2}-\d{2})(?=[ ,])/gm, "RM$1");
+    }
+
     // Quick gate check - is this likely a watch message?
     if (!this.isWatchMessage(message)) {
       return listings;
@@ -1246,6 +1264,20 @@ export class WatchMessageParser {
       candidates.push({ amount, currency, explicit, fromLead, km: !!km, pos: start });
     }
 
+    // CSV-TAIL PRICE: comma-separated dealer lists ("Wssa0083,7/2026,109000",
+    // "RM21-02 Cotton Candy,1/2026,1350000 USDT") carry a bare trailing number
+    // with no $/HKD/k marker, which the anchor scan can't see. If nothing else
+    // matched, take a trailing ",<digits>[ USDT]" as the price (HKD default).
+    if (candidates.length === 0) {
+      const csv = /,\s*(\d{4,9})\s*(usdt|usd|hkd)?\s*$/i.exec(lower.trim());
+      if (csv) {
+        const amt = parseInt(csv[1], 10);
+        if (isFinite(amt) && amt >= 1000 && amt <= 80000000) {
+          const cur = (csv[2] || "HKD").toUpperCase();
+          candidates.push({ amount: amt, currency: cur === "USD" ? "USD" : cur === "USDT" ? "USDT" : "HKD", explicit: !!csv[2], fromLead: false, km: false, pos: lower.length });
+        }
+      }
+    }
     if (candidates.length === 0) return null;
 
     // Rank: explicit > standalone; prefer HKD; currency-before-number wins;
